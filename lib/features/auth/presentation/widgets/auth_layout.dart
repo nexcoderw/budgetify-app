@@ -52,26 +52,35 @@ class _AuthHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final isCompact = width < 600;
+    final logoSize = isCompact ? 24.0 : 25.0;
+    final logoPadding = isCompact ? 6.0 : 7.0;
+    final titleSize = isCompact ? 24.0 : 26.0;
+
     return Row(
       children: [
         GlassPanel(
-          padding: const EdgeInsets.all(8),
-          blur: 18,
-          opacity: 0.1,
+          padding: EdgeInsets.all(logoPadding),
+          blur: 20,
+          opacity: 0.12,
           borderRadius: BorderRadius.circular(18),
           child: Image.asset(
             'assets/branding/logo_color.png',
-            width: 32,
-            height: 32,
+            width: logoSize,
+            height: logoSize,
             fit: BoxFit.contain,
           ),
         ),
         const SizedBox(width: 14),
-        Text(
-          'Budgetify',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontSize: 28,
-            color: AppColors.textPrimary,
+        Expanded(
+          child: Text(
+            'Budgetify',
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontSize: titleSize,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
       ],
