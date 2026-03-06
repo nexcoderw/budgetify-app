@@ -64,7 +64,7 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
       opacity: 0.10,
       padding: EdgeInsets.symmetric(
         horizontal: isCompact ? 6 : 8,
-        vertical: isCompact ? 5 : 7,
+        vertical: isCompact ? 9 : 11,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -114,7 +114,7 @@ class _NavItem extends StatelessWidget {
         curve: Curves.easeOutCubic,
         padding: EdgeInsets.symmetric(
           horizontal: isSelected ? 16 : 13,
-          vertical: 10,
+          vertical: 13,
         ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(26),
