@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../../core/config/app_env.dart';
@@ -65,6 +66,18 @@ class GoogleIdentityService {
             message: error.description ?? 'Unable to continue with Google.',
           );
       }
+    } on PlatformException catch (error) {
+      final message = error.message ?? error.code;
+
+      if (message.contains('No active configuration') ||
+          message.contains('GIDClientID')) {
+        throw const GoogleIdentityException(
+          message:
+              'Google sign-in is not configured correctly for iOS. Add GIDClientID and GIDServerClientID in Info.plist and rebuild the app.',
+        );
+      }
+
+      throw GoogleIdentityException(message: message);
     }
   }
 
