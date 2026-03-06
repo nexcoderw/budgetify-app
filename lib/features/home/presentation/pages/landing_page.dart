@@ -77,7 +77,11 @@ class _LandingPageState extends State<LandingPage> {
           icon: HugeIcons.strokeRoundedWallet02,
         );
       case AppLayoutSection.profile:
-        return _ProfileSection(user: widget.user);
+        return _ProfileSection(
+          user: widget.user,
+          isLoggingOut: _isLoggingOut,
+          onLogout: _isLoggingOut ? null : _logout,
+        );
     }
   }
 
@@ -425,9 +429,15 @@ class _FeatureSection extends StatelessWidget {
 }
 
 class _ProfileSection extends StatelessWidget {
-  const _ProfileSection({required this.user});
+  const _ProfileSection({
+    required this.user,
+    required this.isLoggingOut,
+    required this.onLogout,
+  });
 
   final AuthUser user;
+  final bool isLoggingOut;
+  final VoidCallback? onLogout;
 
   @override
   Widget build(BuildContext context) {
@@ -520,6 +530,30 @@ class _ProfileSection extends StatelessWidget {
                 value: user.lastLoginAt == null ? 'Unavailable' : 'Recorded',
               ),
             ],
+          ),
+          const SizedBox(height: 24),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(
+              height: 46,
+              child: OutlinedButton(
+                onPressed: onLogout,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+                  backgroundColor: Colors.white.withValues(alpha: 0.04),
+                  shape: const StadiumBorder(),
+                ),
+                child: Text(
+                  isLoggingOut ? 'Signing out...' : 'Logout',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
