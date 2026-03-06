@@ -11,6 +11,7 @@ class AuthLoadingButton extends StatefulWidget {
     required this.loadingLabel,
     required this.isLoading,
     required this.onPressed,
+    this.leading,
     this.fontSize = 15,
   });
 
@@ -18,6 +19,7 @@ class AuthLoadingButton extends StatefulWidget {
   final String loadingLabel;
   final bool isLoading;
   final VoidCallback? onPressed;
+  final Widget? leading;
   final double fontSize;
 
   @override
@@ -72,10 +74,20 @@ class _AuthLoadingButtonState extends State<AuthLoadingButton>
                     ),
                   ],
                 )
-              : Text(
-                  widget.label,
+              : Row(
                   key: const ValueKey('idle'),
-                  style: TextStyle(fontSize: widget.fontSize),
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (widget.leading != null) ...[
+                      widget.leading!,
+                      const SizedBox(width: 12),
+                    ],
+                    Text(
+                      widget.label,
+                      style: TextStyle(fontSize: widget.fontSize),
+                    ),
+                  ],
                 ),
         ),
       ),
