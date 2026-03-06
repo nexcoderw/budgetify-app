@@ -6,6 +6,10 @@ import 'package:budgetify/features/auth/data/models/auth_session.dart';
 import 'package:budgetify/features/auth/data/models/auth_user.dart';
 
 class _FakeAuthService implements AuthServiceContract {
+  _FakeAuthService({this.restoredUser});
+
+  final AuthUser? restoredUser;
+
   @override
   Future<void> clearSession() async {}
 
@@ -18,7 +22,7 @@ class _FakeAuthService implements AuthServiceContract {
   }
 
   @override
-  Future<AuthUser?> restoreAuthenticatedUser() async => null;
+  Future<AuthUser?> restoreAuthenticatedUser() async => restoredUser;
 
   @override
   Future<AuthSession> signInWithGoogle() {
@@ -34,5 +38,33 @@ void main() {
     expect(find.text('Budgetify'), findsOneWidget);
     expect(find.text('Continue with Google'), findsOneWidget);
     expect(find.text('Terms & Conditions'), findsOneWidget);
+  });
+
+  testWidgets('redirects authenticated users to the landing page', (
+    WidgetTester tester,
+  ) async {
+    final restoredUser = AuthUser(
+      id: 'user-1',
+      email: 'jane@example.com',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      fullName: 'Jane Doe',
+      avatarUrl: null,
+      isEmailVerified: true,
+      status: 'ACTIVE',
+      lastLoginAt: DateTime.utc(2026, 3, 6),
+      createdAt: DateTime.utc(2026, 3, 6),
+      updatedAt: DateTime.utc(2026, 3, 6),
+    );
+
+    await tester.pumpWidget(
+      BudgetifyApp(authService: _FakeAuthService(restoredUser: restoredUser)),
+    );
+    await tester.pump(const Duration(milliseconds: 1000));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hi, Jane Doe.'), findsOneWidget);
+    expect(find.text('Session active'), findsOneWidget);
+    expect(find.text('Logout'), findsOneWidget);
   });
 }
