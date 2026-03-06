@@ -17,16 +17,19 @@ class AuthFooterLinks extends StatelessWidget {
         _FooterLink(
           label: 'Terms & Conditions',
           onTap: () => _showPlaceholder(context, 'Terms & Conditions'),
+          style: TextStyle(fontSize: 12, color: AppColors.textPrimary),
         ),
-        const Text('•', style: TextStyle(color: AppColors.textSecondary)),
+        const Text('•', style: TextStyle(color: AppColors.textPrimary)),
         _FooterLink(
           label: 'Privacy Policy',
           onTap: () => _showPlaceholder(context, 'Privacy Policy'),
+          style: TextStyle(fontSize: 12, color: AppColors.textPrimary),
         ),
-        const Text('•', style: TextStyle(color: AppColors.textSecondary)),
+        const Text('•', style: TextStyle(color: AppColors.textPrimary)),
         _FooterLink(
           label: 'Contact Us',
           onTap: () => _showPlaceholder(context, 'Contact Us'),
+          style: TextStyle(fontSize: 12, color: AppColors.textPrimary),
         ),
       ],
     );
@@ -43,13 +46,21 @@ class AuthFooterLinks extends StatelessWidget {
 }
 
 class _FooterLink extends StatelessWidget {
-  const _FooterLink({required this.label, required this.onTap});
+  const _FooterLink({
+    required this.label,
+    required this.onTap,
+    required this.style,
+  });
 
   final String label;
   final VoidCallback onTap;
+  final TextStyle style;
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(onPressed: onTap, child: Text(label));
+    return TextButton(
+      onPressed: onTap,
+      child: Text(label, style: style),
+    );
   }
 }
