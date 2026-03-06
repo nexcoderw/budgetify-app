@@ -19,7 +19,7 @@ class AuthLayout extends StatelessWidget {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 1320),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 34),
                 child: Column(
                   children: [
                     const _AuthHeader(),
@@ -34,7 +34,7 @@ class AuthLayout extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 28),
                     const AuthFooterLinks(),
                   ],
                 ),
