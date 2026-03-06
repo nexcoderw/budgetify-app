@@ -8,8 +8,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1000));
 
     expect(find.text('Budgetify'), findsOneWidget);
-    expect(find.text('Welcome back'), findsOneWidget);
-    expect(find.text('Sign in'), findsOneWidget);
+    expect(find.text('Continue with google'), findsOneWidget);
     expect(find.text('Terms & Conditions'), findsOneWidget);
   });
 }
