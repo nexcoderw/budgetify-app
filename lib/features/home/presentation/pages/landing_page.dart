@@ -7,6 +7,7 @@ import '../../../../core/widgets/glass_panel.dart';
 import '../../../auth/application/auth_service_contract.dart';
 import '../../../auth/data/models/auth_user.dart';
 import '../../../auth/presentation/pages/login_page.dart';
+import '../widgets/app_layout.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key, required this.authService, required this.user});
@@ -20,195 +21,97 @@ class LandingPage extends StatefulWidget {
 
 class _LandingPageState extends State<LandingPage> {
   bool _isLoggingOut = false;
+  AppLayoutSection _currentSection = AppLayoutSection.dashboard;
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final isCompact = size.width < 680;
-    final userName = widget.user.fullName ?? widget.user.firstName ?? 'there';
-
-    return Scaffold(
-      body: DecoratedBox(
-        decoration: const _LandingBackgroundDecoration(),
-        child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1240),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-                child: Column(
-                  children: [
-                    _LandingHeader(
-                      user: widget.user,
-                      isLoggingOut: _isLoggingOut,
-                      onLogout: _isLoggingOut ? null : _logout,
-                    ),
-                    const SizedBox(height: 28),
-                    Expanded(
-                      child: Center(
-                        child: SingleChildScrollView(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 900),
-                            child: GlassPanel(
-                              padding: EdgeInsets.all(isCompact ? 24 : 32),
-                              borderRadius: BorderRadius.circular(36),
-                              blur: 28,
-                              opacity: 0.14,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  GlassBadge(
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: const [
-                                        HugeIcon(
-                                          icon: HugeIcons.strokeRoundedSparkles,
-                                          size: 16,
-                                          color: AppColors.primary,
-                                          strokeWidth: 1.8,
-                                        ),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          'Welcome back',
-                                          style: TextStyle(fontSize: 12),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 22),
-                                  Text(
-                                    'Hi, $userName.',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineMedium
-                                        ?.copyWith(
-                                          fontSize: isCompact ? 28 : 34,
-                                          color: AppColors.textPrimary,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    'Your Budgetify workspace is ready. You are signed in securely with Google and connected to the API.',
-                                    style: Theme.of(context).textTheme.bodyLarge
-                                        ?.copyWith(
-                                          fontSize: 13,
-                                          height: 1.6,
-                                          color: AppColors.textSecondary,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 24),
-                                  Wrap(
-                                    spacing: 12,
-                                    runSpacing: 12,
-                                    children: [
-                                      _LandingSignal(
-                                        icon: HugeIcons
-                                            .strokeRoundedCheckmarkBadge02,
-                                        label: 'Session active',
-                                        value: 'Authenticated',
-                                      ),
-                                      _LandingSignal(
-                                        icon: HugeIcons.strokeRoundedMail01,
-                                        label: 'Primary email',
-                                        value: widget.user.email,
-                                      ),
-                                      _LandingSignal(
-                                        icon: HugeIcons.strokeRoundedShield01,
-                                        label: 'Verification',
-                                        value: widget.user.isEmailVerified
-                                            ? 'Verified'
-                                            : 'Pending',
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 24),
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.all(18),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(24),
-                                      color: Colors.white.withValues(
-                                        alpha: 0.04,
-                                      ),
-                                      border: Border.all(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.1,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 44,
-                                          height: 44,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: AppColors.primary.withValues(
-                                              alpha: 0.14,
-                                            ),
-                                          ),
-                                          child: const Center(
-                                            child: HugeIcon(
-                                              icon: HugeIcons
-                                                  .strokeRoundedWalletAdd01,
-                                              size: 20,
-                                              color: AppColors.primary,
-                                              strokeWidth: 1.8,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 14),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'Next step',
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .labelLarge
-                                                    ?.copyWith(
-                                                      fontSize: 12,
-                                                      color:
-                                                          AppColors.textPrimary,
-                                                    ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'Start shaping the dashboard, budget accounts, and transaction flows from this signed-in state.',
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .bodyMedium
-                                                    ?.copyWith(
-                                                      fontSize: 12,
-                                                      height: 1.5,
-                                                      color: AppColors
-                                                          .textSecondary,
-                                                    ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+    return AppLayout(
+      user: widget.user,
+      currentSection: _currentSection,
+      isLoggingOut: _isLoggingOut,
+      onLogout: _isLoggingOut ? null : _logout,
+      onSectionSelected: _selectSection,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 260),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        child: KeyedSubtree(
+          key: ValueKey<AppLayoutSection>(_currentSection),
+          child: _sectionContent(context),
         ),
       ),
     );
+  }
+
+  Widget _sectionContent(BuildContext context) {
+    switch (_currentSection) {
+      case AppLayoutSection.dashboard:
+        return _DashboardSection(user: widget.user);
+      case AppLayoutSection.income:
+        return const _FeatureSection(
+          title: 'Income',
+          description:
+              'Track salaries, side income, and recurring inflows in one calm workspace.',
+          summaryLabel: 'Upcoming focus',
+          summaryValue: 'Build recurring income streams and cashflow reports.',
+          icon: HugeIcons.strokeRoundedMoneyReceiveCircle,
+        );
+      case AppLayoutSection.saving:
+        return const _FeatureSection(
+          title: 'Saving',
+          description:
+              'Organize savings goals and monitor progress toward short and long-term plans.',
+          summaryLabel: 'Upcoming focus',
+          summaryValue:
+              'Add goal buckets, target dates, and progress insights.',
+          icon: HugeIcons.strokeRoundedPiggyBank,
+        );
+      case AppLayoutSection.expense:
+        return const _FeatureSection(
+          title: 'Expense',
+          description:
+              'Understand where your money goes with clean categorization and spending visibility.',
+          summaryLabel: 'Upcoming focus',
+          summaryValue:
+              'Add expense tracking, categories, and trend comparisons.',
+          icon: HugeIcons.strokeRoundedWallet02,
+        );
+      case AppLayoutSection.profile:
+        return _ProfileSection(user: widget.user);
+    }
+  }
+
+  void _selectSection(AppLayoutSection section) {
+    if (_currentSection == section) {
+      return;
+    }
+
+    setState(() {
+      _currentSection = section;
+    });
+
+    if (section != AppLayoutSection.dashboard) {
+      AppToast.info(
+        context,
+        title: '${_labelFor(section)} selected',
+        description: 'This section is ready for the next product iteration.',
+      );
+    }
+  }
+
+  String _labelFor(AppLayoutSection section) {
+    switch (section) {
+      case AppLayoutSection.dashboard:
+        return 'Dashboard';
+      case AppLayoutSection.income:
+        return 'Income';
+      case AppLayoutSection.saving:
+        return 'Saving';
+      case AppLayoutSection.expense:
+        return 'Expense';
+      case AppLayoutSection.profile:
+        return 'Profile';
+    }
   }
 
   Future<void> _logout() async {
@@ -243,7 +146,7 @@ class _LandingPageState extends State<LandingPage> {
       AppToast.error(
         context,
         title: 'Unable to sign out',
-        description: error.toString(),
+        description: _readableError(error),
       );
     } finally {
       if (mounted) {
@@ -253,115 +156,379 @@ class _LandingPageState extends State<LandingPage> {
       }
     }
   }
+
+  String _readableError(Object error) {
+    final message = error.toString().trim();
+    if (message.startsWith('Exception: ')) {
+      return message.replaceFirst('Exception: ', '');
+    }
+
+    if (message.startsWith('StateError: ')) {
+      return message.replaceFirst('StateError: ', '');
+    }
+
+    return message;
+  }
 }
 
-class _LandingHeader extends StatelessWidget {
-  const _LandingHeader({
-    required this.user,
-    required this.isLoggingOut,
-    required this.onLogout,
-  });
+class _DashboardSection extends StatelessWidget {
+  const _DashboardSection({required this.user});
 
   final AuthUser user;
-  final bool isLoggingOut;
-  final VoidCallback? onLogout;
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 720;
+    final width = MediaQuery.sizeOf(context).width;
+    final isCompact = width < 760;
+    final userName = user.fullName ?? user.firstName ?? 'there';
 
-        final brand = Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            GlassPanel(
-              padding: const EdgeInsets.all(8),
-              blur: 20,
-              opacity: 0.12,
-              borderRadius: BorderRadius.circular(20),
-              child: Image.asset(
-                'assets/branding/logo_color.png',
-                width: 26,
-                height: 26,
-                fit: BoxFit.contain,
-              ),
+    return GlassPanel(
+      padding: EdgeInsets.all(isCompact ? 22 : 32),
+      borderRadius: BorderRadius.circular(36),
+      blur: 28,
+      opacity: 0.14,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GlassBadge(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                HugeIcon(
+                  icon: HugeIcons.strokeRoundedSparkles,
+                  size: 16,
+                  color: AppColors.primary,
+                  strokeWidth: 1.8,
+                ),
+                SizedBox(width: 8),
+                Text('Welcome back', style: TextStyle(fontSize: 12)),
+              ],
             ),
-            const SizedBox(width: 14),
-            Text(
-              'Budgetify',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontSize: 26,
-                color: AppColors.textPrimary,
-              ),
+          ),
+          const SizedBox(height: 22),
+          Text(
+            'Hi, $userName.',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              fontSize: isCompact ? 28 : 34,
+              color: AppColors.textPrimary,
             ),
-          ],
-        );
-
-        final actions = Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            GlassBadge(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircleAvatar(
-                    radius: 12,
-                    backgroundColor: Colors.white.withValues(alpha: 0.08),
-                    backgroundImage: user.avatarUrl == null
-                        ? null
-                        : NetworkImage(user.avatarUrl!),
-                    child: user.avatarUrl == null
-                        ? const HugeIcon(
-                            icon: HugeIcons.strokeRoundedUserCircle,
-                            size: 14,
-                            color: AppColors.textPrimary,
-                            strokeWidth: 1.7,
-                          )
-                        : null,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Your Budgetify workspace is ready. You are signed in securely with Google and connected to the API.',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              fontSize: 13,
+              height: 1.6,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _DashboardSignal(
+                icon: HugeIcons.strokeRoundedCheckmarkBadge02,
+                label: 'Session active',
+                value: 'Authenticated',
+              ),
+              _DashboardSignal(
+                icon: HugeIcons.strokeRoundedMail01,
+                label: 'Primary email',
+                value: user.email,
+              ),
+              _DashboardSignal(
+                icon: HugeIcons.strokeRoundedShield01,
+                label: 'Verification',
+                value: user.isEmailVerified ? 'Verified' : 'Pending',
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              color: Colors.white.withValues(alpha: 0.04),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.primary.withValues(alpha: 0.14),
                   ),
-                  const SizedBox(width: 10),
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isCompact ? 180 : 260,
-                    ),
-                    child: Text(
-                      user.fullName ?? user.email,
-                      style: const TextStyle(fontSize: 12),
-                      overflow: TextOverflow.ellipsis,
+                  child: const Center(
+                    child: HugeIcon(
+                      icon: HugeIcons.strokeRoundedWalletAdd01,
+                      size: 20,
+                      color: AppColors.primary,
+                      strokeWidth: 1.8,
                     ),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Next step',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontSize: 12,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Start shaping the dashboard, budget accounts, and transaction flows from this signed-in state.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontSize: 12,
+                          height: 1.5,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            TextButton(
-              onPressed: onLogout,
-              child: Text(
-                isLoggingOut ? 'Signing out...' : 'Logout',
-                style: const TextStyle(fontSize: 12),
-              ),
-            ),
-          ],
-        );
-
-        if (isCompact) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [brand, const SizedBox(height: 14), actions],
-          );
-        }
-
-        return Row(children: [brand, const Spacer(), actions]);
-      },
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _LandingSignal extends StatelessWidget {
-  const _LandingSignal({
+class _FeatureSection extends StatelessWidget {
+  const _FeatureSection({
+    required this.title,
+    required this.description,
+    required this.summaryLabel,
+    required this.summaryValue,
+    required this.icon,
+  });
+
+  final String title;
+  final String description;
+  final String summaryLabel;
+  final String summaryValue;
+  final dynamic icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCompact = MediaQuery.sizeOf(context).width < 760;
+
+    return GlassPanel(
+      padding: EdgeInsets.all(isCompact ? 22 : 30),
+      borderRadius: BorderRadius.circular(34),
+      blur: 28,
+      opacity: 0.14,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GlassBadge(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                HugeIcon(
+                  icon: icon,
+                  size: 16,
+                  color: AppColors.primary,
+                  strokeWidth: 1.8,
+                ),
+                const SizedBox(width: 8),
+                const Text('Workspace section', style: TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              fontSize: isCompact ? 26 : 32,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            description,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              fontSize: 13,
+              height: 1.6,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              color: Colors.white.withValues(alpha: 0.04),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.primary.withValues(alpha: 0.14),
+                  ),
+                  child: Center(
+                    child: HugeIcon(
+                      icon: icon,
+                      size: 20,
+                      color: AppColors.primary,
+                      strokeWidth: 1.8,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        summaryLabel,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontSize: 12,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        summaryValue,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontSize: 12,
+                          height: 1.5,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileSection extends StatelessWidget {
+  const _ProfileSection({required this.user});
+
+  final AuthUser user;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCompact = MediaQuery.sizeOf(context).width < 760;
+
+    return GlassPanel(
+      padding: EdgeInsets.all(isCompact ? 22 : 30),
+      borderRadius: BorderRadius.circular(34),
+      blur: 28,
+      opacity: 0.14,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GlassBadge(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                HugeIcon(
+                  icon: HugeIcons.strokeRoundedUserCircle,
+                  size: 16,
+                  color: AppColors.primary,
+                  strokeWidth: 1.8,
+                ),
+                SizedBox(width: 8),
+                Text('Account profile', style: TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: isCompact ? 26 : 30,
+                backgroundColor: Colors.white.withValues(alpha: 0.08),
+                backgroundImage: user.avatarUrl == null
+                    ? null
+                    : NetworkImage(user.avatarUrl!),
+                child: user.avatarUrl == null
+                    ? const HugeIcon(
+                        icon: HugeIcons.strokeRoundedUserCircle,
+                        size: 22,
+                        color: AppColors.textPrimary,
+                        strokeWidth: 1.8,
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user.fullName ?? 'Budgetify user',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontSize: isCompact ? 22 : 24,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      user.email,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _DashboardSignal(
+                icon: HugeIcons.strokeRoundedCheckmarkBadge02,
+                label: 'Account status',
+                value: user.status,
+              ),
+              _DashboardSignal(
+                icon: HugeIcons.strokeRoundedShield01,
+                label: 'Email verification',
+                value: user.isEmailVerified ? 'Verified' : 'Pending',
+              ),
+              _DashboardSignal(
+                icon: HugeIcons.strokeRoundedClock01,
+                label: 'Last activity',
+                value: user.lastLoginAt == null ? 'Unavailable' : 'Recorded',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardSignal extends StatelessWidget {
+  const _DashboardSignal({
     required this.icon,
     required this.label,
     required this.value,
@@ -427,45 +594,6 @@ class _LandingSignal extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _LandingBackgroundDecoration extends Decoration {
-  const _LandingBackgroundDecoration();
-
-  @override
-  BoxPainter createBoxPainter([VoidCallback? onChanged]) {
-    return _LandingBackgroundPainter();
-  }
-}
-
-class _LandingBackgroundPainter extends BoxPainter {
-  @override
-  void paint(Canvas canvas, Offset offset, ImageConfiguration configuration) {
-    final size = configuration.size;
-    if (size == null) {
-      return;
-    }
-
-    final rect = offset & size;
-    final paint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [AppColors.background, Color(0xFF10151C), Color(0xFF171E28)],
-      ).createShader(rect);
-    canvas.drawRect(rect, paint);
-
-    canvas.drawCircle(
-      Offset(offset.dx + size.width * 0.18, offset.dy + size.height * 0.2),
-      size.shortestSide * 0.18,
-      Paint()..color = AppColors.primary.withValues(alpha: 0.08),
-    );
-    canvas.drawCircle(
-      Offset(offset.dx + size.width * 0.82, offset.dy + size.height * 0.78),
-      size.shortestSide * 0.22,
-      Paint()..color = Colors.white.withValues(alpha: 0.05),
     );
   }
 }
