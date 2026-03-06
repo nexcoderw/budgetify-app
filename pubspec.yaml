@@ -1,5 +1,5 @@
 name: budgetify
-description: "A new Flutter project."
+description: "Budget management app to help users track their expenses and manage their finances effectively."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -38,6 +38,8 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  
+  toastification: ^3.0.3
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -51,6 +53,64 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  assets:
+    - .env
+    - assets/branding/
+    - assets/images/
+    - assets/icons/
+    - assets/icons/language/
+    - assets/fonts/dm_sans/
+
+  fonts:
+    - family: DMSans
+      fonts:
+        - asset: assets/fonts/dm_sans/DMSans-Thin.ttf
+          weight: 100
+        - asset: assets/fonts/dm_sans/DMSans-ExtraLight.ttf
+          weight: 200
+        - asset: assets/fonts/dm_sans/DMSans-Light.ttf
+          weight: 300
+        - asset: assets/fonts/dm_sans/DMSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/dm_sans/DMSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/dm_sans/DMSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/dm_sans/DMSans-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/dm_sans/DMSans-ExtraBold.ttf
+          weight: 800
+        - asset: assets/fonts/dm_sans/DMSans-Black.ttf
+          weight: 900
+
+        # Italics
+        - asset: assets/fonts/dm_sans/DMSans-ThinItalic.ttf
+          weight: 100
+          style: italic
+        - asset: assets/fonts/dm_sans/DMSans-ExtraLightItalic.ttf
+          weight: 200
+          style: italic
+        - asset: assets/fonts/dm_sans/DMSans-LightItalic.ttf
+          weight: 300
+          style: italic
+        - asset: assets/fonts/dm_sans/DMSans-Italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/fonts/dm_sans/DMSans-MediumItalic.ttf
+          weight: 500
+          style: italic
+        - asset: assets/fonts/dm_sans/DMSans-SemiBoldItalic.ttf
+          weight: 600
+          style: italic
+        - asset: assets/fonts/dm_sans/DMSans-BoldItalic.ttf
+          weight: 700
+          style: italic
+        - asset: assets/fonts/dm_sans/DMSans-ExtraBoldItalic.ttf
+          weight: 800
+          style: italic
+        - asset: assets/fonts/dm_sans/DMSans-BlackItalic.ttf
+          weight: 900
+          style: italic
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
