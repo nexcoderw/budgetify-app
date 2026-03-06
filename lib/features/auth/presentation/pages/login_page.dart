@@ -117,87 +117,99 @@ class _LoginForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return GlassPanel(
       key: const ValueKey('login-form'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const GlassBadge(child: Text('Member access')),
-        const SizedBox(height: 20),
-        Text(
-          'Welcome back',
-          style: Theme.of(
-            context,
-          ).textTheme.headlineMedium?.copyWith(color: AppColors.textPrimary),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'Sign in to continue into your budgeting workspace.',
-          style: Theme.of(context).textTheme.bodyLarge,
-        ),
-        const SizedBox(height: 28),
-        const _SectionLabel('Work email'),
-        const SizedBox(height: 10),
-        const _GlassTextField(
-          keyboardType: TextInputType.emailAddress,
-          hintText: 'name@company.com',
-          prefixIcon: Icon(Icons.mail_outline_rounded),
-        ),
-        const SizedBox(height: 20),
-        const _SectionLabel('Password'),
-        const SizedBox(height: 10),
-        _GlassTextField(
-          obscureText: obscurePassword,
-          hintText: 'Enter your password',
-          prefixIcon: const Icon(Icons.lock_outline_rounded),
-          suffixIcon: IconButton(
-            onPressed: onTogglePasswordVisibility,
-            icon: Icon(
-              obscurePassword
-                  ? Icons.visibility_off_rounded
-                  : Icons.visibility_rounded,
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const GlassBadge(
+            child: Text('Member access', style: TextStyle(fontSize: 12)),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Welcome back',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: AppColors.textPrimary,
+              fontSize: 14,
             ),
           ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: CheckboxListTile(
-                value: rememberMe,
-                onChanged: (value) => onRememberMeChanged(value ?? false),
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                checkboxShape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                title: const Text(
-                  'Keep me signed in',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 14,
+          const SizedBox(height: 10),
+          Text(
+            'Sign in to continue into your budgeting workspace.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(fontSize: 12),
+          ),
+          const SizedBox(height: 28),
+          const _SectionLabel('Work email'),
+          const SizedBox(height: 10),
+          const _GlassTextField(
+            keyboardType: TextInputType.emailAddress,
+            hintText: 'name@company.com',
+            prefixIcon: Icon(Icons.mail_outline_rounded),
+          ),
+          const SizedBox(height: 20),
+          const _SectionLabel('Password'),
+          const SizedBox(height: 10),
+          _GlassTextField(
+            obscureText: obscurePassword,
+            hintText: 'Enter your password',
+            prefixIcon: const Icon(Icons.lock_outline_rounded),
+            suffixIcon: IconButton(
+              onPressed: onTogglePasswordVisibility,
+              icon: Icon(
+                obscurePassword
+                    ? Icons.visibility_off_rounded
+                    : Icons.visibility_rounded,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: CheckboxListTile(
+                  value: rememberMe,
+                  onChanged: (value) => onRememberMeChanged(value ?? false),
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  checkboxShape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  title: const Text(
+                    'Keep me signed in',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ),
-            ),
-            TextButton(
-              onPressed: onForgotPassword,
-              child: const Text('Forgot password?'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        AuthLoadingButton(
-          label: 'Sign in',
-          loadingLabel: 'Signing in',
-          isLoading: isSubmitting,
-          onPressed: () {
-            unawaited(onSubmit());
-          },
-        ),
-        const SizedBox(height: 18),
-        const _TrustPanel(),
-      ],
+              TextButton(
+                onPressed: onForgotPassword,
+                style: TextButton.styleFrom(
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+                child: const Text('Forgot password?'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          AuthLoadingButton(
+            label: 'Sign in',
+            loadingLabel: 'Signing in',
+            isLoading: isSubmitting,
+            fontSize: 12,
+            onPressed: () {
+              unawaited(onSubmit());
+            },
+          ),
+          const SizedBox(height: 18),
+          const _TrustPanel(),
+        ],
+      ),
     );
   }
 }
@@ -294,7 +306,9 @@ class _TrustPanel extends StatelessWidget {
           Expanded(
             child: Text(
               'Protected workspace. The authentication surface is ready for backend wiring and polished loading states.',
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontSize: 12),
             ),
           ),
         ],
@@ -312,9 +326,10 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: Theme.of(
-        context,
-      ).textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
+      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+        color: AppColors.textPrimary,
+        fontSize: 12,
+      ),
     );
   }
 }
