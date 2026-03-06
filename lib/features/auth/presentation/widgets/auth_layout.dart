@@ -54,11 +54,16 @@ class _AuthHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const GlassBadge(
-          padding: EdgeInsets.all(10),
-          child: Icon(
-            Icons.account_balance_wallet_rounded,
-            color: AppColors.primary,
+        GlassPanel(
+          padding: const EdgeInsets.all(8),
+          blur: 18,
+          opacity: 0.1,
+          borderRadius: BorderRadius.circular(18),
+          child: Image.asset(
+            'assets/branding/logo_color.png',
+            width: 32,
+            height: 32,
+            fit: BoxFit.contain,
           ),
         ),
         const SizedBox(width: 14),
