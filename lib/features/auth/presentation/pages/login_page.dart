@@ -83,12 +83,6 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      AppToast.info(
-        context,
-        title: 'Opening Google sign-in',
-        description: 'Complete the Google prompt to continue securely.',
-      );
-
       final session = await widget.authService.signInWithGoogle();
 
       if (!mounted) {
@@ -315,11 +309,10 @@ class _LoginForm extends StatelessWidget {
                 loadingLabel: 'Connecting to Google',
                 isLoading: isSubmitting,
                 fontSize: 12,
-                leading: const HugeIcon(
-                  icon: HugeIcons.strokeRoundedGoogle,
-                  size: 18,
-                  color: AppColors.background,
-                  strokeWidth: 1.9,
+                leading: Image.asset(
+                  'assets/images/google.png',
+                  width: 18,
+                  height: 18,
                 ),
                 onPressed: () {
                   unawaited(onSubmit());
