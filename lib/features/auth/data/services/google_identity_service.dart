@@ -24,10 +24,12 @@ class GoogleIdentityService {
   bool _isInitialized = false;
 
   Future<String> getIdToken() async {
-    await _ensureInitialized();
-
     try {
-      final account = await _googleSignIn.authenticate();
+      await _ensureInitialized();
+      await _googleSignIn.signOut();
+      final account = await _googleSignIn.authenticate(
+        scopeHint: const ['email', 'profile', 'openid'],
+      );
       final idToken = account.authentication.idToken;
 
       if (idToken == null || idToken.isEmpty) {
@@ -77,11 +79,22 @@ class GoogleIdentityService {
     }
 
     await _googleSignIn.initialize(
+      clientId: _resolveClientId(),
       serverClientId: AppEnv.googleServerClientId,
-      clientId: kIsWeb
-          ? AppEnv.optional('GOOGLE_CLIENT_ID') ?? AppEnv.googleServerClientId
-          : null,
     );
+
     _isInitialized = true;
+  }
+
+  String? _resolveClientId() {
+    if (kIsWeb) {
+      return AppEnv.optional('GOOGLE_CLIENT_ID');
+    }
+
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      return AppEnv.optional('GOOGLE_IOS_CLIENT_ID');
+    }
+
+    return null;
   }
 }
