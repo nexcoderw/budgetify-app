@@ -108,8 +108,8 @@ class _LoginForm extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           AuthLoadingButton(
-            label: 'Continue with google',
-            loadingLabel: 'Connecting to google',
+            label: 'Continue with Google',
+            loadingLabel: 'Connecting to Google',
             isLoading: isSubmitting,
             fontSize: 12,
             leading: Image.asset(
