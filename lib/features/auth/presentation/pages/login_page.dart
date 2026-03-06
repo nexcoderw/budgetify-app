@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_toast.dart';
@@ -8,6 +9,7 @@ import '../../../../core/widgets/glass_panel.dart';
 import '../../../../core/widgets/skeleton_loader.dart';
 import '../../application/auth_service_contract.dart';
 import '../../data/models/auth_user.dart';
+import '../../data/services/google_identity_service.dart';
 import '../widgets/auth_layout.dart';
 import '../widgets/auth_loading_button.dart';
 
@@ -81,6 +83,12 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
+      AppToast.info(
+        context,
+        title: 'Opening Google sign-in',
+        description: 'Complete the Google prompt to continue securely.',
+      );
+
       final session = await widget.authService.signInWithGoogle();
 
       if (!mounted) {
@@ -97,6 +105,21 @@ class _LoginPageState extends State<LoginPage> {
         description:
             'Connected as ${session.user.fullName ?? session.user.email}.',
       );
+    } on GoogleIdentityException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      final message = _readableError(error);
+      if (error.isCanceled) {
+        AppToast.info(context, title: 'Sign-in canceled', description: message);
+      } else {
+        AppToast.error(
+          context,
+          title: 'Google sign-in unavailable',
+          description: message,
+        );
+      }
     } catch (error) {
       if (mounted) {
         AppToast.error(
@@ -148,6 +171,7 @@ class _LoginForm extends StatelessWidget {
         final panelPadding = isCompact ? 22.0 : 28.0;
         final titleSize = isCompact ? 22.0 : 24.0;
         final userLabel = currentUser?.fullName ?? currentUser?.email;
+        final highlightColor = AppColors.primary.withValues(alpha: 0.14);
 
         return GlassPanel(
           key: const ValueKey('login-form'),
@@ -176,12 +200,38 @@ class _LoginForm extends StatelessWidget {
                   color: AppColors.textSecondary,
                 ),
               ),
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: const [
+                  _AuthSignal(
+                    icon: HugeIcons.strokeRoundedShield01,
+                    label: 'Verified Google identity',
+                  ),
+                  _AuthSignal(
+                    icon: HugeIcons.strokeRoundedRefresh,
+                    label: 'Rotating secure session',
+                  ),
+                  _AuthSignal(
+                    icon: HugeIcons.strokeRoundedCheckmarkBadge02,
+                    label: 'Connected to Budgetify API',
+                  ),
+                ],
+              ),
               if (currentUser != null) ...[
                 const SizedBox(height: 16),
                 DecoratedBox(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
-                    color: Colors.white.withValues(alpha: 0.08),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        highlightColor,
+                        Colors.white.withValues(alpha: 0.05),
+                      ],
+                    ),
                     border: Border.all(
                       color: Colors.white.withValues(alpha: 0.1),
                     ),
@@ -200,10 +250,11 @@ class _LoginForm extends StatelessWidget {
                               ? null
                               : NetworkImage(currentUser!.avatarUrl!),
                           child: currentUser!.avatarUrl == null
-                              ? Text(
-                                  (userLabel ?? 'B').characters.first
-                                      .toUpperCase(),
-                                  style: Theme.of(context).textTheme.labelLarge,
+                              ? HugeIcon(
+                                  icon: HugeIcons.strokeRoundedUserCircle,
+                                  size: 18,
+                                  color: AppColors.textPrimary,
+                                  strokeWidth: 1.8,
                                 )
                               : null,
                         ),
@@ -232,6 +283,25 @@ class _LoginForm extends StatelessWidget {
                             ],
                           ),
                         ),
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: 0.14),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppColors.success.withValues(alpha: 0.24),
+                            ),
+                          ),
+                          child: const Center(
+                            child: HugeIcon(
+                              icon: HugeIcons.strokeRoundedCheckmarkBadge02,
+                              size: 18,
+                              color: AppColors.success,
+                              strokeWidth: 1.7,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -245,10 +315,11 @@ class _LoginForm extends StatelessWidget {
                 loadingLabel: 'Connecting to Google',
                 isLoading: isSubmitting,
                 fontSize: 12,
-                leading: Image.asset(
-                  'assets/images/google.png',
-                  width: 18,
-                  height: 18,
+                leading: const HugeIcon(
+                  icon: HugeIcons.strokeRoundedGoogle,
+                  size: 18,
+                  color: AppColors.background,
+                  strokeWidth: 1.9,
                 ),
                 onPressed: () {
                   unawaited(onSubmit());
@@ -258,6 +329,46 @@ class _LoginForm extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _AuthSignal extends StatelessWidget {
+  const _AuthSignal({required this.icon, required this.label});
+
+  final List<List<dynamic>> icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: Colors.white.withValues(alpha: 0.06),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            HugeIcon(
+              icon: icon,
+              size: 16,
+              color: AppColors.primary,
+              strokeWidth: 1.8,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontSize: 11,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
