@@ -235,27 +235,33 @@ class _SavingHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 22),
-          const Wrap(
-            spacing: 12,
-            runSpacing: 12,
+          const Row(
             children: [
-              _MetricChip(
-                icon: HugeIcons.strokeRoundedTarget02,
-                label: 'Goals',
-                value: '4 active',
-                color: AppColors.success,
+              Expanded(
+                child: _MetricChip(
+                  icon: HugeIcons.strokeRoundedTarget02,
+                  label: 'Goals',
+                  value: '4 active',
+                  color: AppColors.success,
+                ),
               ),
-              _MetricChip(
-                icon: HugeIcons.strokeRoundedCalendar03,
-                label: 'Next milestone',
-                value: 'Mar 18',
-                color: AppColors.primary,
+              SizedBox(width: 12),
+              Expanded(
+                child: _MetricChip(
+                  icon: HugeIcons.strokeRoundedCalendar03,
+                  label: 'Next milestone',
+                  value: 'Mar 18',
+                  color: AppColors.primary,
+                ),
               ),
-              _MetricChip(
-                icon: HugeIcons.strokeRoundedChartUp,
-                label: 'Growth rate',
-                value: '+6.2% MoM',
-                color: AppColors.success,
+              SizedBox(width: 12),
+              Expanded(
+                child: _MetricChip(
+                  icon: HugeIcons.strokeRoundedChartUp,
+                  label: 'Growth rate',
+                  value: '+6.2% MoM',
+                  color: AppColors.success,
+                ),
               ),
             ],
           ),
