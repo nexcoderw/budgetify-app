@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_toast.dart';
@@ -12,6 +14,8 @@ import '../../data/services/google_identity_service.dart';
 import '../../../home/presentation/pages/landing_page.dart';
 import '../widgets/auth_layout.dart';
 import '../widgets/auth_loading_button.dart';
+import 'web_render_button_stub.dart'
+    if (dart.library.js_util) 'web_render_button_web.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key, required this.authService});
@@ -25,6 +29,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   bool _isPageLoading = true;
   bool _isSubmitting = false;
+  StreamSubscription<GoogleSignInAuthenticationEvent>? _webGoogleSub;
 
   @override
   void initState() {
@@ -32,9 +37,20 @@ class _LoginPageState extends State<LoginPage> {
     _loadPage();
   }
 
+  @override
+  void dispose() {
+    _webGoogleSub?.cancel();
+    super.dispose();
+  }
+
   Future<void> _loadPage() async {
     try {
       await Future<void>.delayed(const Duration(milliseconds: 900));
+
+      if (kIsWeb) {
+        await _initWebGoogleSignIn();
+      }
+
       final restoredUser = await widget.authService.restoreAuthenticatedUser();
 
       if (!mounted) {
@@ -55,9 +71,81 @@ class _LoginPageState extends State<LoginPage> {
       }
     }
 
-    setState(() {
-      _isPageLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _isPageLoading = false;
+      });
+    }
+  }
+
+  Future<void> _initWebGoogleSignIn() async {
+    // Use the service's ensureInitialized so the _isInitialized flag is
+    // tracked correctly — prevents double-initialization on signOut().
+    await widget.authService.ensureInitialized();
+
+    _webGoogleSub = GoogleSignIn.instance.authenticationEvents.listen(
+      _onWebAuthEvent,
+      onError: _onWebAuthError,
+    );
+  }
+
+  void _onWebAuthEvent(GoogleSignInAuthenticationEvent event) {
+    if (!mounted) return;
+
+    if (event is GoogleSignInAuthenticationEventSignIn) {
+      final idToken = event.user.authentication.idToken;
+
+      if (idToken == null || idToken.isEmpty) {
+        AppToast.error(
+          context,
+          title: 'Sign-in failed',
+          description:
+              'Google did not return an ID token. Check your OAuth configuration.',
+        );
+        return;
+      }
+
+      unawaited(_submitWebToken(idToken));
+    }
+  }
+
+  void _onWebAuthError(Object error) {
+    if (!mounted) return;
+
+    AppToast.error(
+      context,
+      title: 'Google sign-in failed',
+      description: _readableError(error),
+    );
+  }
+
+  Future<void> _submitWebToken(String idToken) async {
+    setState(() => _isSubmitting = true);
+
+    try {
+      final session = await widget.authService.signInWithGoogleIdToken(idToken);
+
+      if (!mounted) return;
+
+      AppToast.success(
+        context,
+        title: 'Signed in successfully',
+        description:
+            'Connected as ${session.user.fullName ?? session.user.email}.',
+      );
+
+      _openLanding(session.user);
+    } catch (error) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          title: 'Sign-in failed',
+          description: _readableError(error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -67,7 +155,10 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     return AuthLayout(
-      child: _LoginForm(isSubmitting: _isSubmitting, onSubmit: _submit),
+      child: _LoginForm(
+        isSubmitting: _isSubmitting,
+        onSubmit: kIsWeb ? null : _submit,
+      ),
     );
   }
 
@@ -200,7 +291,9 @@ class _LoginForm extends StatelessWidget {
   const _LoginForm({required this.isSubmitting, required this.onSubmit});
 
   final bool isSubmitting;
-  final Future<void> Function() onSubmit;
+
+  /// Null on web — sign-in is triggered by the Google button widget.
+  final Future<void> Function()? onSubmit;
 
   @override
   Widget build(BuildContext context) {
@@ -237,24 +330,54 @@ class _LoginForm extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               const SizedBox(height: 20),
-              AuthLoadingButton(
-                label: 'Continue with Google',
-                loadingLabel: 'Connecting to Google',
-                isLoading: isSubmitting,
-                fontSize: 12,
-                leading: Image.asset(
-                  'assets/images/google.png',
-                  width: 18,
-                  height: 18,
+              if (kIsWeb)
+                _WebSignInButton(isSubmitting: isSubmitting)
+              else
+                AuthLoadingButton(
+                  label: 'Continue with Google',
+                  loadingLabel: 'Connecting to Google',
+                  isLoading: isSubmitting,
+                  fontSize: 12,
+                  leading: Image.asset(
+                    'assets/images/google.png',
+                    width: 18,
+                    height: 18,
+                  ),
+                  onPressed: () {
+                    unawaited(onSubmit!());
+                  },
                 ),
-                onPressed: () {
-                  unawaited(onSubmit());
-                },
-              ),
             ],
           ),
         );
       },
     );
+  }
+}
+
+class _WebSignInButton extends StatelessWidget {
+  const _WebSignInButton({required this.isSubmitting});
+
+  final bool isSubmitting;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isSubmitting) {
+      return const SizedBox(
+        height: 56,
+        child: Center(
+          child: SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              strokeWidth: 1.6,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Center(child: renderGoogleSignInButton());
   }
 }
