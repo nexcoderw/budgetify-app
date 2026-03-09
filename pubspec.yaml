@@ -37,6 +37,7 @@ dependencies:
   flutter_dotenv: ^6.0.0
   flutter_secure_storage: ^10.0.0
   google_sign_in: ^7.2.0
+  google_sign_in_web: ^1.1.2
   hugeicons: ^1.1.5
   http: ^1.5.0
   toastification: ^3.0.3
