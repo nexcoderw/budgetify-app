@@ -93,7 +93,7 @@ class GoogleIdentityService {
 
     await _googleSignIn.initialize(
       clientId: _resolveClientId(),
-      serverClientId: AppEnv.googleServerClientId,
+      serverClientId: kIsWeb ? null : AppEnv.googleServerClientId,
     );
 
     _isInitialized = true;
