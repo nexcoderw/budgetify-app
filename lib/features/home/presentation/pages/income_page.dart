@@ -16,14 +16,7 @@ class _IncomeData {
   static const double growthRate = 4.3;
 
   static const List<double> trend = [5200, 6100, 7800, 6500, 8100, 8450];
-  static const List<String> trendLabels = [
-    'Oct',
-    'Nov',
-    'Dec',
-    'Jan',
-    'Feb',
-    'Mar',
-  ];
+  static const List<String> trendLabels = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
 
   static const List<_IncomeSource> sources = [
     _IncomeSource(
@@ -102,9 +95,9 @@ class _IncomePageState extends State<IncomePage>
   }
 
   Animation<double> _fade(double start, double end) => CurvedAnimation(
-    parent: _entranceCtrl,
-    curve: Interval(start, end, curve: Curves.easeOut),
-  );
+        parent: _entranceCtrl,
+        curve: Interval(start, end, curve: Curves.easeOut),
+      );
 
   Animation<Offset> _slide(double start, double end) =>
       Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
@@ -245,33 +238,27 @@ class _IncomeHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 22),
-          const Row(
+          const Wrap(
+            spacing: 12,
+            runSpacing: 12,
             children: [
-              Expanded(
-                child: _MetricChip(
-                  icon: HugeIcons.strokeRoundedArrowDown01,
-                  label: 'Recurring inflows',
-                  value: '5 active',
-                  color: AppColors.success,
-                ),
+              _MetricChip(
+                icon: HugeIcons.strokeRoundedArrowDown01,
+                label: 'Recurring inflows',
+                value: '5 active',
+                color: AppColors.success,
               ),
-              SizedBox(width: 12),
-              Expanded(
-                child: _MetricChip(
-                  icon: HugeIcons.strokeRoundedChartUp,
-                  label: 'Month-over-month',
-                  value: '+4.3%',
-                  color: AppColors.success,
-                ),
+              _MetricChip(
+                icon: HugeIcons.strokeRoundedChartUp,
+                label: 'Month-over-month',
+                value: '+4.3%',
+                color: AppColors.success,
               ),
-              SizedBox(width: 12),
-              Expanded(
-                child: _MetricChip(
-                  icon: HugeIcons.strokeRoundedCalendar03,
-                  label: 'Next payout',
-                  value: 'Mar 15',
-                  color: AppColors.primary,
-                ),
+              _MetricChip(
+                icon: HugeIcons.strokeRoundedCalendar03,
+                label: 'Next payout',
+                value: 'Mar 15',
+                color: AppColors.primary,
               ),
             ],
           ),
@@ -614,17 +601,19 @@ class _IncomeProgressBarState extends State<_IncomeProgressBar>
                       child: Container(
                         decoration: const BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [AppColors.success, Color(0xFF4DB87A)],
+                            colors: [
+                              AppColors.success,
+                              Color(0xFF4DB87A),
+                            ],
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 3),
                     Expanded(
-                      flex: (passiveRatio * _anim.value * 1000).round().clamp(
-                        1,
-                        1000,
-                      ),
+                      flex: (passiveRatio * _anim.value * 1000)
+                          .round()
+                          .clamp(1, 1000),
                       child: Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
@@ -1055,9 +1044,8 @@ class _TrendBars extends StatelessWidget {
                           boxShadow: isActive
                               ? [
                                   BoxShadow(
-                                    color: AppColors.success.withValues(
-                                      alpha: 0.25,
-                                    ),
+                                    color: AppColors.success
+                                        .withValues(alpha: 0.25),
                                     blurRadius: 12,
                                     offset: const Offset(0, -4),
                                   ),
@@ -1076,7 +1064,8 @@ class _TrendBars extends StatelessWidget {
                     color: isActive
                         ? AppColors.success
                         : AppColors.textSecondary.withValues(alpha: 0.55),
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                    fontWeight:
+                        isActive ? FontWeight.w600 : FontWeight.w400,
                   ),
                 ),
               ],
@@ -1275,9 +1264,8 @@ class _StreamRowState extends State<_StreamRow>
                                       gradient: LinearGradient(
                                         colors: [
                                           widget.source.color,
-                                          widget.source.color.withValues(
-                                            alpha: 0.6,
-                                          ),
+                                          widget.source.color
+                                              .withValues(alpha: 0.6),
                                         ],
                                       ),
                                     ),
