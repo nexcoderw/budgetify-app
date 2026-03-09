@@ -39,12 +39,22 @@ class AuthService implements AuthServiceContract {
   final GoogleIdentityService _googleIdentityService;
 
   @override
+  Future<void> ensureInitialized() => _googleIdentityService.ensureInitialized();
+
+  @override
   Future<AuthSession> signInWithGoogle() async {
     final idToken = await _googleIdentityService.getIdToken();
     final session = await _authApiService.authenticateWithGoogle(idToken);
 
     await _sessionStorage.save(session);
 
+    return session;
+  }
+
+  @override
+  Future<AuthSession> signInWithGoogleIdToken(String idToken) async {
+    final session = await _authApiService.authenticateWithGoogle(idToken);
+    await _sessionStorage.save(session);
     return session;
   }
 
