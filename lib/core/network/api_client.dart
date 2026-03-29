@@ -23,7 +23,25 @@ class ApiClient {
         _buildUri(path),
         headers: _headers(headers),
       );
-      return _decodeResponse(response);
+      return _decodeMapResponse(response);
+    } on http.ClientException {
+      throw const ApiException(
+        message:
+            'Unable to reach the server. Check your network connection and ensure the API server is running.',
+      );
+    }
+  }
+
+  Future<List<dynamic>> getJsonList(
+    String path, {
+    Map<String, String>? headers,
+  }) async {
+    try {
+      final response = await _httpClient.get(
+        _buildUri(path),
+        headers: _headers(headers),
+      );
+      return _decodeListResponse(response);
     } on http.ClientException {
       throw const ApiException(
         message:
@@ -43,7 +61,7 @@ class ApiClient {
         headers: _headers(headers),
         body: body == null ? null : jsonEncode(body),
       );
-      return _decodeResponse(response);
+      return _decodeMapResponse(response);
     } on http.ClientException {
       throw const ApiException(
         message:
@@ -63,7 +81,22 @@ class ApiClient {
         headers: _headers(headers),
         body: body == null ? null : jsonEncode(body),
       );
-      return _decodeResponse(response);
+      return _decodeMapResponse(response);
+    } on http.ClientException {
+      throw const ApiException(
+        message:
+            'Unable to reach the server. Check your network connection and ensure the API server is running.',
+      );
+    }
+  }
+
+  Future<void> delete(String path, {Map<String, String>? headers}) async {
+    try {
+      final response = await _httpClient.delete(
+        _buildUri(path),
+        headers: _headers(headers),
+      );
+      _ensureSuccess(response);
     } on http.ClientException {
       throw const ApiException(
         message:
@@ -84,18 +117,9 @@ class ApiClient {
     };
   }
 
-  Map<String, dynamic> _decodeResponse(http.Response response) {
-    final body = response.body.trim();
-    final dynamic decoded = body.isEmpty
-        ? <String, dynamic>{}
-        : jsonDecode(body);
-
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ApiException(
-        message: _extractErrorMessage(decoded),
-        statusCode: response.statusCode,
-      );
-    }
+  Map<String, dynamic> _decodeMapResponse(http.Response response) {
+    final dynamic decoded = _decodeDynamicBody(response);
+    _ensureSuccess(response, decoded: decoded);
 
     if (decoded is Map<String, dynamic>) {
       return decoded;
@@ -103,6 +127,37 @@ class ApiClient {
 
     throw ApiException(
       message: 'Unexpected API response format.',
+      statusCode: response.statusCode,
+    );
+  }
+
+  List<dynamic> _decodeListResponse(http.Response response) {
+    final dynamic decoded = _decodeDynamicBody(response);
+    _ensureSuccess(response, decoded: decoded);
+
+    if (decoded is List<dynamic>) {
+      return decoded;
+    }
+
+    throw ApiException(
+      message: 'Unexpected API response format.',
+      statusCode: response.statusCode,
+    );
+  }
+
+  dynamic _decodeDynamicBody(http.Response response) {
+    final body = response.body.trim();
+
+    return body.isEmpty ? null : jsonDecode(body);
+  }
+
+  void _ensureSuccess(http.Response response, {dynamic decoded}) {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return;
+    }
+
+    throw ApiException(
+      message: _extractErrorMessage(decoded),
       statusCode: response.statusCode,
     );
   }
