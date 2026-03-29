@@ -15,6 +15,7 @@ import '../../data/services/google_identity_service.dart';
 import '../../../home/presentation/pages/landing_page.dart';
 import '../widgets/auth_layout.dart';
 import '../widgets/auth_loading_button.dart';
+import '../widgets/profile_completion_dialog.dart';
 import 'email_otp_page.dart';
 import 'web_render_button_stub.dart'
     if (dart.library.js_util) 'web_render_button_web.dart';
@@ -61,7 +62,17 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       if (restoredUser != null) {
-        _openLanding(restoredUser);
+        final resolvedUser = await ProfileCompletionDialog.showIfRequired(
+          context,
+          authService: widget.authService,
+          user: restoredUser,
+        );
+
+        if (!mounted) {
+          return;
+        }
+
+        _openLanding(resolvedUser);
         return;
       }
     } catch (error) {
@@ -128,14 +139,22 @@ class _LoginPageState extends State<LoginPage> {
 
       if (!mounted) return;
 
+      final resolvedUser = await ProfileCompletionDialog.showIfRequired(
+        context,
+        authService: widget.authService,
+        user: session.user,
+      );
+
+      if (!mounted) return;
+
       AppToast.success(
         context,
         title: 'Signed in successfully',
         description:
-            'Connected as ${session.user.fullName ?? session.user.email}.',
+            'Connected as ${resolvedUser.fullName ?? resolvedUser.email}.',
       );
 
-      _openLanding(session.user);
+      _openLanding(resolvedUser);
     } catch (error) {
       if (mounted) {
         AppToast.error(
@@ -223,14 +242,24 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
+      final resolvedUser = await ProfileCompletionDialog.showIfRequired(
+        context,
+        authService: widget.authService,
+        user: session.user,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
       AppToast.success(
         context,
         title: 'Signed in successfully',
         description:
-            'Connected as ${session.user.fullName ?? session.user.email}.',
+            'Connected as ${resolvedUser.fullName ?? resolvedUser.email}.',
       );
 
-      _openLanding(session.user);
+      _openLanding(resolvedUser);
     } on GoogleIdentityException catch (error) {
       if (!mounted) {
         return;
@@ -317,7 +346,11 @@ class _InitializingScreen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [AppColors.background, Color(0xFF0D1116), Color(0xFF131922)],
+            colors: [
+              AppColors.background,
+              Color(0xFF0D1116),
+              Color(0xFF131922),
+            ],
           ),
         ),
         child: BackdropFilter(
@@ -392,9 +425,9 @@ class _LoginFormState extends State<_LoginForm>
   }
 
   Animation<double> _fadeAt(double start, double end) => CurvedAnimation(
-        parent: _entranceController,
-        curve: Interval(start, end, curve: Curves.easeOutCubic),
-      );
+    parent: _entranceController,
+    curve: Interval(start, end, curve: Curves.easeOutCubic),
+  );
 
   Animation<Offset> _slideAt(double start, double end) =>
       Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
@@ -448,10 +481,10 @@ class _LoginFormState extends State<_LoginForm>
                     Text(
                       'Enter your email to receive a one-time code, or continue with Google.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                            height: 1.55,
-                          ),
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        height: 1.55,
+                      ),
                     ),
                   ],
                 ),
@@ -520,9 +553,7 @@ class _LoginFormState extends State<_LoginForm>
               child: SlideTransition(
                 position: _slideAt(0.4, 1.0),
                 child: kIsWeb
-                    ? _WebSignInButton(
-                        isSubmitting: widget.isGoogleSubmitting,
-                      )
+                    ? _WebSignInButton(isSubmitting: widget.isGoogleSubmitting)
                     : AuthLoadingButton(
                         label: 'Continue with Google',
                         loadingLabel: 'Connecting to Google…',
@@ -634,9 +665,7 @@ class _EmailFieldState extends State<_EmailField> {
             child: HugeIcon(
               icon: HugeIcons.strokeRoundedMail01,
               size: 18,
-              color: _isFocused
-                  ? AppColors.primary
-                  : AppColors.textSecondary,
+              color: _isFocused ? AppColors.primary : AppColors.textSecondary,
               strokeWidth: 1.8,
             ),
           ),
@@ -663,23 +692,17 @@ class _EmailFieldState extends State<_EmailField> {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(28),
-            borderSide:
-                const BorderSide(color: AppColors.primary, width: 1.5),
+            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
           ),
           errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(28),
-            borderSide:
-                const BorderSide(color: AppColors.danger, width: 1.2),
+            borderSide: const BorderSide(color: AppColors.danger, width: 1.2),
           ),
           focusedErrorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(28),
-            borderSide:
-                const BorderSide(color: AppColors.danger, width: 1.5),
+            borderSide: const BorderSide(color: AppColors.danger, width: 1.5),
           ),
-          errorStyle: const TextStyle(
-            fontSize: 11,
-            color: AppColors.danger,
-          ),
+          errorStyle: const TextStyle(fontSize: 11, color: AppColors.danger),
         ),
       ),
     );
@@ -733,29 +756,19 @@ class _OrDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Expanded(
-          child: Divider(
-            color: AppColors.border,
-            thickness: 1,
-          ),
-        ),
+        const Expanded(child: Divider(color: AppColors.border, thickness: 1)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Text(
             'or',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                  letterSpacing: 0.4,
-                ),
+              fontSize: 12,
+              color: AppColors.textSecondary,
+              letterSpacing: 0.4,
+            ),
           ),
         ),
-        const Expanded(
-          child: Divider(
-            color: AppColors.border,
-            thickness: 1,
-          ),
-        ),
+        const Expanded(child: Divider(color: AppColors.border, thickness: 1)),
       ],
     );
   }
