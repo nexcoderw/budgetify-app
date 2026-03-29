@@ -4,6 +4,7 @@ import '../../../../core/widgets/app_toast.dart';
 import '../../../auth/application/auth_service_contract.dart';
 import '../../../auth/data/models/auth_user.dart';
 import '../../../auth/presentation/pages/login_page.dart';
+import '../../../income/application/income_service.dart';
 import '../widgets/app_layout.dart';
 import 'dashboard/dashboard_page.dart';
 import 'expense_page.dart';
@@ -22,6 +23,7 @@ class LandingPage extends StatefulWidget {
 }
 
 class _LandingPageState extends State<LandingPage> {
+  final IncomeService _incomeService = IncomeService.createDefault();
   bool _isLoggingOut = false;
   AppLayoutSection _currentSection = AppLayoutSection.dashboard;
 
@@ -50,7 +52,7 @@ class _LandingPageState extends State<LandingPage> {
       case AppLayoutSection.dashboard:
         return DashboardPage(user: widget.user);
       case AppLayoutSection.income:
-        return const IncomePage();
+        return IncomePage(incomeService: _incomeService);
       case AppLayoutSection.saving:
         return const SavingPage();
       case AppLayoutSection.expense:
