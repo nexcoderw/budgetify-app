@@ -5,6 +5,7 @@ import '../../../auth/application/auth_service_contract.dart';
 import '../../../auth/data/models/auth_user.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../../../income/application/income_service.dart';
+import '../../../todos/application/todo_service.dart';
 import '../widgets/app_layout.dart';
 import 'dashboard/dashboard_page.dart';
 import 'expense_page.dart';
@@ -24,6 +25,7 @@ class LandingPage extends StatefulWidget {
 
 class _LandingPageState extends State<LandingPage> {
   final IncomeService _incomeService = IncomeService.createDefault();
+  final TodoService _todoService = TodoService.createDefault();
   bool _isLoggingOut = false;
   AppLayoutSection _currentSection = AppLayoutSection.dashboard;
 
@@ -60,6 +62,7 @@ class _LandingPageState extends State<LandingPage> {
       case AppLayoutSection.profile:
         return ProfilePage(
           user: widget.user,
+          todoService: _todoService,
           isLoggingOut: _isLoggingOut,
           onLogout: _isLoggingOut ? null : _logout,
         );
