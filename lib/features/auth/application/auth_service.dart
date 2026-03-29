@@ -1,9 +1,11 @@
 import 'auth_service_contract.dart';
 import '../data/models/auth_session.dart';
 import '../data/models/auth_user.dart';
+import '../data/models/email_initiate_response.dart';
 import '../data/routes/auth_api_routes.dart';
 import '../data/services/auth_api_service.dart';
 import '../data/services/auth_session_storage.dart';
+import '../data/services/email_otp_api_service.dart';
 import '../data/services/google_identity_service.dart';
 import '../../../core/config/app_env.dart';
 import '../../../core/network/api_client.dart';
@@ -13,19 +15,26 @@ import '../../../core/storage/secure_storage_service.dart';
 class AuthService implements AuthServiceContract {
   AuthService({
     required AuthApiService authApiService,
+    required EmailOtpApiService emailOtpApiService,
     required AuthSessionStorage sessionStorage,
     required GoogleIdentityService googleIdentityService,
-  }) : _authApiService = authApiService,
-       _sessionStorage = sessionStorage,
-       _googleIdentityService = googleIdentityService;
+  })  : _authApiService = authApiService,
+        _emailOtpApiService = emailOtpApiService,
+        _sessionStorage = sessionStorage,
+        _googleIdentityService = googleIdentityService;
 
   factory AuthService.createDefault() {
     final apiClient = ApiClient(baseUrlResolver: () => AppEnv.apiBaseUrl);
+    final routes = AuthApiRoutes.instance;
 
     return AuthService(
       authApiService: AuthApiService(
         apiClient: apiClient,
-        routes: AuthApiRoutes.instance,
+        routes: routes,
+      ),
+      emailOtpApiService: EmailOtpApiService(
+        apiClient: apiClient,
+        routes: routes,
       ),
       sessionStorage: AuthSessionStorage(
         secureStorageService: SecureStorageService(),
@@ -35,11 +44,14 @@ class AuthService implements AuthServiceContract {
   }
 
   final AuthApiService _authApiService;
+  final EmailOtpApiService _emailOtpApiService;
   final AuthSessionStorage _sessionStorage;
   final GoogleIdentityService _googleIdentityService;
 
   @override
   Future<void> ensureInitialized() => _googleIdentityService.ensureInitialized();
+
+  // ── Google OAuth ────────────────────────────────────────────────────────────
 
   @override
   Future<AuthSession> signInWithGoogle() async {
@@ -57,6 +69,22 @@ class AuthService implements AuthServiceContract {
     await _sessionStorage.save(session);
     return session;
   }
+
+  // ── Email OTP ───────────────────────────────────────────────────────────────
+
+  @override
+  Future<EmailInitiateResponse> initiateEmailAuth(String email) {
+    return _emailOtpApiService.initiateEmailAuth(email);
+  }
+
+  @override
+  Future<AuthSession> verifyEmailOtp(String email, String otp) async {
+    final session = await _emailOtpApiService.verifyEmailOtp(email, otp);
+    await _sessionStorage.save(session);
+    return session;
+  }
+
+  // ── Session management ──────────────────────────────────────────────────────
 
   @override
   Future<AuthUser?> restoreAuthenticatedUser() async {
