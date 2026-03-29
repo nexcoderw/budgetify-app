@@ -5,16 +5,20 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/glass_panel.dart';
 import '../../../auth/data/models/auth_user.dart';
+import '../../../todos/application/todo_service.dart';
+import '../../../todos/presentation/pages/todo_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({
     super.key,
     required this.user,
+    required this.todoService,
     required this.isLoggingOut,
     required this.onLogout,
   });
 
   final AuthUser user;
+  final TodoService todoService;
   final bool isLoggingOut;
   final VoidCallback? onLogout;
 
@@ -59,15 +63,13 @@ class _ProfilePageState extends State<ProfilePage>
       duration: const Duration(milliseconds: 2400),
     )..repeat(reverse: true);
 
-    Animation<double> fade(double s, double e) => Tween<double>(
-      begin: 0,
-      end: 1,
-    ).animate(
-      CurvedAnimation(
-        parent: _entranceCtrl,
-        curve: Interval(s, e, curve: Curves.easeOut),
-      ),
-    );
+    Animation<double> fade(double s, double e) =>
+        Tween<double>(begin: 0, end: 1).animate(
+          CurvedAnimation(
+            parent: _entranceCtrl,
+            curve: Interval(s, e, curve: Curves.easeOut),
+          ),
+        );
 
     Animation<Offset> slide(double s, double e) =>
         Tween<Offset>(begin: const Offset(0, 0.28), end: Offset.zero).animate(
@@ -98,9 +100,10 @@ class _ProfilePageState extends State<ProfilePage>
     _logoutFade = fade(0.70, 1.00);
     _logoutSlide = slide(0.70, 1.00);
 
-    _pulse = Tween<double>(begin: 0.55, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
-    );
+    _pulse = Tween<double>(
+      begin: 0.55,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
 
     _entranceCtrl.forward();
   }
@@ -272,7 +275,9 @@ class _ProfilePageState extends State<ProfilePage>
                     child: _StatCard(
                       icon: HugeIcons.strokeRoundedShield01,
                       label: 'Verification',
-                      value: widget.user.isEmailVerified ? 'Verified' : 'Pending',
+                      value: widget.user.isEmailVerified
+                          ? 'Verified'
+                          : 'Pending',
                       valueColor: widget.user.isEmailVerified
                           ? AppColors.success
                           : AppColors.textSecondary,
@@ -298,7 +303,13 @@ class _ProfilePageState extends State<ProfilePage>
             opacity: _detailsFade,
             child: SlideTransition(
               position: _detailsSlide,
-              child: _AccountDetails(user: widget.user),
+              child: Column(
+                children: [
+                  _AccountDetails(user: widget.user),
+                  const SizedBox(height: 18),
+                  _TodoShortcutCard(onTap: _openTodoBoard),
+                ],
+              ),
             ),
           ),
 
@@ -335,11 +346,29 @@ class _ProfilePageState extends State<ProfilePage>
       s.isEmpty ? s : s[0].toUpperCase() + s.substring(1).toLowerCase();
 
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   String _shortDate(DateTime dt) => '${_months[dt.month - 1]} ${dt.year}';
+
+  Future<void> _openTodoBoard() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => TodoPage(todoService: widget.todoService),
+      ),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -380,7 +409,9 @@ class _AvatarHero extends StatelessWidget {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.18 * pulse.value),
+                    color: AppColors.primary.withValues(
+                      alpha: 0.18 * pulse.value,
+                    ),
                     blurRadius: 28,
                     spreadRadius: 2,
                   ),
@@ -454,7 +485,11 @@ class _AvatarHero extends StatelessWidget {
                   border: Border.all(color: AppColors.background, width: 2.5),
                 ),
                 child: const Center(
-                  child: Icon(Icons.check_rounded, size: 12, color: Colors.black),
+                  child: Icon(
+                    Icons.check_rounded,
+                    size: 12,
+                    color: Colors.black,
+                  ),
                 ),
               ),
             ),
@@ -519,16 +554,12 @@ class _StatCardState extends State<_StatCard>
   Widget build(BuildContext context) {
     return GestureDetector(
       onTapDown: (_) => _pressCtrl.forward(),
-      onTapUp: (_) =>
-          _pressCtrl.animateBack(0, curve: Curves.easeOutBack),
-      onTapCancel: () =>
-          _pressCtrl.animateBack(0, curve: Curves.easeOutBack),
+      onTapUp: (_) => _pressCtrl.animateBack(0, curve: Curves.easeOutBack),
+      onTapCancel: () => _pressCtrl.animateBack(0, curve: Curves.easeOutBack),
       child: AnimatedBuilder(
         animation: _pressCtrl,
-        builder: (context, child) => Transform.scale(
-          scale: 1.0 - _pressCtrl.value * 0.04,
-          child: child,
-        ),
+        builder: (context, child) =>
+            Transform.scale(scale: 1.0 - _pressCtrl.value * 0.04, child: child),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           decoration: BoxDecoration(
@@ -593,8 +624,18 @@ class _AccountDetails extends StatelessWidget {
   final AuthUser user;
 
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   String _formatDate(DateTime? dt) {
@@ -615,7 +656,9 @@ class _AccountDetails extends StatelessWidget {
         icon: HugeIcons.strokeRoundedShield01,
         label: 'Email verification',
         value: user.isEmailVerified ? 'Verified' : 'Pending',
-        valueColor: user.isEmailVerified ? AppColors.success : AppColors.textSecondary,
+        valueColor: user.isEmailVerified
+            ? AppColors.success
+            : AppColors.textSecondary,
       ),
       _InfoRowData(
         icon: HugeIcons.strokeRoundedClock01,
@@ -677,6 +720,111 @@ class _InfoRow extends StatefulWidget {
   State<_InfoRow> createState() => _InfoRowState();
 }
 
+class _TodoShortcutCard extends StatefulWidget {
+  const _TodoShortcutCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  State<_TodoShortcutCard> createState() => _TodoShortcutCardState();
+}
+
+class _TodoShortcutCardState extends State<_TodoShortcutCard> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOutCubic,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.primary.withValues(alpha: 0.14),
+                Colors.white.withValues(alpha: 0.05),
+              ],
+            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  color: AppColors.primary.withValues(alpha: 0.16),
+                ),
+                child: const HugeIcon(
+                  icon: HugeIcons.strokeRoundedTaskDaily01,
+                  size: 18,
+                  color: AppColors.primary,
+                  strokeWidth: 1.8,
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Todo board',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Open your visual todo list to add, edit, and manage planned tasks with photos and budgets.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        height: 1.45,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.08),
+                ),
+                child: const Center(
+                  child: HugeIcon(
+                    icon: HugeIcons.strokeRoundedArrowRight01,
+                    size: 16,
+                    color: AppColors.textPrimary,
+                    strokeWidth: 1.8,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _InfoRowState extends State<_InfoRow>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pressCtrl;
@@ -699,7 +847,9 @@ class _InfoRowState extends State<_InfoRow>
   }
 
   Future<void> _handleTap() async {
-    _pressCtrl.forward().then((_) => _pressCtrl.animateBack(0, curve: Curves.easeOutBack));
+    _pressCtrl.forward().then(
+      (_) => _pressCtrl.animateBack(0, curve: Curves.easeOutBack),
+    );
 
     if (widget.data.copyable) {
       await Clipboard.setData(ClipboardData(text: widget.data.value));
@@ -919,7 +1069,9 @@ class _LogoutButtonState extends State<_LogoutButton>
                           ? AppColors.danger.withValues(alpha: 0.7)
                           : AppColors.danger,
                     ),
-                    child: Text(widget.isLoggingOut ? 'Signing out…' : 'Sign out'),
+                    child: Text(
+                      widget.isLoggingOut ? 'Signing out…' : 'Sign out',
+                    ),
                   ),
                 ],
               ),
