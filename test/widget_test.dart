@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:budgetify/app/app.dart';
@@ -10,6 +11,9 @@ class _FakeAuthService implements AuthServiceContract {
   _FakeAuthService({this.restoredUser});
 
   final AuthUser? restoredUser;
+  int updateCurrentUserNamesCallCount = 0;
+  String? lastUpdatedFirstName;
+  String? lastUpdatedLastName;
 
   @override
   Future<void> clearSession() async {}
@@ -46,6 +50,35 @@ class _FakeAuthService implements AuthServiceContract {
   @override
   Future<AuthSession> verifyEmailOtp(String email, String otp) {
     throw UnimplementedError();
+  }
+
+  @override
+  Future<AuthUser> updateCurrentUserNames({
+    required String firstName,
+    required String lastName,
+  }) async {
+    updateCurrentUserNamesCallCount++;
+    lastUpdatedFirstName = firstName;
+    lastUpdatedLastName = lastName;
+
+    final user = restoredUser;
+    if (user == null) {
+      throw StateError('No restored user is available for this test.');
+    }
+
+    return AuthUser(
+      id: user.id,
+      email: user.email,
+      firstName: firstName,
+      lastName: lastName,
+      fullName: '$firstName $lastName',
+      avatarUrl: user.avatarUrl,
+      isEmailVerified: user.isEmailVerified,
+      status: user.status,
+      lastLoginAt: user.lastLoginAt,
+      createdAt: user.createdAt,
+      updatedAt: DateTime.utc(2026, 3, 29),
+    );
   }
 }
 
@@ -90,4 +123,42 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'completes missing profile names before opening the landing page',
+    (WidgetTester tester) async {
+      final restoredUser = AuthUser(
+        id: 'user-2',
+        email: 'alice@example.com',
+        firstName: null,
+        lastName: null,
+        fullName: null,
+        avatarUrl: null,
+        isEmailVerified: true,
+        status: 'ACTIVE',
+        lastLoginAt: DateTime.utc(2026, 3, 29),
+        createdAt: DateTime.utc(2026, 3, 29),
+        updatedAt: DateTime.utc(2026, 3, 29),
+      );
+      final authService = _FakeAuthService(restoredUser: restoredUser);
+
+      await tester.pumpWidget(BudgetifyApp(authService: authService));
+      await tester.pump(const Duration(milliseconds: 1000));
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(find.text('Complete your profile'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextFormField).at(0), 'Alice');
+      await tester.enterText(find.byType(TextFormField).at(1), 'Mutoni');
+      await tester.tap(find.text('Save and continue'));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 1200));
+
+      expect(authService.updateCurrentUserNamesCallCount, 1);
+      expect(authService.lastUpdatedFirstName, 'Alice');
+      expect(authService.lastUpdatedLastName, 'Mutoni');
+      expect(find.text('Alice M.'), findsOneWidget);
+      expect(find.text('Dashboard'), findsOneWidget);
+    },
+  );
 }
