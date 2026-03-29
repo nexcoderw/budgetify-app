@@ -7,6 +7,8 @@ import '../data/services/auth_api_service.dart';
 import '../data/services/auth_session_storage.dart';
 import '../data/services/email_otp_api_service.dart';
 import '../data/services/google_identity_service.dart';
+import '../../users/data/routes/users_api_routes.dart';
+import '../../users/data/services/users_api_service.dart';
 import '../../../core/config/app_env.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
@@ -16,25 +18,29 @@ class AuthService implements AuthServiceContract {
   AuthService({
     required AuthApiService authApiService,
     required EmailOtpApiService emailOtpApiService,
+    required UsersApiService usersApiService,
     required AuthSessionStorage sessionStorage,
     required GoogleIdentityService googleIdentityService,
-  })  : _authApiService = authApiService,
-        _emailOtpApiService = emailOtpApiService,
-        _sessionStorage = sessionStorage,
-        _googleIdentityService = googleIdentityService;
+  }) : _authApiService = authApiService,
+       _emailOtpApiService = emailOtpApiService,
+       _usersApiService = usersApiService,
+       _sessionStorage = sessionStorage,
+       _googleIdentityService = googleIdentityService;
 
   factory AuthService.createDefault() {
     final apiClient = ApiClient(baseUrlResolver: () => AppEnv.apiBaseUrl);
-    final routes = AuthApiRoutes.instance;
+    final authRoutes = AuthApiRoutes.instance;
+    final usersRoutes = UsersApiRoutes.instance;
 
     return AuthService(
-      authApiService: AuthApiService(
-        apiClient: apiClient,
-        routes: routes,
-      ),
+      authApiService: AuthApiService(apiClient: apiClient, routes: authRoutes),
       emailOtpApiService: EmailOtpApiService(
         apiClient: apiClient,
-        routes: routes,
+        routes: authRoutes,
+      ),
+      usersApiService: UsersApiService(
+        apiClient: apiClient,
+        routes: usersRoutes,
       ),
       sessionStorage: AuthSessionStorage(
         secureStorageService: SecureStorageService(),
@@ -45,11 +51,13 @@ class AuthService implements AuthServiceContract {
 
   final AuthApiService _authApiService;
   final EmailOtpApiService _emailOtpApiService;
+  final UsersApiService _usersApiService;
   final AuthSessionStorage _sessionStorage;
   final GoogleIdentityService _googleIdentityService;
 
   @override
-  Future<void> ensureInitialized() => _googleIdentityService.ensureInitialized();
+  Future<void> ensureInitialized() =>
+      _googleIdentityService.ensureInitialized();
 
   // ── Google OAuth ────────────────────────────────────────────────────────────
 
@@ -82,6 +90,38 @@ class AuthService implements AuthServiceContract {
     final session = await _emailOtpApiService.verifyEmailOtp(email, otp);
     await _sessionStorage.save(session);
     return session;
+  }
+
+  @override
+  Future<AuthUser> updateCurrentUserNames({
+    required String firstName,
+    required String lastName,
+  }) async {
+    final session = await _sessionStorage.read();
+
+    if (session == null) {
+      throw StateError('No stored session was found for this profile update.');
+    }
+
+    final activeSession = await _resolveActiveSession(session);
+    final updatedUser = await _usersApiService.updateCurrentUserNames(
+      accessToken: activeSession.accessToken,
+      firstName: firstName,
+      lastName: lastName,
+    );
+
+    await _sessionStorage.save(
+      AuthSession(
+        accessToken: activeSession.accessToken,
+        refreshToken: activeSession.refreshToken,
+        expiresIn: activeSession.expiresIn,
+        tokenType: activeSession.tokenType,
+        user: updatedUser,
+        issuedAt: activeSession.issuedAt,
+      ),
+    );
+
+    return updatedUser;
   }
 
   // ── Session management ──────────────────────────────────────────────────────
