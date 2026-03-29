@@ -13,6 +13,7 @@ import '../../data/models/email_initiate_response.dart';
 import '../../../home/presentation/pages/landing_page.dart';
 import '../widgets/auth_layout.dart';
 import '../widgets/auth_loading_button.dart';
+import '../widgets/profile_completion_dialog.dart';
 
 class EmailOtpPage extends StatefulWidget {
   const EmailOtpPage({
@@ -80,13 +81,21 @@ class _EmailOtpPageState extends State<EmailOtpPage> {
 
       if (!mounted) return;
 
+      final resolvedUser = await ProfileCompletionDialog.showIfRequired(
+        context,
+        authService: widget.authService,
+        user: session.user,
+      );
+
+      if (!mounted) return;
+
       AppToast.success(
         context,
         title: 'Signed in successfully',
-        description: 'Welcome, ${session.user.fullName ?? session.user.email}.',
+        description: 'Welcome, ${resolvedUser.fullName ?? resolvedUser.email}.',
       );
 
-      _openLanding(session.user);
+      _openLanding(resolvedUser);
     } catch (error) {
       if (mounted) {
         AppToast.error(
