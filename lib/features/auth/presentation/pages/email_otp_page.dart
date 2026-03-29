@@ -73,16 +73,17 @@ class _EmailOtpPageState extends State<EmailOtpPage> {
     setState(() => _isVerifying = true);
 
     try {
-      final session =
-          await widget.authService.verifyEmailOtp(widget.email, _currentOtp);
+      final session = await widget.authService.verifyEmailOtp(
+        widget.email,
+        _currentOtp,
+      );
 
       if (!mounted) return;
 
       AppToast.success(
         context,
         title: 'Signed in successfully',
-        description:
-            'Welcome, ${session.user.fullName ?? session.user.email}.',
+        description: 'Welcome, ${session.user.fullName ?? session.user.email}.',
       );
 
       _openLanding(session.user);
@@ -110,7 +111,8 @@ class _EmailOtpPageState extends State<EmailOtpPage> {
       AppToast.success(
         context,
         title: 'Code resent',
-        description: 'A new code was sent to ${widget.initiateResponse.maskedEmail}.',
+        description:
+            'A new code was sent to ${widget.initiateResponse.maskedEmail}.',
       );
 
       _startResendTimer();
@@ -171,6 +173,7 @@ class _EmailOtpPageState extends State<EmailOtpPage> {
         email: widget.email,
         maskedEmail: widget.initiateResponse.maskedEmail,
         isRegister: widget.initiateResponse.isRegister,
+        isCodeComplete: _currentOtp.length == 6,
         isVerifying: _isVerifying,
         isResending: _isResending,
         resendCountdown: _resendCountdown,
@@ -189,6 +192,7 @@ class _OtpForm extends StatefulWidget {
     required this.email,
     required this.maskedEmail,
     required this.isRegister,
+    required this.isCodeComplete,
     required this.isVerifying,
     required this.isResending,
     required this.resendCountdown,
@@ -200,6 +204,7 @@ class _OtpForm extends StatefulWidget {
   final String email;
   final String maskedEmail;
   final bool isRegister;
+  final bool isCodeComplete;
   final bool isVerifying;
   final bool isResending;
   final int resendCountdown;
@@ -211,7 +216,8 @@ class _OtpForm extends StatefulWidget {
   State<_OtpForm> createState() => _OtpFormState();
 }
 
-class _OtpFormState extends State<_OtpForm> with SingleTickerProviderStateMixin {
+class _OtpFormState extends State<_OtpForm>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _entranceController;
 
   @override
@@ -230,9 +236,9 @@ class _OtpFormState extends State<_OtpForm> with SingleTickerProviderStateMixin 
   }
 
   Animation<double> _fadeAt(double start, double end) => CurvedAnimation(
-        parent: _entranceController,
-        curve: Interval(start, end, curve: Curves.easeOutCubic),
-      );
+    parent: _entranceController,
+    curve: Interval(start, end, curve: Curves.easeOutCubic),
+  );
 
   Animation<Offset> _slideAt(double start, double end) =>
       Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
@@ -300,9 +306,9 @@ class _OtpFormState extends State<_OtpForm> with SingleTickerProviderStateMixin 
                   Text(
                     'Check your inbox',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontSize: titleSize,
-                          color: AppColors.textPrimary,
-                        ),
+                      fontSize: titleSize,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   RichText(
@@ -338,6 +344,11 @@ class _OtpFormState extends State<_OtpForm> with SingleTickerProviderStateMixin 
                       ],
                     ),
                   ),
+                  const SizedBox(height: 18),
+                  _DeliverySummaryCard(
+                    maskedEmail: widget.maskedEmail,
+                    isRegister: widget.isRegister,
+                  ),
                 ],
               ),
             ),
@@ -352,6 +363,7 @@ class _OtpFormState extends State<_OtpForm> with SingleTickerProviderStateMixin 
               position: _slideAt(0.18, 0.68),
               child: _OtpFieldsRow(
                 onChanged: widget.onOtpChanged,
+                isCodeComplete: widget.isCodeComplete,
               ),
             ),
           ),
@@ -364,8 +376,10 @@ class _OtpFormState extends State<_OtpForm> with SingleTickerProviderStateMixin 
             child: SlideTransition(
               position: _slideAt(0.28, 0.78),
               child: AuthLoadingButton(
-                label: widget.isRegister ? 'Create account' : 'Sign in',
-                loadingLabel: 'Verifying…',
+                label: widget.isRegister
+                    ? 'Verify & create account'
+                    : 'Verify & sign in',
+                loadingLabel: 'Verifying code…',
                 isLoading: widget.isVerifying,
                 fontSize: 14,
                 leading: HugeIcon(
@@ -374,7 +388,7 @@ class _OtpFormState extends State<_OtpForm> with SingleTickerProviderStateMixin 
                   color: AppColors.background,
                   strokeWidth: 1.8,
                 ),
-                onPressed: widget.onVerify,
+                onPressed: widget.isCodeComplete ? widget.onVerify : null,
               ),
             ),
           ),
@@ -390,6 +404,100 @@ class _OtpFormState extends State<_OtpForm> with SingleTickerProviderStateMixin 
                 countdown: widget.resendCountdown,
                 isResending: widget.isResending,
                 onResend: widget.onResend,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeliverySummaryCard extends StatelessWidget {
+  const _DeliverySummaryCard({
+    required this.maskedEmail,
+    required this.isRegister,
+  });
+
+  final String maskedEmail;
+  final bool isRegister;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.primary.withValues(alpha: 0.12),
+            Colors.white.withValues(alpha: 0.04),
+          ],
+        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: const Center(
+              child: HugeIcon(
+                icon: HugeIcons.strokeRoundedSent,
+                size: 18,
+                color: AppColors.primary,
+                strokeWidth: 1.8,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  isRegister ? 'Registration email' : 'Sign-in email',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  maskedEmail,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'DMSans',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: const Text(
+              '6 digits',
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'DMSans',
               ),
             ),
           ),
@@ -458,101 +566,300 @@ class _BackButtonState extends State<_BackButton> {
 // ── OTP input row ────────────────────────────────────────────────────────────
 
 class _OtpFieldsRow extends StatefulWidget {
-  const _OtpFieldsRow({required this.onChanged});
+  const _OtpFieldsRow({required this.onChanged, required this.isCodeComplete});
 
   final ValueChanged<String> onChanged;
+  final bool isCodeComplete;
 
   @override
   State<_OtpFieldsRow> createState() => _OtpFieldsRowState();
 }
 
 class _OtpFieldsRowState extends State<_OtpFieldsRow> {
-  final List<TextEditingController> _controllers =
-      List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+  bool _isFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+    _focusNode = FocusNode();
+    _controller.addListener(_handleCodeChanged);
+    _focusNode.addListener(_handleFocusChanged);
+  }
 
   @override
   void dispose() {
-    for (final c in _controllers) {
-      c.dispose();
-    }
-    for (final f in _focusNodes) {
-      f.dispose();
-    }
+    _controller.removeListener(_handleCodeChanged);
+    _focusNode.removeListener(_handleFocusChanged);
+    _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
-  String get _otp => _controllers.map((c) => c.text).join();
+  String get _code => _controller.text;
 
-  void _onFieldChanged(int index, String value) {
-    if (value.length == 1 && index < 5) {
-      _focusNodes[index + 1].requestFocus();
+  void _handleCodeChanged() {
+    var digits = _controller.text.replaceAll(RegExp(r'\D'), '');
+
+    if (digits.length > 6) {
+      digits = digits.substring(0, 6);
     }
-    widget.onChanged(_otp);
+
+    if (digits != _controller.text) {
+      _controller.value = TextEditingValue(
+        text: digits,
+        selection: TextSelection.collapsed(offset: digits.length),
+      );
+      return;
+    }
+
+    widget.onChanged(digits);
+
+    if (digits.length == 6 && _focusNode.hasFocus) {
+      _focusNode.unfocus();
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _handleFocusChanged() {
+    if (_isFocused == _focusNode.hasFocus) {
+      return;
+    }
+
+    setState(() => _isFocused = _focusNode.hasFocus);
+  }
+
+  void _focusInput() {
+    if (!_focusNode.hasFocus) {
+      _focusNode.requestFocus();
+    }
+
+    _controller.selection = TextSelection.collapsed(offset: _code.length);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: List.generate(6, _buildBox),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(26),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withValues(alpha: 0.06),
+                AppColors.surfaceElevated.withValues(alpha: 0.92),
+              ],
+            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Enter your code',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontSize: 13,
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    widget.isCodeComplete ? 'Code ready' : 'Paste supported',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: widget.isCodeComplete
+                          ? AppColors.success
+                          : AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                      fontFamily: 'DMSans',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _focusInput,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isCompact = constraints.maxWidth < 360;
+                    final spacing = isCompact ? 6.0 : 8.0;
+                    final cellHeight = isCompact ? 58.0 : 64.0;
+                    final activeIndex = _code.length >= 6 ? 5 : _code.length;
+
+                    return Row(
+                      children: List.generate(6, (index) {
+                        final digit = index < _code.length ? _code[index] : '';
+                        final isActive = _isFocused && index == activeIndex;
+                        final isFilled = digit.isNotEmpty;
+
+                        return Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              right: index == 5 ? 0 : spacing,
+                            ),
+                            child: _OtpDigitCell(
+                              digit: digit,
+                              isActive: isActive,
+                              isFilled: isFilled,
+                              height: cellHeight,
+                            ),
+                          ),
+                        );
+                      }),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                widget.isCodeComplete
+                    ? 'Looks good. Continue when you are ready.'
+                    : 'You can type or paste the full 6-digit code.',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: widget.isCodeComplete
+                      ? AppColors.success.withValues(alpha: 0.94)
+                      : AppColors.textSecondary,
+                  fontFamily: 'DMSans',
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          width: 1,
+          height: 1,
+          child: Opacity(
+            opacity: 0,
+            child: TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              autofillHints: const [AutofillHints.oneTimeCode],
+              enableSuggestions: false,
+              autocorrect: false,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.done,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(6),
+              ],
+              decoration: const InputDecoration(
+                isCollapsed: true,
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                counterText: '',
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
+}
 
-  Widget _buildBox(int index) {
-    return SizedBox(
-      width: 46,
-      height: 58,
-      child: Focus(
-        onKeyEvent: (node, event) {
-          if (event is KeyDownEvent &&
-              event.logicalKey == LogicalKeyboardKey.backspace &&
-              _controllers[index].text.isEmpty &&
-              index > 0) {
-            _controllers[index - 1].clear();
-            _focusNodes[index - 1].requestFocus();
-            widget.onChanged(_otp);
-            return KeyEventResult.handled;
-          }
-          return KeyEventResult.ignored;
-        },
-        child: TextFormField(
-          controller: _controllers[index],
-          focusNode: _focusNodes[index],
-          textAlign: TextAlign.center,
-          keyboardType: TextInputType.number,
-          textInputAction:
-              index < 5 ? TextInputAction.next : TextInputAction.done,
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(1),
+class _OtpDigitCell extends StatelessWidget {
+  const _OtpDigitCell({
+    required this.digit,
+    required this.isActive,
+    required this.isFilled,
+    required this.height,
+  });
+
+  final String digit;
+  final bool isActive;
+  final bool isFilled;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = isActive
+        ? AppColors.primary
+        : isFilled
+        ? AppColors.primary.withValues(alpha: 0.42)
+        : AppColors.border;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            isActive
+                ? AppColors.primary.withValues(alpha: 0.16)
+                : isFilled
+                ? Colors.white.withValues(alpha: 0.07)
+                : AppColors.surfaceElevated,
+            isActive ? Colors.white.withValues(alpha: 0.08) : AppColors.surface,
           ],
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-            fontFamily: 'DMSans',
-          ),
-          decoration: InputDecoration(
-            contentPadding: EdgeInsets.zero,
-            isCollapsed: true,
-            filled: true,
-            fillColor: AppColors.surfaceElevated,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: AppColors.border),
+        ),
+        border: Border.all(color: borderColor, width: isActive ? 1.6 : 1.0),
+        boxShadow: [
+          if (isActive)
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.18),
+              blurRadius: 18,
+            )
+          else if (isFilled)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 10,
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide:
-                  const BorderSide(color: AppColors.primary, width: 1.8),
-            ),
-          ),
-          onChanged: (value) => _onFieldChanged(index, value),
+        ],
+      ),
+      child: Center(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 150),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          child: digit.isNotEmpty
+              ? Text(
+                  digit,
+                  key: ValueKey<String>('digit-$digit'),
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                    fontFamily: 'DMSans',
+                    letterSpacing: 0.8,
+                  ),
+                )
+              : isActive
+              ? Container(
+                  key: const ValueKey('active-caret'),
+                  width: 2,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                )
+              : Container(
+                  key: const ValueKey('empty-placeholder'),
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
+                ),
         ),
       ),
     );
@@ -585,9 +892,9 @@ class _ResendRow extends StatelessWidget {
           Text(
             "Didn't receive the code?",
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
           ),
           if (!canResend)
             Text(
@@ -641,10 +948,10 @@ class _ResendButtonState extends State<_ResendButton> {
             Text(
               'Resend code',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontSize: 12,
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
+                fontSize: 12,
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
