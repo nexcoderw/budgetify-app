@@ -40,6 +40,8 @@ dependencies:
   google_sign_in_web: ^1.1.2
   hugeicons: ^1.1.5
   http: ^1.5.0
+  http_parser: ^4.1.2
+  image_picker: ^1.2.0
   toastification: ^3.0.3
 
 dev_dependencies:
