@@ -22,6 +22,13 @@ abstract class AuthServiceContract {
   /// Returns a full [AuthSession] on success.
   Future<AuthSession> verifyEmailOtp(String email, String otp);
 
+  /// Updates the authenticated user's profile names and returns the refreshed
+  /// user payload from the API.
+  Future<AuthUser> updateCurrentUserNames({
+    required String firstName,
+    required String lastName,
+  });
+
   // ── Session management ──────────────────────────────────────────────────────
 
   Future<AuthUser?> restoreAuthenticatedUser();
