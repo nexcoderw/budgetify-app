@@ -105,6 +105,12 @@ class GoogleIdentityService {
   }
 
   String? _resolveClientId() {
+    if (kIsWeb) {
+      // Web requires an explicit clientId — the GIS library won't read the
+      // meta tag reliably when called from Dart's initWithParams().
+      return AppEnv.optional('GOOGLE_CLIENT_ID');
+    }
+
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       return AppEnv.optional('GOOGLE_IOS_CLIENT_ID');
     }
