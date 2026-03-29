@@ -3,7 +3,9 @@ class TodoApiRoutes {
 
   static const instance = TodoApiRoutes._();
 
-  String get list => '/todos';
+  static const String _base = '/api/v1/todos';
 
-  String byId(String todoId) => '/todos/$todoId';
+  String get list => _base;
+
+  String byId(String todoId) => '$_base/$todoId';
 }
