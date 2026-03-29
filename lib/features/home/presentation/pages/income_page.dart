@@ -4,61 +4,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
 
+import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/glass_panel.dart';
+import '../../../../core/widgets/skeleton_loader.dart';
+import '../../../income/application/income_service.dart';
+import '../../../income/data/models/income_entry.dart';
 
-// ── Model ─────────────────────────────────────────────────────────────────────
-
-class IncomeEntry {
-  IncomeEntry({
-    required this.id,
-    required this.label,
-    required this.amount,
-    required this.category,
-    required this.date,
-  });
-
-  final String id;
-  String label;
-  double amount;
-  IncomeCategory category;
-  DateTime date;
-}
-
-enum IncomeCategory {
-  salary,
-  freelance,
-  dividends,
-  rental,
-  sideHustle,
-  other;
-
-  String get displayName => switch (this) {
-        salary => 'Salary',
-        freelance => 'Freelance',
-        dividends => 'Dividends',
-        rental => 'Rental',
-        sideHustle => 'Side hustle',
-        other => 'Other',
-      };
-
+extension _IncomeCategoryPresentation on IncomeCategory {
   dynamic get icon => switch (this) {
-        salary => HugeIcons.strokeRoundedBuilding03,
-        freelance => HugeIcons.strokeRoundedLaptop,
-        dividends => HugeIcons.strokeRoundedChartUp,
-        rental => HugeIcons.strokeRoundedHome01,
-        sideHustle => HugeIcons.strokeRoundedStars,
-        other => HugeIcons.strokeRoundedMoney01,
-      };
+    IncomeCategory.salary => HugeIcons.strokeRoundedBuilding03,
+    IncomeCategory.freelance => HugeIcons.strokeRoundedLaptop,
+    IncomeCategory.dividends => HugeIcons.strokeRoundedChartUp,
+    IncomeCategory.rental => HugeIcons.strokeRoundedHome01,
+    IncomeCategory.sideHustle => HugeIcons.strokeRoundedStars,
+    IncomeCategory.other => HugeIcons.strokeRoundedMoney01,
+  };
 
   Color get color => switch (this) {
-        salary => AppColors.success,
-        freelance => const Color(0xFF7EB8FF),
-        dividends => AppColors.primary,
-        rental => const Color(0xFFC97BFF),
-        sideHustle => const Color(0xFFFFB86C),
-        other => const Color(0xFFFF9F9F),
-      };
+    IncomeCategory.salary => AppColors.success,
+    IncomeCategory.freelance => const Color(0xFF7EB8FF),
+    IncomeCategory.dividends => AppColors.primary,
+    IncomeCategory.rental => const Color(0xFFC97BFF),
+    IncomeCategory.sideHustle => const Color(0xFFFFB86C),
+    IncomeCategory.other => const Color(0xFFFF9F9F),
+  };
 }
 
 // ── RWF formatter ─────────────────────────────────────────────────────────────
@@ -80,50 +50,12 @@ String _rwfCompact(double amount) {
   return _rwf(amount);
 }
 
-// ── Seed data ─────────────────────────────────────────────────────────────────
-
-List<IncomeEntry> _seedEntries() => [
-      IncomeEntry(
-        id: '1',
-        label: 'Monthly Salary',
-        amount: 450000,
-        category: IncomeCategory.salary,
-        date: DateTime(2026, 3, 1),
-      ),
-      IncomeEntry(
-        id: '2',
-        label: 'Web Dev Project',
-        amount: 85000,
-        category: IncomeCategory.freelance,
-        date: DateTime(2026, 3, 8),
-      ),
-      IncomeEntry(
-        id: '3',
-        label: 'Stock Dividends',
-        amount: 32000,
-        category: IncomeCategory.dividends,
-        date: DateTime(2026, 3, 12),
-      ),
-      IncomeEntry(
-        id: '4',
-        label: 'Apartment Rent',
-        amount: 60000,
-        category: IncomeCategory.rental,
-        date: DateTime(2026, 3, 5),
-      ),
-      IncomeEntry(
-        id: '5',
-        label: 'Design Gigs',
-        amount: 40000,
-        category: IncomeCategory.sideHustle,
-        date: DateTime(2026, 3, 20),
-      ),
-    ];
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 class IncomePage extends StatefulWidget {
-  const IncomePage({super.key});
+  const IncomePage({super.key, required this.incomeService});
+
+  final IncomeService incomeService;
 
   @override
   State<IncomePage> createState() => _IncomePageState();
@@ -132,16 +64,18 @@ class IncomePage extends StatefulWidget {
 class _IncomePageState extends State<IncomePage>
     with SingleTickerProviderStateMixin {
   late final AnimationController _entranceCtrl;
-  late List<IncomeEntry> _entries;
+  List<IncomeEntry> _entries = const [];
+  bool _isLoading = true;
+  String? _loadError;
 
   @override
   void initState() {
     super.initState();
-    _entries = _seedEntries();
     _entranceCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 950),
     )..forward();
+    _loadIncome();
   }
 
   @override
@@ -155,17 +89,21 @@ class _IncomePageState extends State<IncomePage>
   double get _total => _entries.fold(0, (sum, e) => sum + e.amount);
 
   double get _activeTotal => _entries
-      .where((e) =>
-          e.category == IncomeCategory.salary ||
-          e.category == IncomeCategory.freelance ||
-          e.category == IncomeCategory.sideHustle)
+      .where(
+        (e) =>
+            e.category == IncomeCategory.salary ||
+            e.category == IncomeCategory.freelance ||
+            e.category == IncomeCategory.sideHustle,
+      )
       .fold(0, (sum, e) => sum + e.amount);
 
   double get _passiveTotal => _entries
-      .where((e) =>
-          e.category == IncomeCategory.dividends ||
-          e.category == IncomeCategory.rental ||
-          e.category == IncomeCategory.other)
+      .where(
+        (e) =>
+            e.category == IncomeCategory.dividends ||
+            e.category == IncomeCategory.rental ||
+            e.category == IncomeCategory.other,
+      )
       .fold(0, (sum, e) => sum + e.amount);
 
   // ── CRUD ──────────────────────────────────────────────────────────────────────
@@ -173,22 +111,81 @@ class _IncomePageState extends State<IncomePage>
   Future<void> _openAddDialog() async {
     final entry = await showDialog<IncomeEntry>(
       context: context,
-      builder: (_) => const _IncomeFormDialog(entry: null),
+      builder: (_) => _IncomeFormDialog(
+        entry: null,
+        onSubmit:
+            ({
+              required String label,
+              required double amount,
+              required IncomeCategory category,
+              required DateTime date,
+            }) {
+              return widget.incomeService.createIncome(
+                label: label,
+                amount: amount,
+                category: category,
+                date: date,
+              );
+            },
+      ),
     );
-    if (entry != null) setState(() => _entries.insert(0, entry));
+
+    if (entry == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _entries = _sortedEntries(<IncomeEntry>[entry, ..._entries]);
+      _loadError = null;
+    });
+
+    AppToast.success(
+      context,
+      title: 'Income added',
+      description: '${entry.label} was saved to your income records.',
+    );
   }
 
   Future<void> _openEditDialog(IncomeEntry entry) async {
     final updated = await showDialog<IncomeEntry>(
       context: context,
-      builder: (_) => _IncomeFormDialog(entry: entry),
+      builder: (_) => _IncomeFormDialog(
+        entry: entry,
+        onSubmit:
+            ({
+              required String label,
+              required double amount,
+              required IncomeCategory category,
+              required DateTime date,
+            }) {
+              return widget.incomeService.updateIncome(
+                incomeId: entry.id,
+                label: label,
+                amount: amount,
+                category: category,
+                date: date,
+              );
+            },
+      ),
     );
-    if (updated != null) {
-      setState(() {
-        final i = _entries.indexWhere((e) => e.id == updated.id);
-        if (i != -1) _entries[i] = updated;
-      });
+
+    if (updated == null || !mounted) {
+      return;
     }
+
+    setState(() {
+      final nextEntries = _entries
+          .map((current) => current.id == updated.id ? updated : current)
+          .toList(growable: false);
+      _entries = _sortedEntries(nextEntries);
+      _loadError = null;
+    });
+
+    AppToast.success(
+      context,
+      title: 'Income updated',
+      description: '${updated.label} was updated successfully.',
+    );
   }
 
   Future<void> _confirmDelete(IncomeEntry entry) async {
@@ -197,16 +194,109 @@ class _IncomePageState extends State<IncomePage>
       builder: (_) => _DeleteConfirmDialog(label: entry.label),
     );
     if (confirmed == true) {
-      setState(() => _entries.removeWhere((e) => e.id == entry.id));
+      try {
+        await widget.incomeService.deleteIncome(entry.id);
+
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _entries = _entries
+              .where((current) => current.id != entry.id)
+              .toList(growable: false);
+        });
+
+        AppToast.success(
+          context,
+          title: 'Income removed',
+          description: '${entry.label} was removed from your records.',
+        );
+      } catch (error) {
+        if (!mounted) {
+          return;
+        }
+
+        AppToast.error(
+          context,
+          title: 'Unable to delete income',
+          description: _readableError(error),
+        );
+      }
     }
+  }
+
+  Future<void> _loadIncome() async {
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+
+    try {
+      final entries = await widget.incomeService.listIncome();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _entries = _sortedEntries(entries);
+        _isLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      final message = _readableError(error);
+      setState(() {
+        _entries = const [];
+        _isLoading = false;
+        _loadError = message;
+      });
+
+      AppToast.error(
+        context,
+        title: 'Unable to load income',
+        description: message,
+      );
+    }
+  }
+
+  List<IncomeEntry> _sortedEntries(List<IncomeEntry> entries) {
+    final sorted = entries.toList(growable: false);
+    sorted.sort((left, right) {
+      final byDate = right.date.compareTo(left.date);
+      if (byDate != 0) {
+        return byDate;
+      }
+
+      return right.createdAt.compareTo(left.createdAt);
+    });
+
+    return sorted;
+  }
+
+  String _readableError(Object error) {
+    final message = error.toString().trim();
+
+    if (message.startsWith('Exception: ')) {
+      return message.replaceFirst('Exception: ', '');
+    }
+
+    if (message.startsWith('StateError: ')) {
+      return message.replaceFirst('StateError: ', '');
+    }
+
+    return message;
   }
 
   // ── Animation helpers ─────────────────────────────────────────────────────────
 
   Animation<double> _fade(double start, double end) => CurvedAnimation(
-        parent: _entranceCtrl,
-        curve: Interval(start, end, curve: Curves.easeOut),
-      );
+    parent: _entranceCtrl,
+    curve: Interval(start, end, curve: Curves.easeOut),
+  );
 
   Animation<Offset> _slide(double start, double end) =>
       Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
@@ -218,6 +308,10 @@ class _IncomePageState extends State<IncomePage>
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return _IncomePageLoading(fade: _fade, slide: _slide);
+    }
+
     final total = _total;
     final activeTotal = _activeTotal;
     final passiveTotal = _passiveTotal;
@@ -260,6 +354,8 @@ class _IncomePageState extends State<IncomePage>
           child: _EntryList(
             entries: _entries,
             total: total,
+            loadError: _loadError,
+            onRetry: _loadIncome,
             onEdit: _openEditDialog,
             onDelete: _confirmDelete,
           ),
@@ -271,6 +367,196 @@ class _IncomePageState extends State<IncomePage>
           slide: _slide(0.70, 1.0),
           child: const _FooterNote(),
         ),
+      ],
+    );
+  }
+}
+
+class _IncomePageLoading extends StatelessWidget {
+  const _IncomePageLoading({required this.fade, required this.slide});
+
+  final Animation<double> Function(double, double) fade;
+  final Animation<Offset> Function(double, double) slide;
+
+  @override
+  Widget build(BuildContext context) {
+    return SkeletonLoader(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Staggered(
+            fade: fade(0.0, 0.45),
+            slide: slide(0.0, 0.45),
+            child: _LoadingPanel(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  SkeletonBox(width: 138, height: 24, radius: 999),
+                  SizedBox(height: 22),
+                  SkeletonBox(width: 180, height: 32, radius: 18),
+                  SizedBox(height: 12),
+                  SkeletonBox(height: 12, radius: 12),
+                  SizedBox(height: 8),
+                  SkeletonBox(width: 240, height: 12, radius: 12),
+                  SizedBox(height: 26),
+                  SkeletonBox(width: 220, height: 42, radius: 18),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          _Staggered(
+            fade: fade(0.12, 0.55),
+            slide: slide(0.12, 0.55),
+            child: Row(
+              children: const [
+                Expanded(
+                  child: _LoadingPanel(
+                    padding: EdgeInsets.all(20),
+                    child: _LoadingMetricCard(),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: _LoadingPanel(
+                    padding: EdgeInsets.all(20),
+                    child: _LoadingMetricCard(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _Staggered(
+            fade: fade(0.26, 0.68),
+            slide: slide(0.26, 0.68),
+            child: const _LoadingPanel(
+              padding: EdgeInsets.all(24),
+              child: _LoadingCategoryPanel(),
+            ),
+          ),
+          const SizedBox(height: 14),
+          _Staggered(
+            fade: fade(0.40, 0.82),
+            slide: slide(0.40, 0.82),
+            child: const _LoadingPanel(
+              padding: EdgeInsets.all(24),
+              child: _LoadingEntriesPanel(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingPanel extends StatelessWidget {
+  const _LoadingPanel({required this.padding, required this.child});
+
+  final EdgeInsetsGeometry padding;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPanel(
+      padding: padding,
+      borderRadius: BorderRadius.circular(28),
+      blur: 24,
+      opacity: 0.12,
+      child: child,
+    );
+  }
+}
+
+class _LoadingMetricCard extends StatelessWidget {
+  const _LoadingMetricCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: const [
+        SkeletonBox(width: 72, height: 12, radius: 12),
+        SizedBox(height: 16),
+        SkeletonBox(width: 118, height: 26, radius: 16),
+        SizedBox(height: 8),
+        SkeletonBox(width: 150, height: 10, radius: 12),
+        SizedBox(height: 14),
+        SkeletonBox(height: 4, radius: 999),
+        SizedBox(height: 10),
+        SkeletonBox(width: 96, height: 10, radius: 12),
+      ],
+    );
+  }
+}
+
+class _LoadingCategoryPanel extends StatelessWidget {
+  const _LoadingCategoryPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: const [
+        SkeletonBox(width: 120, height: 16, radius: 12),
+        SizedBox(height: 24),
+        SkeletonBox(height: 16, radius: 14),
+        SizedBox(height: 16),
+        SkeletonBox(height: 16, radius: 14),
+        SizedBox(height: 16),
+        SkeletonBox(height: 16, radius: 14),
+      ],
+    );
+  }
+}
+
+class _LoadingEntriesPanel extends StatelessWidget {
+  const _LoadingEntriesPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: const [
+        Row(
+          children: [
+            SkeletonBox(width: 120, height: 16, radius: 12),
+            Spacer(),
+            SkeletonBox(width: 74, height: 12, radius: 12),
+          ],
+        ),
+        SizedBox(height: 20),
+        _LoadingEntryRow(),
+        SizedBox(height: 14),
+        _LoadingEntryRow(),
+        SizedBox(height: 14),
+        _LoadingEntryRow(),
+      ],
+    );
+  }
+}
+
+class _LoadingEntryRow extends StatelessWidget {
+  const _LoadingEntryRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: const [
+        SkeletonBox(width: 40, height: 40, radius: 999),
+        SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SkeletonBox(width: 150, height: 14, radius: 12),
+              SizedBox(height: 8),
+              SkeletonBox(width: 88, height: 11, radius: 12),
+            ],
+          ),
+        ),
+        SizedBox(width: 12),
+        SkeletonBox(width: 84, height: 14, radius: 12),
       ],
     );
   }
@@ -389,8 +675,8 @@ class _IncomeHeaderState extends State<_IncomeHeader>
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 HugeIcon(
-                                  icon: HugeIcons
-                                      .strokeRoundedMoneyReceiveCircle,
+                                  icon:
+                                      HugeIcons.strokeRoundedMoneyReceiveCircle,
                                   size: 15,
                                   color: AppColors.success,
                                   strokeWidth: 1.8,
@@ -410,9 +696,7 @@ class _IncomeHeaderState extends State<_IncomeHeader>
                           const SizedBox(height: 18),
                           Text(
                             'Income',
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineMedium
+                            style: Theme.of(context).textTheme.headlineMedium
                                 ?.copyWith(
                                   fontSize: isCompact ? 26 : 30,
                                   color: AppColors.textPrimary,
@@ -424,8 +708,9 @@ class _IncomeHeaderState extends State<_IncomeHeader>
                             style: TextStyle(
                               fontSize: 12,
                               height: 1.55,
-                              color: AppColors.textSecondary
-                                  .withValues(alpha: 0.85),
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.85,
+                              ),
                             ),
                           ),
                         ],
@@ -449,8 +734,9 @@ class _IncomeHeaderState extends State<_IncomeHeader>
                             'Total this month',
                             style: TextStyle(
                               fontSize: 11,
-                              color: AppColors.textSecondary
-                                  .withValues(alpha: 0.7),
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.7,
+                              ),
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -712,8 +998,9 @@ class _TypeCardState extends State<_TypeCard>
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 12,
-                            color: AppColors.textSecondary
-                                .withValues(alpha: 0.9),
+                            color: AppColors.textSecondary.withValues(
+                              alpha: 0.9,
+                            ),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -770,8 +1057,9 @@ class _TypeCardState extends State<_TypeCard>
                           height: 3,
                           child: LinearProgressIndicator(
                             value: (widget.percentage / 100) * _anim.value,
-                            backgroundColor:
-                                Colors.white.withValues(alpha: 0.08),
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.08,
+                            ),
                             valueColor: AlwaysStoppedAnimation(
                               widget.accentColor,
                             ),
@@ -999,10 +1287,7 @@ class _CategoryBarState extends State<_CategoryBar>
                             child: Container(
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [
-                                    color,
-                                    color.withValues(alpha: 0.6),
-                                  ],
+                                  colors: [color, color.withValues(alpha: 0.6)],
                                 ),
                               ),
                             ),
@@ -1035,12 +1320,16 @@ class _EntryList extends StatelessWidget {
   const _EntryList({
     required this.entries,
     required this.total,
+    required this.loadError,
+    required this.onRetry,
     required this.onEdit,
     required this.onDelete,
   });
 
   final List<IncomeEntry> entries;
   final double total;
+  final String? loadError;
+  final Future<void> Function() onRetry;
   final void Function(IncomeEntry) onEdit;
   final void Function(IncomeEntry) onDelete;
 
@@ -1094,7 +1383,9 @@ class _EntryList extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          if (entries.isEmpty)
+          if (loadError != null && entries.isEmpty)
+            _LoadErrorHint(message: loadError!, onRetry: onRetry)
+          else if (entries.isEmpty)
             _EmptyHint(message: 'No income entries yet. Tap + to add one.')
           else
             ...List.generate(entries.length, (i) {
@@ -1161,8 +1452,18 @@ class _EntryRowState extends State<_EntryRow>
 
   String _formatDate(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
@@ -1198,9 +1499,7 @@ class _EntryRowState extends State<_EntryRow>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: color.withValues(alpha: 0.14),
-                      border: Border.all(
-                        color: color.withValues(alpha: 0.22),
-                      ),
+                      border: Border.all(color: color.withValues(alpha: 0.22)),
                     ),
                     child: Center(
                       child: HugeIcon(
@@ -1230,8 +1529,9 @@ class _EntryRowState extends State<_EntryRow>
                           widget.entry.category.displayName,
                           style: TextStyle(
                             fontSize: 11,
-                            color: AppColors.textSecondary
-                                .withValues(alpha: 0.65),
+                            color: AppColors.textSecondary.withValues(
+                              alpha: 0.65,
+                            ),
                           ),
                         ),
                       ],
@@ -1256,8 +1556,7 @@ class _EntryRowState extends State<_EntryRow>
                         child: HugeIcon(
                           icon: HugeIcons.strokeRoundedArrowDown01,
                           size: 12,
-                          color: AppColors.textSecondary
-                              .withValues(alpha: 0.5),
+                          color: AppColors.textSecondary.withValues(alpha: 0.5),
                           strokeWidth: 2,
                         ),
                       ),
@@ -1435,9 +1734,16 @@ class _ActionIconState extends State<_ActionIcon> {
 // ── Form dialog (Add / Edit) ──────────────────────────────────────────────────
 
 class _IncomeFormDialog extends StatefulWidget {
-  const _IncomeFormDialog({required this.entry});
+  const _IncomeFormDialog({required this.entry, required this.onSubmit});
 
   final IncomeEntry? entry;
+  final Future<IncomeEntry> Function({
+    required String label,
+    required double amount,
+    required IncomeCategory category,
+    required DateTime date,
+  })
+  onSubmit;
 
   @override
   State<_IncomeFormDialog> createState() => _IncomeFormDialogState();
@@ -1454,6 +1760,7 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
   late final Animation<double> _fadeAnim;
 
   final _formKey = GlobalKey<FormState>();
+  bool _isSubmitting = false;
 
   bool get _isEditing => widget.entry != null;
 
@@ -1471,9 +1778,10 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
       vsync: this,
       duration: const Duration(milliseconds: 320),
     );
-    _scaleAnim = Tween<double>(begin: 0.90, end: 1.0).animate(
-      CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic),
-    );
+    _scaleAnim = Tween<double>(
+      begin: 0.90,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
     _animCtrl.forward();
   }
@@ -1487,6 +1795,10 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
   }
 
   Future<void> _pickDate() async {
+    if (_isSubmitting) {
+      return;
+    }
+
     final picked = await showDatePicker(
       context: context,
       initialDate: _date,
@@ -1507,31 +1819,75 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
     if (picked != null) setState(() => _date = picked);
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final amount = double.tryParse(_amountCtrl.text.replaceAll(',', ''));
     if (amount == null || amount <= 0) return;
 
-    final result = IncomeEntry(
-      id: widget.entry?.id ??
-          DateTime.now().millisecondsSinceEpoch.toString(),
-      label: _labelCtrl.text.trim(),
-      amount: amount,
-      category: _category,
-      date: _date,
-    );
-    Navigator.of(context).pop(result);
+    setState(() => _isSubmitting = true);
+
+    try {
+      final result = await widget.onSubmit(
+        label: _labelCtrl.text.trim(),
+        amount: amount,
+        category: _category,
+        date: _date,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(context).pop(result);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      AppToast.error(
+        context,
+        title: _isEditing ? 'Unable to update income' : 'Unable to add income',
+        description: _readableError(error),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  String _readableError(Object error) {
+    final message = error.toString().trim();
+
+    if (message.startsWith('Exception: ')) {
+      return message.replaceFirst('Exception: ', '');
+    }
+
+    if (message.startsWith('StateError: ')) {
+      return message.replaceFirst('StateError: ', '');
+    }
+
+    return message;
   }
 
   @override
   Widget build(BuildContext context) {
     final isCompact = MediaQuery.sizeOf(context).width < 600;
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
-    final dateLabel =
-        '${months[_date.month - 1]} ${_date.day}, ${_date.year}';
+    final dateLabel = '${months[_date.month - 1]} ${_date.day}, ${_date.year}';
 
     return FadeTransition(
       opacity: _fadeAnim,
@@ -1591,8 +1947,9 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
                               height: 40,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: AppColors.success
-                                    .withValues(alpha: 0.16),
+                                color: AppColors.success.withValues(
+                                  alpha: 0.16,
+                                ),
                               ),
                               child: Center(
                                 child: HugeIcon(
@@ -1611,9 +1968,7 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    _isEditing
-                                        ? 'Edit income'
-                                        : 'Add income',
+                                    _isEditing ? 'Edit income' : 'Add income',
                                     style: const TextStyle(
                                       fontSize: 17,
                                       fontWeight: FontWeight.w700,
@@ -1626,15 +1981,18 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
                                         : 'Fill in the details below',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: AppColors.textSecondary
-                                          .withValues(alpha: 0.7),
+                                      color: AppColors.textSecondary.withValues(
+                                        alpha: 0.7,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                             GestureDetector(
-                              onTap: () => Navigator.of(context).pop(),
+                              onTap: _isSubmitting
+                                  ? null
+                                  : () => Navigator.of(context).pop(),
                               child: Container(
                                 width: 32,
                                 height: 32,
@@ -1642,8 +2000,7 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
                                   shape: BoxShape.circle,
                                   color: Colors.white.withValues(alpha: 0.07),
                                   border: Border.all(
-                                    color:
-                                        Colors.white.withValues(alpha: 0.12),
+                                    color: Colors.white.withValues(alpha: 0.12),
                                   ),
                                 ),
                                 child: Center(
@@ -1668,10 +2025,9 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
                         _GlassField(
                           controller: _labelCtrl,
                           hint: 'e.g. Monthly Salary',
-                          validator: (v) =>
-                              (v == null || v.trim().isEmpty)
-                                  ? 'Please enter a source name'
-                                  : null,
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'Please enter a source name'
+                              : null,
                         ),
                         const SizedBox(height: 18),
 
@@ -1730,8 +2086,9 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
                                 HugeIcon(
                                   icon: HugeIcons.strokeRoundedCalendar03,
                                   size: 16,
-                                  color: AppColors.textSecondary
-                                      .withValues(alpha: 0.7),
+                                  color: AppColors.textSecondary.withValues(
+                                    alpha: 0.7,
+                                  ),
                                   strokeWidth: 1.8,
                                 ),
                                 const SizedBox(width: 10),
@@ -1747,8 +2104,9 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
                                 HugeIcon(
                                   icon: HugeIcons.strokeRoundedArrowDown01,
                                   size: 14,
-                                  color: AppColors.textSecondary
-                                      .withValues(alpha: 0.5),
+                                  color: AppColors.textSecondary.withValues(
+                                    alpha: 0.5,
+                                  ),
                                   strokeWidth: 1.8,
                                 ),
                               ],
@@ -1764,14 +2122,20 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
                               child: _DialogButton(
                                 label: 'Cancel',
                                 isPrimary: false,
-                                onTap: () => Navigator.of(context).pop(),
+                                isDisabled: _isSubmitting,
+                                onTap: () async {
+                                  Navigator.of(context).pop();
+                                },
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: _DialogButton(
-                                label: _isEditing ? 'Save changes' : 'Add income',
+                                label: _isEditing
+                                    ? 'Save changes'
+                                    : 'Add income',
                                 isPrimary: true,
+                                isLoading: _isSubmitting,
                                 onTap: _submit,
                               ),
                             ),
@@ -1836,8 +2200,7 @@ class _CategoryPicker extends StatelessWidget {
                   cat.displayName,
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.w400,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                     color: isSelected ? color : AppColors.textSecondary,
                   ),
                 ),
@@ -1873,9 +2236,10 @@ class _DeleteConfirmDialogState extends State<_DeleteConfirmDialog>
       vsync: this,
       duration: const Duration(milliseconds: 280),
     );
-    _scaleAnim = Tween<double>(begin: 0.88, end: 1.0).animate(
-      CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic),
-    );
+    _scaleAnim = Tween<double>(
+      begin: 0.88,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
     _animCtrl.forward();
   }
@@ -1894,8 +2258,10 @@ class _DeleteConfirmDialogState extends State<_DeleteConfirmDialog>
         scale: _scaleAnim,
         child: Dialog(
           backgroundColor: Colors.transparent,
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 40,
+            vertical: 24,
+          ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(24),
             child: BackdropFilter(
@@ -1978,7 +2344,9 @@ class _DeleteConfirmDialogState extends State<_DeleteConfirmDialog>
                           child: _DialogButton(
                             label: 'Keep it',
                             isPrimary: false,
-                            onTap: () => Navigator.of(context).pop(false),
+                            onTap: () async {
+                              Navigator.of(context).pop(false);
+                            },
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -1987,7 +2355,9 @@ class _DeleteConfirmDialogState extends State<_DeleteConfirmDialog>
                             label: 'Delete',
                             isPrimary: true,
                             isDanger: true,
-                            onTap: () => Navigator.of(context).pop(true),
+                            onTap: () async {
+                              Navigator.of(context).pop(true);
+                            },
                           ),
                         ),
                       ],
@@ -2096,10 +2466,7 @@ class _GlassField extends StatelessWidget {
             color: AppColors.danger.withValues(alpha: 0.7),
           ),
         ),
-        errorStyle: const TextStyle(
-          fontSize: 11,
-          color: AppColors.danger,
-        ),
+        errorStyle: const TextStyle(fontSize: 11, color: AppColors.danger),
       ),
     );
   }
@@ -2111,12 +2478,16 @@ class _DialogButton extends StatefulWidget {
     required this.isPrimary,
     required this.onTap,
     this.isDanger = false,
+    this.isLoading = false,
+    this.isDisabled = false,
   });
 
   final String label;
   final bool isPrimary;
   final bool isDanger;
-  final VoidCallback onTap;
+  final bool isLoading;
+  final bool isDisabled;
+  final Future<void> Function() onTap;
 
   @override
   State<_DialogButton> createState() => _DialogButtonState();
@@ -2128,30 +2499,35 @@ class _DialogButtonState extends State<_DialogButton> {
   @override
   Widget build(BuildContext context) {
     final accent = widget.isDanger ? AppColors.danger : AppColors.success;
+    final isInteractive = !widget.isLoading && !widget.isDisabled;
 
     return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        widget.onTap();
-      },
-      onTapCancel: () => setState(() => _pressed = false),
+      onTapDown: isInteractive ? (_) => setState(() => _pressed = true) : null,
+      onTapUp: isInteractive
+          ? (_) {
+              setState(() => _pressed = false);
+              widget.onTap();
+            }
+          : null,
+      onTapCancel: isInteractive
+          ? () => setState(() => _pressed = false)
+          : null,
       child: AnimatedScale(
-        scale: _pressed ? 0.96 : 1.0,
+        scale: _pressed && isInteractive ? 0.96 : 1.0,
         duration: const Duration(milliseconds: 110),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             color: widget.isPrimary
-                ? accent.withValues(alpha: 0.18)
+                ? accent.withValues(alpha: isInteractive ? 0.18 : 0.10)
                 : Colors.white.withValues(alpha: 0.06),
             border: Border.all(
               color: widget.isPrimary
-                  ? accent.withValues(alpha: 0.4)
+                  ? accent.withValues(alpha: isInteractive ? 0.4 : 0.2)
                   : Colors.white.withValues(alpha: 0.1),
             ),
-            boxShadow: widget.isPrimary
+            boxShadow: widget.isPrimary && isInteractive
                 ? [
                     BoxShadow(
                       color: accent.withValues(alpha: 0.14),
@@ -2162,13 +2538,33 @@ class _DialogButtonState extends State<_DialogButton> {
                 : null,
           ),
           child: Center(
-            child: Text(
-              widget.label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: widget.isPrimary ? accent : AppColors.textSecondary,
-              ),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: widget.isLoading
+                  ? SizedBox(
+                      key: const ValueKey('dialog-button-loading'),
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.8,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          widget.isPrimary ? accent : AppColors.textSecondary,
+                        ),
+                      ),
+                    )
+                  : Text(
+                      widget.label,
+                      key: ValueKey<String>(widget.label),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: widget.isPrimary
+                            ? accent
+                            : AppColors.textSecondary.withValues(
+                                alpha: isInteractive ? 1 : 0.55,
+                              ),
+                      ),
+                    ),
             ),
           ),
         ),
@@ -2292,6 +2688,135 @@ class _EmptyHint extends StatelessWidget {
   }
 }
 
+class _LoadErrorHint extends StatelessWidget {
+  const _LoadErrorHint({required this.message, required this.onRetry});
+
+  final String message;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Column(
+        children: [
+          HugeIcon(
+            icon: HugeIcons.strokeRoundedAlert02,
+            size: 34,
+            color: AppColors.danger.withValues(alpha: 0.75),
+            strokeWidth: 1.6,
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Income sync is temporarily unavailable',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary.withValues(alpha: 0.75),
+              height: 1.55,
+            ),
+          ),
+          const SizedBox(height: 18),
+          _RetryButton(onTap: onRetry),
+        ],
+      ),
+    );
+  }
+}
+
+class _RetryButton extends StatefulWidget {
+  const _RetryButton({required this.onTap});
+
+  final Future<void> Function() onTap;
+
+  @override
+  State<_RetryButton> createState() => _RetryButtonState();
+}
+
+class _RetryButtonState extends State<_RetryButton> {
+  bool _pressed = false;
+  bool _isLoading = false;
+
+  Future<void> _handleTap() async {
+    if (_isLoading) {
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await widget.onTap();
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: _isLoading ? null : (_) => setState(() => _pressed = true),
+      onTapUp: _isLoading
+          ? null
+          : (_) {
+              setState(() => _pressed = false);
+              _handleTap();
+            },
+      onTapCancel: _isLoading ? null : () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.96 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            color: AppColors.success.withValues(alpha: 0.14),
+            border: Border.all(
+              color: AppColors.success.withValues(alpha: 0.28),
+            ),
+          ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: _isLoading
+                ? const SizedBox(
+                    key: ValueKey('retry-loading'),
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.8,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.success,
+                      ),
+                    ),
+                  )
+                : const Text(
+                    'Retry sync',
+                    key: ValueKey('retry-label'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.success,
+                    ),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ── Footer ────────────────────────────────────────────────────────────────────
 
 class _FooterNote extends StatelessWidget {
@@ -2303,7 +2828,7 @@ class _FooterNote extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Center(
         child: Text(
-          'Data is illustrative · Real sync coming soon',
+          'Live income sync · secured to your account session',
           style: TextStyle(
             fontSize: 11,
             color: AppColors.textSecondary.withValues(alpha: 0.4),
