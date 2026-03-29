@@ -14,7 +14,7 @@ String _rwfCompact(double amount) {
   return 'RWF ${amount.toStringAsFixed(0)}';
 }
 
-class TodoSummaryCard extends StatelessWidget {
+class TodoSummaryCard extends StatefulWidget {
   const TodoSummaryCard({
     super.key,
     required this.todoCount,
@@ -27,6 +27,29 @@ class TodoSummaryCard extends StatelessWidget {
   final int topPriorityCount;
   final int imageCount;
   final double totalBudget;
+
+  @override
+  State<TodoSummaryCard> createState() => _TodoSummaryCardState();
+}
+
+class _TodoSummaryCardState extends State<TodoSummaryCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _shimmerCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmerCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _shimmerCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +76,7 @@ class TodoSummaryCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ── Label ──────────────────────────────────────────────────────
               Text(
                 'Todo board',
                 style: TextStyle(
@@ -71,16 +95,54 @@ class TodoSummaryCard extends StatelessWidget {
                   color: AppColors.textPrimary,
                 ),
               ),
+
               const SizedBox(height: 20),
-              Text(
-                _rwfCompact(totalBudget),
-                style: const TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -1.0,
-                ),
+
+              // ── Animated budget counter with shimmer ────────────────────────
+              TweenAnimationBuilder<double>(
+                key: ValueKey(widget.totalBudget),
+                tween: Tween<double>(begin: 0, end: widget.totalBudget),
+                duration: const Duration(milliseconds: 1100),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, _) {
+                  return AnimatedBuilder(
+                    animation: _shimmerCtrl,
+                    builder: (context, child) {
+                      final t = _shimmerCtrl.value;
+                      final shimmer = LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        stops: [
+                          (t - 0.25).clamp(0.0, 1.0),
+                          t.clamp(0.0, 1.0),
+                          (t + 0.25).clamp(0.0, 1.0),
+                        ],
+                        colors: const [
+                          AppColors.textPrimary,
+                          Colors.white,
+                          AppColors.textPrimary,
+                        ],
+                      );
+                      return ShaderMask(
+                        shaderCallback: (bounds) =>
+                            shimmer.createShader(bounds),
+                        blendMode: BlendMode.srcIn,
+                        child: child,
+                      );
+                    },
+                    child: Text(
+                      _rwfCompact(value),
+                      style: const TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -1.0,
+                      ),
+                    ),
+                  );
+                },
               ),
+
               const SizedBox(height: 6),
               const Text(
                 'Planned total budget',
@@ -90,14 +152,17 @@ class TodoSummaryCard extends StatelessWidget {
                   color: AppColors.textSecondary,
                 ),
               ),
+
               const SizedBox(height: 22),
+
+              // ── Metric pills ────────────────────────────────────────────────
               Row(
                 children: [
                   Expanded(
                     child: _MetricPill(
                       icon: HugeIcons.strokeRoundedTask01,
                       label: 'Items',
-                      value: '$todoCount',
+                      value: '${widget.todoCount}',
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -105,7 +170,7 @@ class TodoSummaryCard extends StatelessWidget {
                     child: _MetricPill(
                       icon: HugeIcons.strokeRoundedCheckList,
                       label: 'Top priority',
-                      value: '$topPriorityCount',
+                      value: '${widget.topPriorityCount}',
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -113,7 +178,7 @@ class TodoSummaryCard extends StatelessWidget {
                     child: _MetricPill(
                       icon: HugeIcons.strokeRoundedCamera01,
                       label: 'Photos',
-                      value: '$imageCount',
+                      value: '${widget.imageCount}',
                     ),
                   ),
                 ],
