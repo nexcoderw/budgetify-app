@@ -4,6 +4,7 @@ import 'package:budgetify/app/app.dart';
 import 'package:budgetify/features/auth/application/auth_service_contract.dart';
 import 'package:budgetify/features/auth/data/models/auth_session.dart';
 import 'package:budgetify/features/auth/data/models/auth_user.dart';
+import 'package:budgetify/features/auth/data/models/email_initiate_response.dart';
 
 class _FakeAuthService implements AuthServiceContract {
   _FakeAuthService({this.restoredUser});
@@ -15,6 +16,11 @@ class _FakeAuthService implements AuthServiceContract {
 
   @override
   Future<void> ensureInitialized() async {}
+
+  @override
+  Future<EmailInitiateResponse> initiateEmailAuth(String email) {
+    throw UnimplementedError();
+  }
 
   @override
   Future<void> logout() async {}
@@ -34,6 +40,11 @@ class _FakeAuthService implements AuthServiceContract {
 
   @override
   Future<AuthSession> signInWithGoogleIdToken(String idToken) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<AuthSession> verifyEmailOtp(String email, String otp) {
     throw UnimplementedError();
   }
 }
@@ -69,11 +80,14 @@ void main() {
       BudgetifyApp(authService: _FakeAuthService(restoredUser: restoredUser)),
     );
     await tester.pump(const Duration(milliseconds: 1000));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 1200));
 
-    expect(find.text('Hi, Jane Doe.'), findsOneWidget);
-    expect(find.text('Session active'), findsOneWidget);
+    expect(find.text('Budgetify'), findsOneWidget);
+    expect(find.text('Jane D.'), findsOneWidget);
     expect(find.text('Dashboard'), findsOneWidget);
-    expect(find.text('Next step'), findsOneWidget);
+    expect(
+      find.text('Data is illustrative · Real sync coming soon'),
+      findsOneWidget,
+    );
   });
 }
