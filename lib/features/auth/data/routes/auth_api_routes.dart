@@ -7,6 +7,10 @@ class AuthApiRoutes {
 
   String get google => '$base/google';
 
+  String get emailInitiate => '$base/email/initiate';
+
+  String get emailVerify => '$base/email/verify';
+
   String get refresh => '$base/refresh';
 
   String get logout => '$base/logout';
