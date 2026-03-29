@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_toast.dart';
@@ -14,6 +15,7 @@ import '../../data/services/google_identity_service.dart';
 import '../../../home/presentation/pages/landing_page.dart';
 import '../widgets/auth_layout.dart';
 import '../widgets/auth_loading_button.dart';
+import 'email_otp_page.dart';
 import 'web_render_button_stub.dart'
     if (dart.library.js_util) 'web_render_button_web.dart';
 
@@ -29,6 +31,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   bool _isPageLoading = true;
   bool _isSubmitting = false;
+  bool _isEmailSubmitting = false;
   StreamSubscription<GoogleSignInAuthenticationEvent>? _webGoogleSub;
 
   @override
@@ -79,8 +82,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _initWebGoogleSignIn() async {
-    // Use the service's ensureInitialized so the _isInitialized flag is
-    // tracked correctly — prevents double-initialization on signOut().
     await widget.authService.ensureInitialized();
 
     _webGoogleSub = GoogleSignIn.instance.authenticationEvents.listen(
@@ -148,6 +149,52 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  Future<void> _submitEmail(String email) async {
+    setState(() => _isEmailSubmitting = true);
+
+    try {
+      final response = await widget.authService.initiateEmailAuth(email);
+
+      if (!mounted) return;
+
+      Navigator.of(context).push(
+        PageRouteBuilder<void>(
+          pageBuilder: (context, animation, secondaryAnimation) => EmailOtpPage(
+            authService: widget.authService,
+            email: email,
+            initiateResponse: response,
+          ),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            final curved = CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            );
+            return FadeTransition(
+              opacity: curved,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.03),
+                  end: Offset.zero,
+                ).animate(curved),
+                child: child,
+              ),
+            );
+          },
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          title: 'Could not send code',
+          description: _readableError(error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isEmailSubmitting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isPageLoading) {
@@ -156,8 +203,10 @@ class _LoginPageState extends State<LoginPage> {
 
     return AuthLayout(
       child: _LoginForm(
-        isSubmitting: _isSubmitting,
-        onSubmit: kIsWeb ? null : _submit,
+        isEmailSubmitting: _isEmailSubmitting,
+        isGoogleSubmitting: _isSubmitting,
+        onEmailSubmit: _submitEmail,
+        onGoogleSubmit: kIsWeb ? null : _submit,
       ),
     );
   }
@@ -255,6 +304,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
+// ── Initializing splash ──────────────────────────────────────────────────────
+
 class _InitializingScreen extends StatelessWidget {
   const _InitializingScreen();
 
@@ -287,73 +338,430 @@ class _InitializingScreen extends StatelessWidget {
   }
 }
 
-class _LoginForm extends StatelessWidget {
-  const _LoginForm({required this.isSubmitting, required this.onSubmit});
+// ── Login form ───────────────────────────────────────────────────────────────
 
-  final bool isSubmitting;
+class _LoginForm extends StatefulWidget {
+  const _LoginForm({
+    required this.isEmailSubmitting,
+    required this.isGoogleSubmitting,
+    required this.onEmailSubmit,
+    required this.onGoogleSubmit,
+  });
 
-  /// Null on web — sign-in is triggered by the Google button widget.
-  final Future<void> Function()? onSubmit;
+  final bool isEmailSubmitting;
+  final bool isGoogleSubmitting;
+  final Future<void> Function(String email) onEmailSubmit;
+
+  /// Null on web — Google sign-in is triggered by the rendered button widget.
+  final Future<void> Function()? onGoogleSubmit;
+
+  @override
+  State<_LoginForm> createState() => _LoginFormState();
+}
+
+class _LoginFormState extends State<_LoginForm>
+    with SingleTickerProviderStateMixin {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _emailFocusNode = FocusNode();
+  late final AnimationController _entranceController;
+  bool _hasEmail = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _entranceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..forward();
+
+    _emailController.addListener(() {
+      final hasText = _emailController.text.isNotEmpty;
+      if (hasText != _hasEmail) {
+        setState(() => _hasEmail = hasText);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _emailFocusNode.dispose();
+    _entranceController.dispose();
+    super.dispose();
+  }
+
+  Animation<double> _fadeAt(double start, double end) => CurvedAnimation(
+        parent: _entranceController,
+        curve: Interval(start, end, curve: Curves.easeOutCubic),
+      );
+
+  Animation<Offset> _slideAt(double start, double end) =>
+      Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
+        CurvedAnimation(
+          parent: _entranceController,
+          curve: Interval(start, end, curve: Curves.easeOutCubic),
+        ),
+      );
+
+  void _submit() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    unawaited(widget.onEmailSubmit(_emailController.text.trim()));
+  }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 420;
-        final panelPadding = isCompact ? 22.0 : 28.0;
-        final titleSize = isCompact ? 22.0 : 24.0;
+    final isCompact = MediaQuery.sizeOf(context).width < 420;
+    final panelPadding = isCompact ? 22.0 : 28.0;
+    final titleSize = isCompact ? 22.0 : 24.0;
 
-        return GlassPanel(
-          key: const ValueKey('login-form'),
-          padding: EdgeInsets.all(panelPadding),
-          borderRadius: BorderRadius.circular(34),
-          blur: 26,
-          opacity: 0.16,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Welcome to Budgetify',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontSize: titleSize,
-                  color: AppColors.textPrimary,
+    return GlassPanel(
+      key: const ValueKey('login-form'),
+      padding: EdgeInsets.all(panelPadding),
+      borderRadius: BorderRadius.circular(34),
+      blur: 26,
+      opacity: 0.16,
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── Title & subtitle ────────────────────────────────────────────
+            FadeTransition(
+              opacity: _fadeAt(0.0, 0.55),
+              child: SlideTransition(
+                position: _slideAt(0.0, 0.55),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Sign in to Budgetify',
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(
+                            fontSize: titleSize,
+                            color: AppColors.textPrimary,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Enter your email to receive a one-time code, or continue with Google.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                            height: 1.55,
+                          ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Budgetify helps you organize spending, monitor budgets, and keep your finances clear in one place.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 18),
-              const SizedBox(height: 20),
-              if (kIsWeb)
-                _WebSignInButton(isSubmitting: isSubmitting)
-              else
-                AuthLoadingButton(
-                  label: 'Continue with Google',
-                  loadingLabel: 'Connecting to Google',
-                  isLoading: isSubmitting,
-                  fontSize: 12,
-                  leading: Image.asset(
-                    'assets/images/google.png',
-                    width: 18,
-                    height: 18,
-                  ),
-                  onPressed: () {
-                    unawaited(onSubmit!());
+            ),
+
+            const SizedBox(height: 24),
+
+            // ── Email field ─────────────────────────────────────────────────
+            FadeTransition(
+              opacity: _fadeAt(0.1, 0.65),
+              child: SlideTransition(
+                position: _slideAt(0.1, 0.65),
+                child: _EmailField(
+                  controller: _emailController,
+                  focusNode: _emailFocusNode,
+                  hasText: _hasEmail,
+                  onClear: () {
+                    _emailController.clear();
+                    _emailFocusNode.requestFocus();
                   },
+                  onSubmitted: (_) => _submit(),
                 ),
-            ],
-          ),
-        );
-      },
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // ── Continue button ─────────────────────────────────────────────
+            FadeTransition(
+              opacity: _fadeAt(0.2, 0.75),
+              child: SlideTransition(
+                position: _slideAt(0.2, 0.75),
+                child: AuthLoadingButton(
+                  label: 'Continue with email',
+                  loadingLabel: 'Sending code…',
+                  isLoading: widget.isEmailSubmitting,
+                  fontSize: 14,
+                  leading: HugeIcon(
+                    icon: HugeIcons.strokeRoundedSent,
+                    size: 18,
+                    color: AppColors.background,
+                    strokeWidth: 1.8,
+                  ),
+                  onPressed: _submit,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 22),
+
+            // ── OR divider ──────────────────────────────────────────────────
+            FadeTransition(
+              opacity: _fadeAt(0.3, 0.85),
+              child: SlideTransition(
+                position: _slideAt(0.3, 0.85),
+                child: const _OrDivider(),
+              ),
+            ),
+
+            const SizedBox(height: 22),
+
+            // ── Google button ───────────────────────────────────────────────
+            FadeTransition(
+              opacity: _fadeAt(0.4, 1.0),
+              child: SlideTransition(
+                position: _slideAt(0.4, 1.0),
+                child: kIsWeb
+                    ? _WebSignInButton(
+                        isSubmitting: widget.isGoogleSubmitting,
+                      )
+                    : AuthLoadingButton(
+                        label: 'Continue with Google',
+                        loadingLabel: 'Connecting to Google…',
+                        isLoading: widget.isGoogleSubmitting,
+                        fontSize: 14,
+                        leading: Image.asset(
+                          'assets/images/google.png',
+                          width: 18,
+                          height: 18,
+                        ),
+                        onPressed: () {
+                          unawaited(widget.onGoogleSubmit!());
+                        },
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
+
+// ── Email input field ────────────────────────────────────────────────────────
+
+class _EmailField extends StatefulWidget {
+  const _EmailField({
+    required this.controller,
+    required this.focusNode,
+    required this.hasText,
+    required this.onClear,
+    required this.onSubmitted,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final bool hasText;
+  final VoidCallback onClear;
+  final ValueChanged<String> onSubmitted;
+
+  @override
+  State<_EmailField> createState() => _EmailFieldState();
+}
+
+class _EmailFieldState extends State<_EmailField> {
+  bool _isFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.focusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void dispose() {
+    widget.focusNode.removeListener(_onFocusChange);
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    setState(() => _isFocused = widget.focusNode.hasFocus);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutCubic,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: _isFocused
+            ? [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.18),
+                  blurRadius: 16,
+                  spreadRadius: 0,
+                ),
+              ]
+            : [],
+      ),
+      child: TextFormField(
+        controller: widget.controller,
+        focusNode: widget.focusNode,
+        keyboardType: TextInputType.emailAddress,
+        textInputAction: TextInputAction.done,
+        autocorrect: false,
+        onFieldSubmitted: widget.onSubmitted,
+        style: const TextStyle(
+          fontSize: 14,
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w400,
+        ),
+        validator: (value) {
+          final v = value?.trim() ?? '';
+          if (v.isEmpty) return 'Please enter your email address';
+          if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v)) {
+            return 'Please enter a valid email address';
+          }
+          return null;
+        },
+        decoration: InputDecoration(
+          hintText: 'Your email address',
+          hintStyle: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 14,
+          ),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 18, right: 12),
+            child: HugeIcon(
+              icon: HugeIcons.strokeRoundedMail01,
+              size: 18,
+              color: _isFocused
+                  ? AppColors.primary
+                  : AppColors.textSecondary,
+              strokeWidth: 1.8,
+            ),
+          ),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 0,
+            minHeight: 0,
+          ),
+          suffixIcon: widget.hasText
+              ? _ClearButton(onTap: widget.onClear)
+              : null,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 17,
+          ),
+          filled: true,
+          fillColor: AppColors.surfaceElevated,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(28),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(28),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(28),
+            borderSide:
+                const BorderSide(color: AppColors.primary, width: 1.5),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(28),
+            borderSide:
+                const BorderSide(color: AppColors.danger, width: 1.2),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(28),
+            borderSide:
+                const BorderSide(color: AppColors.danger, width: 1.5),
+          ),
+          errorStyle: const TextStyle(
+            fontSize: 11,
+            color: AppColors.danger,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Clear field button ───────────────────────────────────────────────────────
+
+class _ClearButton extends StatefulWidget {
+  const _ClearButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  State<_ClearButton> createState() => _ClearButtonState();
+}
+
+class _ClearButtonState extends State<_ClearButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.86 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        child: Padding(
+          padding: const EdgeInsets.only(right: 14),
+          child: HugeIcon(
+            icon: HugeIcons.strokeRoundedCancel01,
+            size: 16,
+            color: AppColors.textSecondary,
+            strokeWidth: 1.8,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── OR divider ───────────────────────────────────────────────────────────────
+
+class _OrDivider extends StatelessWidget {
+  const _OrDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(
+          child: Divider(
+            color: AppColors.border,
+            thickness: 1,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Text(
+            'or',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  letterSpacing: 0.4,
+                ),
+          ),
+        ),
+        const Expanded(
+          child: Divider(
+            color: AppColors.border,
+            thickness: 1,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Web Google sign-in button ────────────────────────────────────────────────
 
 class _WebSignInButton extends StatelessWidget {
   const _WebSignInButton({required this.isSubmitting});
