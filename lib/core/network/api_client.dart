@@ -26,7 +26,8 @@ class ApiClient {
       return _decodeResponse(response);
     } on http.ClientException {
       throw const ApiException(
-        message: 'Unable to reach the server. Check your network connection and ensure the API server is running.',
+        message:
+            'Unable to reach the server. Check your network connection and ensure the API server is running.',
       );
     }
   }
@@ -45,7 +46,28 @@ class ApiClient {
       return _decodeResponse(response);
     } on http.ClientException {
       throw const ApiException(
-        message: 'Unable to reach the server. Check your network connection and ensure the API server is running.',
+        message:
+            'Unable to reach the server. Check your network connection and ensure the API server is running.',
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>> patchJson(
+    String path, {
+    Map<String, String>? headers,
+    Object? body,
+  }) async {
+    try {
+      final response = await _httpClient.patch(
+        _buildUri(path),
+        headers: _headers(headers),
+        body: body == null ? null : jsonEncode(body),
+      );
+      return _decodeResponse(response);
+    } on http.ClientException {
+      throw const ApiException(
+        message:
+            'Unable to reach the server. Check your network connection and ensure the API server is running.',
       );
     }
   }
