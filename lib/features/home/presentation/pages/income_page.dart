@@ -1799,11 +1799,14 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
       return;
     }
 
+    final latestSelectableDate = DateTime.now().add(
+      const Duration(days: 365 * 10),
+    );
     final picked = await showDatePicker(
       context: context,
       initialDate: _date,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: latestSelectableDate,
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.dark(
@@ -2518,7 +2521,7 @@ class _DialogButtonState extends State<_DialogButton> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(999),
             color: widget.isPrimary
                 ? accent.withValues(alpha: isInteractive ? 0.18 : 0.10)
                 : Colors.white.withValues(alpha: 0.06),
