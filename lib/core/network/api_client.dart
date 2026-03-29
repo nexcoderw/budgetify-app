@@ -1,8 +1,24 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import 'api_exception.dart';
+
+class ApiMultipartFile {
+  const ApiMultipartFile({
+    required this.fieldName,
+    required this.filename,
+    required this.bytes,
+    required this.contentType,
+  });
+
+  final String fieldName;
+  final String filename;
+  final Uint8List bytes;
+  final MediaType contentType;
+}
 
 class ApiClient {
   ApiClient({
@@ -90,6 +106,36 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> postMultipart(
+    String path, {
+    Map<String, String>? headers,
+    Map<String, String>? fields,
+    List<ApiMultipartFile> files = const [],
+  }) {
+    return _sendMultipart(
+      'POST',
+      path,
+      headers: headers,
+      fields: fields,
+      files: files,
+    );
+  }
+
+  Future<Map<String, dynamic>> patchMultipart(
+    String path, {
+    Map<String, String>? headers,
+    Map<String, String>? fields,
+    List<ApiMultipartFile> files = const [],
+  }) {
+    return _sendMultipart(
+      'PATCH',
+      path,
+      headers: headers,
+      fields: fields,
+      files: files,
+    );
+  }
+
   Future<void> delete(String path, {Map<String, String>? headers}) async {
     try {
       final response = await _httpClient.delete(
@@ -115,6 +161,45 @@ class ApiClient {
       'Content-Type': 'application/json',
       ...?headers,
     };
+  }
+
+  Map<String, String> _multipartHeaders(Map<String, String>? headers) {
+    return <String, String>{'Accept': 'application/json', ...?headers};
+  }
+
+  Future<Map<String, dynamic>> _sendMultipart(
+    String method,
+    String path, {
+    Map<String, String>? headers,
+    Map<String, String>? fields,
+    List<ApiMultipartFile> files = const [],
+  }) async {
+    try {
+      final request = http.MultipartRequest(method, _buildUri(path))
+        ..headers.addAll(_multipartHeaders(headers))
+        ..fields.addAll(fields ?? const <String, String>{});
+
+      request.files.addAll(
+        files.map(
+          (file) => http.MultipartFile.fromBytes(
+            file.fieldName,
+            file.bytes,
+            filename: file.filename,
+            contentType: file.contentType,
+          ),
+        ),
+      );
+
+      final streamedResponse = await _httpClient.send(request);
+      final response = await http.Response.fromStream(streamedResponse);
+
+      return _decodeMapResponse(response);
+    } on http.ClientException {
+      throw const ApiException(
+        message:
+            'Unable to reach the server. Check your network connection and ensure the API server is running.',
+      );
+    }
   }
 
   Map<String, dynamic> _decodeMapResponse(http.Response response) {
