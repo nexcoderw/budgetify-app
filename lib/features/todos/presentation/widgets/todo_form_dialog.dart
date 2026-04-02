@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -5,7 +7,6 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_toast.dart';
-import '../../../../core/widgets/glass_panel.dart';
 import '../../../../core/widgets/skeleton_loader.dart';
 import '../../data/models/todo_item.dart';
 import '../../data/models/todo_upload_image.dart';
@@ -60,7 +61,7 @@ class _TodoFormDialogState extends State<TodoFormDialog>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 320),
+      duration: const Duration(milliseconds: 300),
     )..forward();
     _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
     _scale = Tween<double>(begin: 0.92, end: 1).animate(
@@ -79,6 +80,7 @@ class _TodoFormDialogState extends State<TodoFormDialog>
   @override
   Widget build(BuildContext context) {
     return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
       child: FadeTransition(
@@ -86,230 +88,270 @@ class _TodoFormDialogState extends State<TodoFormDialog>
         child: ScaleTransition(
           scale: _scale,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 620),
-            child: GlassPanel(
-              borderRadius: BorderRadius.circular(32),
-              padding: const EdgeInsets.all(24),
-              blur: 28,
-              opacity: 0.15,
-              child: Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // ── Header ──────────────────────────────────────────────
-                      Row(
-                        children: [
-                          Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(18),
-                              color: AppColors.primary.withValues(alpha: 0.14),
-                              border: Border.all(
-                                color: AppColors.primary.withValues(alpha: 0.24),
-                              ),
-                            ),
-                            child: Center(
-                              child: HugeIcon(
-                                icon: _isEditing
-                                    ? HugeIcons.strokeRoundedTaskEdit01
-                                    : HugeIcons.strokeRoundedTaskAdd01,
-                                size: 22,
-                                color: AppColors.primary,
-                                strokeWidth: 1.8,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _isEditing
-                                      ? 'Update todo item'
-                                      : 'Create todo item',
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                    letterSpacing: -0.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _isEditing
-                                      ? 'Refine the task, budget, priority, and photo references.'
-                                      : 'Capture the task, planned cost, and visual references in one clean card.',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    height: 1.45,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 22),
-
-                      // ── Name field ───────────────────────────────────────────
-                      _LabeledField(
-                        label: 'Todo name',
-                        child: TextFormField(
-                          controller: _nameCtrl,
-                          textCapitalization: TextCapitalization.sentences,
-                          style: const TextStyle(color: AppColors.textPrimary),
-                          decoration: _inputDecoration(
-                            hint: 'e.g. Renew annual car insurance',
-                          ),
-                          validator: (value) {
-                            final trimmed = value?.trim() ?? '';
-                            if (trimmed.isEmpty) return 'Enter a todo name.';
-                            if (trimmed.length > 120) {
-                              return 'Todo name must stay under 120 characters.';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // ── Price field ──────────────────────────────────────────
-                      _LabeledField(
-                        label: 'Planned budget',
-                        child: TextFormField(
-                          controller: _priceCtrl,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          style: const TextStyle(color: AppColors.textPrimary),
-                          decoration: _inputDecoration(
-                            hint: '85000',
-                            prefixText: 'RWF ',
-                          ),
-                          validator: (value) {
-                            final raw = value?.trim() ?? '';
-                            if (raw.isEmpty) return 'Enter a budget amount.';
-                            final amount = double.tryParse(raw);
-                            if (amount == null) return 'Enter a valid amount.';
-                            if (amount < 0) {
-                              return 'Amount cannot be negative.';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-
-                      const SizedBox(height: 18),
-
-                      // ── Priority picker ──────────────────────────────────────
-                      const Text(
-                        'Priority',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: TodoPriority.values
-                            .map(
-                              (priority) => _PriorityOption(
-                                priority: priority,
-                                selected: _selectedPriority == priority,
-                                onTap: () {
-                                  setState(() => _selectedPriority = priority);
-                                },
-                              ),
-                            )
-                            .toList(growable: false),
-                      ),
-
-                      const SizedBox(height: 22),
-
-                      // ── Photos section ───────────────────────────────────────
-                      _PhotosSection(
-                        existingImages: _existingImages,
-                        newImages: _newImages,
-                        selectedPrimaryImageId: _selectedPrimaryImageId,
-                        isSubmitting: _isSubmitting,
-                        isLoadingImages: _isLoadingImages,
-                        isEditing: _isEditing,
-                        onAddTap: _pickImages,
-                        onSelectPrimary: (id) {
-                          setState(() => _selectedPrimaryImageId = id);
-                        },
-                        onRemoveNew: (index) {
-                          setState(() {
-                            _newImages = List<TodoUploadImage>.of(_newImages)
-                              ..removeAt(index);
-                          });
-                        },
-                      ),
-
-                      // ── Error banner ─────────────────────────────────────────
-                      if (_errorText != null) ...[
-                        const SizedBox(height: 14),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(18),
-                            color: AppColors.danger.withValues(alpha: 0.08),
-                            border: Border.all(
-                              color: AppColors.danger.withValues(alpha: 0.20),
-                            ),
-                          ),
-                          child: Text(
-                            _errorText!,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              height: 1.45,
-                              color: AppColors.danger,
-                            ),
-                          ),
-                        ),
-                      ],
-
-                      const SizedBox(height: 24),
-
-                      // ── Action buttons ───────────────────────────────────────
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _DialogButton(
-                              label: 'Cancel',
-                              onTap: _isSubmitting
-                                  ? null
-                                  : () => Navigator.of(context).pop(),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _DialogButton(
-                              label: _isEditing ? 'Save changes' : 'Create todo',
-                              onTap: _isSubmitting ? null : _submit,
-                              backgroundColor:
-                                  AppColors.primary.withValues(alpha: 0.14),
-                              borderColor:
-                                  AppColors.primary.withValues(alpha: 0.26),
-                              foregroundColor: AppColors.primary,
-                              isLoading: _isSubmitting,
-                            ),
-                          ),
-                        ],
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceElevated.withValues(alpha: 0.88),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.12),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.30),
+                        blurRadius: 28,
+                        offset: const Offset(0, 12),
                       ),
                     ],
+                  ),
+                  padding: const EdgeInsets.all(18),
+                  child: Form(
+                    key: _formKey,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // ── Header ────────────────────────────────────────────
+                          Row(
+                            children: [
+                              Text(
+                                _isEditing
+                                    ? 'Update todo item'
+                                    : 'Add todo item',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const Spacer(),
+                              IconButton(
+                                tooltip: 'Close',
+                                onPressed: _isSubmitting
+                                    ? null
+                                    : () => Navigator.of(context).pop(),
+                                icon: const Icon(Icons.close, size: 18),
+                                color: AppColors.textSecondary,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 14),
+
+                          // ── Name field ────────────────────────────────────────
+                          _FieldLabel(label: 'Todo name'),
+                          const SizedBox(height: 6),
+                          TextFormField(
+                            controller: _nameCtrl,
+                            textCapitalization: TextCapitalization.sentences,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            decoration: _inputDecoration(
+                              hint: 'e.g. Renew annual car insurance',
+                            ),
+                            validator: (v) {
+                              final t = v?.trim() ?? '';
+                              if (t.isEmpty) return 'Enter a todo name.';
+                              if (t.length > 120) {
+                                return 'Must be under 120 characters.';
+                              }
+                              return null;
+                            },
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // ── Budget field ──────────────────────────────────────
+                          _FieldLabel(label: 'Planned budget'),
+                          const SizedBox(height: 6),
+                          TextFormField(
+                            controller: _priceCtrl,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            decoration: _inputDecoration(
+                              hint: '85000',
+                              prefixText: 'RWF ',
+                            ),
+                            validator: (v) {
+                              final raw = v?.trim() ?? '';
+                              if (raw.isEmpty) return 'Enter a budget amount.';
+                              final amount = double.tryParse(raw);
+                              if (amount == null) return 'Enter a valid amount.';
+                              if (amount < 0) return 'Amount cannot be negative.';
+                              return null;
+                            },
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // ── Priority ──────────────────────────────────────────
+                          _FieldLabel(label: 'Priority'),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: TodoPriority.values.map((priority) {
+                              final isLast =
+                                  priority == TodoPriority.values.last;
+                              return Expanded(
+                                child: Padding(
+                                  padding: EdgeInsets.only(
+                                    right: isLast ? 0 : 8,
+                                  ),
+                                  child: _PriorityOption(
+                                    priority: priority,
+                                    selected: _selectedPriority == priority,
+                                    onTap: () => setState(
+                                      () => _selectedPriority = priority,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(growable: false),
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // ── Photos ────────────────────────────────────────────
+                          _PhotosSection(
+                            existingImages: _existingImages,
+                            newImages: _newImages,
+                            selectedPrimaryImageId: _selectedPrimaryImageId,
+                            isSubmitting: _isSubmitting,
+                            isLoadingImages: _isLoadingImages,
+                            isEditing: _isEditing,
+                            onAddTap: _pickImages,
+                            onSelectPrimary: (id) =>
+                                setState(() => _selectedPrimaryImageId = id),
+                            onRemoveNew: (index) {
+                              setState(() {
+                                _newImages =
+                                    List<TodoUploadImage>.of(_newImages)
+                                      ..removeAt(index);
+                              });
+                            },
+                          ),
+
+                          // ── Error banner ──────────────────────────────────────
+                          if (_errorText != null) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                color: AppColors.danger.withValues(alpha: 0.08),
+                                border: Border.all(
+                                  color:
+                                      AppColors.danger.withValues(alpha: 0.22),
+                                ),
+                              ),
+                              child: Text(
+                                _errorText!,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  height: 1.45,
+                                  color: AppColors.danger,
+                                ),
+                              ),
+                            ),
+                          ],
+
+                          const SizedBox(height: 18),
+
+                          // ── Buttons ───────────────────────────────────────────
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: _isSubmitting
+                                      ? null
+                                      : () => Navigator.of(context).pop(),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    side: BorderSide(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.18,
+                                      ),
+                                    ),
+                                    shape: const StadiumBorder(),
+                                  ),
+                                  child: const Text(
+                                    'Cancel',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: _isSubmitting ? null : _submit,
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: AppColors.background,
+                                    disabledBackgroundColor:
+                                        AppColors.primary.withValues(alpha: 0.4),
+                                    shape: const StadiumBorder(),
+                                    elevation: 0,
+                                  ),
+                                  child: _isSubmitting
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 1.8,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                              AppColors.background,
+                                            ),
+                                          ),
+                                        )
+                                      : Text(
+                                          _isEditing
+                                              ? 'Save changes'
+                                              : 'Create todo',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -319,6 +361,8 @@ class _TodoFormDialogState extends State<TodoFormDialog>
       ),
     );
   }
+
+  // ── Image picking ─────────────────────────────────────────────────────────
 
   Future<void> _pickImages() async {
     final remainingSlots =
@@ -336,15 +380,12 @@ class _TodoFormDialogState extends State<TodoFormDialog>
     try {
       // imageQuality compresses before readAsBytes — prevents OOM on large files
       final files = await _picker.pickMultiImage(imageQuality: 85);
-
       if (files.isEmpty || !mounted) return;
 
       setState(() => _isLoadingImages = true);
 
       final uploads = <TodoUploadImage>[];
-      final selectedFiles = files.take(remainingSlots);
-
-      for (final file in selectedFiles) {
+      for (final file in files.take(remainingSlots)) {
         uploads.add(
           TodoUploadImage(
             filename: file.name,
@@ -352,7 +393,7 @@ class _TodoFormDialogState extends State<TodoFormDialog>
             bytes: await file.readAsBytes(),
           ),
         );
-        // Yield between reads so the UI remains responsive
+        // Yield between reads so the UI stays responsive
         await Future<void>.delayed(Duration.zero);
       }
 
@@ -373,9 +414,7 @@ class _TodoFormDialogState extends State<TodoFormDialog>
       }
     } catch (error) {
       if (!mounted) return;
-
       setState(() => _isLoadingImages = false);
-
       AppToast.error(
         context,
         title: 'Unable to pick images',
@@ -386,7 +425,6 @@ class _TodoFormDialogState extends State<TodoFormDialog>
 
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
-
     if (!_formKey.currentState!.validate()) return;
 
     if (!_isEditing && _newImages.isEmpty) {
@@ -411,13 +449,10 @@ class _TodoFormDialogState extends State<TodoFormDialog>
         primaryImageId: _isEditing ? _selectedPrimaryImageId : null,
         newImages: _newImages,
       );
-
       if (!mounted) return;
-
       Navigator.of(context).pop(todo);
     } catch (error) {
       if (!mounted) return;
-
       setState(() {
         _isSubmitting = false;
         _errorText = _readableError(error);
@@ -426,9 +461,8 @@ class _TodoFormDialogState extends State<TodoFormDialog>
   }
 
   String _inferMimeType(String filename) {
-    final parts = filename.toLowerCase().split('.');
-    final extension = parts.isEmpty ? '' : parts.last;
-    return switch (extension) {
+    final ext = filename.toLowerCase().split('.').last;
+    return switch (ext) {
       'png' => 'image/png',
       'webp' => 'image/webp',
       _ => 'image/jpeg',
@@ -436,18 +470,99 @@ class _TodoFormDialogState extends State<TodoFormDialog>
   }
 
   String _readableError(Object error) {
-    final message = error.toString().trim();
-    if (message.startsWith('Exception: ')) {
-      return message.replaceFirst('Exception: ', '');
-    }
-    if (message.startsWith('StateError: ')) {
-      return message.replaceFirst('StateError: ', '');
-    }
-    return message;
+    final msg = error.toString().trim();
+    if (msg.startsWith('Exception: ')) return msg.replaceFirst('Exception: ', '');
+    if (msg.startsWith('StateError: ')) return msg.replaceFirst('StateError: ', '');
+    return msg;
   }
 }
 
-// ── Photos section ───────────────────────────────────────────────────────────
+// ── Field label ───────────────────────────────────────────────────────────────
+
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: AppColors.textPrimary,
+      ),
+    );
+  }
+}
+
+// ── Priority option ───────────────────────────────────────────────────────────
+
+class _PriorityOption extends StatelessWidget {
+  const _PriorityOption({
+    required this.priority,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final TodoPriority priority;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _priorityColor(priority);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: selected
+              ? color.withValues(alpha: 0.14)
+              : Colors.white.withValues(alpha: 0.04),
+          border: Border.all(
+            color: selected
+                ? color.withValues(alpha: 0.32)
+                : Colors.white.withValues(alpha: 0.10),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color,
+              ),
+            ),
+            const SizedBox(width: 7),
+            Flexible(
+              child: Text(
+                priority.label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? color : AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Photos section ────────────────────────────────────────────────────────────
 
 class _PhotosSection extends StatelessWidget {
   const _PhotosSection({
@@ -480,20 +595,13 @@ class _PhotosSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Label row ──────────────────────────────────────────────────────
+        // ── Label row ────────────────────────────────────────────────────────
         Row(
           children: [
-            const Text(
-              'Photos',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
-            ),
+            const _FieldLabel(label: 'Photos'),
             const Spacer(),
             Text(
-              '$_totalCount/$_maxTodoImages selected',
+              '$_totalCount / $_maxTodoImages selected',
               style: const TextStyle(
                 fontSize: 11,
                 color: AppColors.textSecondary,
@@ -501,37 +609,35 @@ class _PhotosSection extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
 
-        // ── Container ──────────────────────────────────────────────────────
+        // ── Container ────────────────────────────────────────────────────────
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            color: Colors.white.withValues(alpha: 0.05),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.10),
-            ),
+            borderRadius: BorderRadius.circular(12),
+            color: Colors.white.withValues(alpha: 0.04),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Top row: hint + add button ───────────────────────────────
+              // ── Hint + add button ──────────────────────────────────────────
               Row(
                 children: [
                   Expanded(
                     child: Text(
                       isEditing
-                          ? 'Keep your cover image sharp and append more references when needed.'
-                          : 'Pick up to $_maxTodoImages images. The first one becomes the cover.',
+                          ? 'Tap an image to set it as the cover.'
+                          : 'Up to $_maxTodoImages photos. First one becomes the cover.',
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         height: 1.45,
                         color: AppColors.textSecondary,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   _AddPhotosButton(
                     disabled: isSubmitting || _atLimit,
                     isLoading: isLoadingImages,
@@ -540,9 +646,9 @@ class _PhotosSection extends StatelessWidget {
                 ],
               ),
 
-              // ── Existing images ──────────────────────────────────────────
+              // ── Existing images ────────────────────────────────────────────
               if (existingImages.isNotEmpty) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 const Text(
                   'Current gallery',
                   style: TextStyle(
@@ -551,29 +657,26 @@ class _PhotosSection extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 SizedBox(
-                  height: 84,
+                  height: 80,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
                     itemCount: existingImages.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 10),
-                    itemBuilder: (context, index) {
-                      final image = existingImages[index];
-                      return _ExistingImageTile(
-                        image: image,
-                        selected: selectedPrimaryImageId == image.id,
-                        onTap: () => onSelectPrimary(image.id),
-                      );
-                    },
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
+                    itemBuilder: (context, i) => _ExistingImageTile(
+                      image: existingImages[i],
+                      selected: selectedPrimaryImageId == existingImages[i].id,
+                      onTap: () => onSelectPrimary(existingImages[i].id),
+                    ),
                   ),
                 ),
               ],
 
-              // ── New images ───────────────────────────────────────────────
+              // ── New images ─────────────────────────────────────────────────
               if (newImages.isNotEmpty) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 const Text(
                   'New uploads',
                   style: TextStyle(
@@ -582,29 +685,26 @@ class _PhotosSection extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 SizedBox(
-                  height: 84,
+                  height: 80,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
                     itemCount: newImages.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 10),
-                    itemBuilder: (context, index) {
-                      final image = newImages[index];
-                      return _PendingImageTile(
-                        bytes: image.bytes,
-                        filename: image.filename,
-                        onRemove: () => onRemoveNew(index),
-                      );
-                    },
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
+                    itemBuilder: (context, i) => _PendingImageTile(
+                      bytes: newImages[i].bytes,
+                      filename: newImages[i].filename,
+                      onRemove: () => onRemoveNew(i),
+                    ),
                   ),
                 ),
               ],
 
-              // ── Loading shimmer tiles ────────────────────────────────────
+              // ── Loading shimmer ────────────────────────────────────────────
               if (isLoadingImages) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 const Text(
                   'Loading…',
                   style: TextStyle(
@@ -613,20 +713,16 @@ class _PhotosSection extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 SizedBox(
-                  height: 84,
+                  height: 80,
                   child: Row(
                     children: List.generate(
                       3,
                       (i) => Padding(
-                        padding: EdgeInsets.only(right: i < 2 ? 10 : 0),
+                        padding: EdgeInsets.only(right: i < 2 ? 8 : 0),
                         child: const SkeletonLoader(
-                          child: SkeletonBox(
-                            width: 84,
-                            height: 84,
-                            radius: 18,
-                          ),
+                          child: SkeletonBox(width: 80, height: 80, radius: 12),
                         ),
                       ),
                     ),
@@ -641,7 +737,7 @@ class _PhotosSection extends StatelessWidget {
   }
 }
 
-// ── Add photos button ────────────────────────────────────────────────────────
+// ── Add photos button ─────────────────────────────────────────────────────────
 
 class _AddPhotosButton extends StatefulWidget {
   const _AddPhotosButton({
@@ -681,7 +777,7 @@ class _AddPhotosButtonState extends State<_AddPhotosButton> {
           opacity: widget.disabled ? 0.45 : 1.0,
           duration: const Duration(milliseconds: 200),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(999),
               color: AppColors.primary.withValues(alpha: 0.12),
@@ -694,8 +790,8 @@ class _AddPhotosButtonState extends State<_AddPhotosButton> {
               children: [
                 if (widget.isLoading)
                   SizedBox(
-                    width: 14,
-                    height: 14,
+                    width: 12,
+                    height: 12,
                     child: CircularProgressIndicator(
                       strokeWidth: 1.6,
                       valueColor: AlwaysStoppedAnimation<Color>(
@@ -706,11 +802,11 @@ class _AddPhotosButtonState extends State<_AddPhotosButton> {
                 else
                   const HugeIcon(
                     icon: HugeIcons.strokeRoundedAdd01,
-                    size: 14,
+                    size: 13,
                     color: AppColors.primary,
                     strokeWidth: 1.8,
                   ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Text(
                   widget.isLoading ? 'Loading…' : 'Add photos',
                   style: const TextStyle(
@@ -728,7 +824,7 @@ class _AddPhotosButtonState extends State<_AddPhotosButton> {
   }
 }
 
-// ── Existing image tile ──────────────────────────────────────────────────────
+// ── Existing image tile ───────────────────────────────────────────────────────
 
 class _ExistingImageTile extends StatelessWidget {
   const _ExistingImageTile({
@@ -746,18 +842,18 @@ class _ExistingImageTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 84,
+        width: 80,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: selected
-                ? AppColors.primary.withValues(alpha: 0.50)
+                ? AppColors.primary.withValues(alpha: 0.55)
                 : Colors.white.withValues(alpha: 0.10),
             width: selected ? 1.5 : 1.0,
           ),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(17),
+          borderRadius: BorderRadius.circular(11),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -783,8 +879,8 @@ class _ExistingImageTile extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withValues(alpha: 0.04),
-                      Colors.black.withValues(alpha: 0.28),
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.24),
                     ],
                   ),
                 ),
@@ -793,16 +889,16 @@ class _ExistingImageTile extends StatelessWidget {
                 Align(
                   alignment: Alignment.topRight,
                   child: Container(
-                    margin: const EdgeInsets.all(6),
-                    width: 20,
-                    height: 20,
+                    margin: const EdgeInsets.all(5),
+                    width: 18,
+                    height: 18,
                     decoration: const BoxDecoration(
                       color: AppColors.primary,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       Icons.star_rounded,
-                      size: 12,
+                      size: 11,
                       color: Colors.black,
                     ),
                   ),
@@ -815,7 +911,7 @@ class _ExistingImageTile extends StatelessWidget {
   }
 }
 
-// ── Pending image tile ───────────────────────────────────────────────────────
+// ── Pending image tile ────────────────────────────────────────────────────────
 
 class _PendingImageTile extends StatefulWidget {
   const _PendingImageTile({
@@ -838,13 +934,13 @@ class _PendingImageTileState extends State<_PendingImageTile> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 84,
+      width: 80,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(11),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -855,13 +951,13 @@ class _PendingImageTileState extends State<_PendingImageTile> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.04),
-                    Colors.black.withValues(alpha: 0.34),
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.30),
                   ],
                 ),
               ),
             ),
-            // Remove button — large tap area for easy removal
+            // Remove button
             Positioned(
               top: 4,
               right: 4,
@@ -871,21 +967,21 @@ class _PendingImageTileState extends State<_PendingImageTile> {
                 onTapUp: (_) => setState(() => _removePressed = false),
                 onTapCancel: () => setState(() => _removePressed = false),
                 child: AnimatedScale(
-                  scale: _removePressed ? 0.85 : 1.0,
+                  scale: _removePressed ? 0.84 : 1.0,
                   duration: const Duration(milliseconds: 110),
                   child: Container(
-                    width: 26,
-                    height: 26,
+                    width: 22,
+                    height: 22,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.danger.withValues(alpha: 0.82),
+                      color: AppColors.danger.withValues(alpha: 0.85),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.28),
+                        color: Colors.white.withValues(alpha: 0.30),
                       ),
                     ),
                     child: const Icon(
                       Icons.close_rounded,
-                      size: 14,
+                      size: 12,
                       color: Colors.white,
                     ),
                   ),
@@ -893,9 +989,9 @@ class _PendingImageTileState extends State<_PendingImageTile> {
               ),
             ),
             Positioned(
-              left: 6,
-              right: 6,
-              bottom: 6,
+              left: 5,
+              right: 5,
+              bottom: 5,
               child: Text(
                 widget.filename,
                 maxLines: 1,
@@ -914,174 +1010,48 @@ class _PendingImageTileState extends State<_PendingImageTile> {
   }
 }
 
-// ── Shared helpers ───────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 InputDecoration _inputDecoration({String? hint, String? prefixText}) {
   return InputDecoration(
     hintText: hint,
-    hintStyle: const TextStyle(color: AppColors.textSecondary),
+    hintStyle: const TextStyle(
+      fontSize: 12,
+      color: AppColors.textSecondary,
+    ),
     prefixText: prefixText,
     prefixStyle: const TextStyle(
+      fontSize: 12,
       color: AppColors.textSecondary,
       fontWeight: FontWeight.w600,
     ),
     filled: true,
-    fillColor: Colors.white.withValues(alpha: 0.05),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    fillColor: Colors.white.withValues(alpha: 0.04),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+    ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(12),
       borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.10)),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(20),
-      borderSide: const BorderSide(color: AppColors.primary),
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(
+        color: AppColors.primary.withValues(alpha: 0.55),
+        width: 1.4,
+      ),
     ),
     errorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(20),
-      borderSide: BorderSide(color: AppColors.danger.withValues(alpha: 0.55)),
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: AppColors.danger.withValues(alpha: 0.50)),
     ),
     focusedErrorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(20),
-      borderSide: const BorderSide(color: AppColors.danger),
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AppColors.danger, width: 1.4),
     ),
   );
-}
-
-class _LabeledField extends StatelessWidget {
-  const _LabeledField({required this.label, required this.child});
-
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 10),
-        child,
-      ],
-    );
-  }
-}
-
-class _PriorityOption extends StatelessWidget {
-  const _PriorityOption({
-    required this.priority,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final TodoPriority priority;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = _priorityColor(priority);
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          color: selected
-              ? color.withValues(alpha: 0.18)
-              : Colors.white.withValues(alpha: 0.04),
-          border: Border.all(
-            color: selected
-                ? color.withValues(alpha: 0.35)
-                : Colors.white.withValues(alpha: 0.12),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              priority.label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: selected ? color : AppColors.textPrimary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DialogButton extends StatelessWidget {
-  const _DialogButton({
-    required this.label,
-    required this.onTap,
-    this.backgroundColor,
-    this.borderColor,
-    this.foregroundColor = AppColors.textPrimary,
-    this.isLoading = false,
-  });
-
-  final String label;
-  final VoidCallback? onTap;
-  final Color? backgroundColor;
-  final Color? borderColor;
-  final Color foregroundColor;
-  final bool isLoading;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          color: backgroundColor ?? Colors.white.withValues(alpha: 0.05),
-          border: Border.all(
-            color: borderColor ?? Colors.white.withValues(alpha: 0.14),
-          ),
-        ),
-        child: Center(
-          child: isLoading
-              ? SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.8,
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(foregroundColor),
-                  ),
-                )
-              : Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: foregroundColor,
-                  ),
-                ),
-        ),
-      ),
-    );
-  }
 }
 
 Color _priorityColor(TodoPriority priority) => switch (priority) {
