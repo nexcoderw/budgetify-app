@@ -525,9 +525,9 @@ class _LoadingState extends StatelessWidget {
     return SkeletonLoader(
       child: Column(
         children: const [
-          _LoadingPanel(height: 220),
+          _LoadingStatusPanel(),
           SizedBox(height: 14),
-          _LoadingPanel(height: 260),
+          _LoadingInvitePanel(),
         ],
       ),
     );
@@ -535,9 +535,9 @@ class _LoadingState extends StatelessWidget {
 }
 
 class _LoadingPanel extends StatelessWidget {
-  const _LoadingPanel({required this.height});
+  const _LoadingPanel({required this.child});
 
-  final double height;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
@@ -546,7 +546,107 @@ class _LoadingPanel extends StatelessWidget {
       borderRadius: BorderRadius.circular(28),
       blur: 22,
       opacity: 0.12,
-      child: SizedBox(height: height),
+      child: child,
+    );
+  }
+}
+
+class _LoadingStatusPanel extends StatelessWidget {
+  const _LoadingStatusPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _LoadingPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SkeletonBox(width: 190, height: 20, radius: 14),
+                    SizedBox(height: 8),
+                    SkeletonBox(height: 12, radius: 12),
+                    SizedBox(height: 8),
+                    SkeletonBox(width: 230, height: 12, radius: 12),
+                  ],
+                ),
+              ),
+              SizedBox(width: 12),
+              SkeletonBox(width: 84, height: 28, radius: 999),
+            ],
+          ),
+          SizedBox(height: 18),
+          _LoadingPartnerLine(),
+          SizedBox(height: 12),
+          _LoadingPartnerLine(),
+          SizedBox(height: 18),
+          SkeletonBox(height: 78, radius: 20),
+          SizedBox(height: 18),
+          SkeletonBox(width: 148, height: 42, radius: 16),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingInvitePanel extends StatelessWidget {
+  const _LoadingInvitePanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _LoadingPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SkeletonBox(width: 132, height: 18, radius: 14),
+          SizedBox(height: 8),
+          SkeletonBox(height: 12, radius: 12),
+          SizedBox(height: 8),
+          SkeletonBox(width: 244, height: 12, radius: 12),
+          SizedBox(height: 18),
+          SkeletonBox(height: 48, radius: 16),
+          SizedBox(height: 16),
+          SkeletonBox(width: 156, height: 42, radius: 16),
+          SizedBox(height: 18),
+          SkeletonBox(height: 1, radius: 999),
+          SizedBox(height: 18),
+          SkeletonBox(width: 148, height: 16, radius: 12),
+          SizedBox(height: 8),
+          SkeletonBox(width: 210, height: 12, radius: 12),
+          SizedBox(height: 14),
+          SkeletonBox(width: 172, height: 42, radius: 16),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingPartnerLine extends StatelessWidget {
+  const _LoadingPartnerLine();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      children: [
+        SkeletonBox(width: 42, height: 42, radius: 999),
+        SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SkeletonBox(width: 72, height: 10, radius: 10),
+              SizedBox(height: 6),
+              SkeletonBox(width: 144, height: 13, radius: 12),
+              SizedBox(height: 6),
+              SkeletonBox(width: 188, height: 10, radius: 10),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
