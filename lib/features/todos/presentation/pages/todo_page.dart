@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -645,6 +646,8 @@ class _TodoPageState extends State<TodoPage>
       );
     }
 
+    final horizontalPadding = widget.embedded ? 0.0 : 18.0;
+
     final content = RefreshIndicator(
       color: AppColors.primary,
       backgroundColor: AppColors.surfaceElevated,
@@ -653,12 +656,19 @@ class _TodoPageState extends State<TodoPage>
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
         ),
-        padding: const EdgeInsets.fromLTRB(18, 20, 18, 28),
+        padding: EdgeInsets.fromLTRB(
+          horizontalPadding,
+          20,
+          horizontalPadding,
+          28,
+        ),
         children: [
           _Staggered(
             fade: _fade(0.0, 0.42),
             slide: _slide(0.0, 0.42),
             child: _TodoHeader(
+              plannedTotal: _plannedTotal,
+              totalCount: _entries.length,
               onAdd: _openCreateDialog,
               showBackButton: !widget.embedded,
             ),
@@ -795,9 +805,16 @@ class _TodoPageLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final horizontalPadding = embedded ? 0.0 : 18.0;
+
     final content = SkeletonLoader(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 20, 18, 28),
+        padding: EdgeInsets.fromLTRB(
+          horizontalPadding,
+          20,
+          horizontalPadding,
+          28,
+        ),
         children: [
           _Staggered(
             fade: fade(0.0, 0.42),
@@ -848,119 +865,317 @@ class _LoadingPanel extends StatelessWidget {
   }
 }
 
-class _TodoHeader extends StatelessWidget {
-  const _TodoHeader({required this.onAdd, required this.showBackButton});
+class _TodoHeader extends StatefulWidget {
+  const _TodoHeader({
+    required this.plannedTotal,
+    required this.totalCount,
+    required this.onAdd,
+    required this.showBackButton,
+  });
 
+  final double plannedTotal;
+  final int totalCount;
   final Future<void> Function() onAdd;
   final bool showBackButton;
 
   @override
+  State<_TodoHeader> createState() => _TodoHeaderState();
+}
+
+class _TodoHeaderState extends State<_TodoHeader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _shimmer;
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmer = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _shimmer.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return GlassPanel(
-      padding: const EdgeInsets.all(22),
-      borderRadius: BorderRadius.circular(30),
-      blur: 22,
-      opacity: 0.12,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              if (showBackButton)
-                GestureDetector(
-                  onTap: () => Navigator.of(context).pop(),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 11,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(999),
-                      color: Colors.white.withValues(alpha: 0.05),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.12),
-                      ),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        HugeIcon(
-                          icon: HugeIcons.strokeRoundedArrowLeft01,
-                          size: 14,
-                          color: AppColors.textPrimary,
-                          strokeWidth: 1.8,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Back',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+    final isCompact = MediaQuery.sizeOf(context).width < 760;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(32),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+        child: AnimatedBuilder(
+          animation: _shimmer,
+          builder: (context, _) => Container(
+            padding: EdgeInsets.all(isCompact ? 22 : 28),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(32),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.primary.withValues(alpha: 0.15),
+                  Colors.white.withValues(alpha: 0.07),
+                  AppColors.primary.withValues(alpha: 0.04),
+                ],
+                stops: [0.0, _shimmer.value, 1.0],
+              ),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.30),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.10),
+                  blurRadius: 48,
+                  offset: const Offset(0, 20),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              if (widget.showBackButton) ...[
+                                GestureDetector(
+                                  onTap: () => Navigator.of(context).pop(),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 11,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(999),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.05,
+                                      ),
+                                      border: Border.all(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.12,
+                                        ),
+                                      ),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        HugeIcon(
+                                          icon: HugeIcons
+                                              .strokeRoundedArrowLeft01,
+                                          size: 14,
+                                          color: AppColors.textPrimary,
+                                          strokeWidth: 1.8,
+                                        ),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Back',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                              ],
+                              GlassBadge(
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    HugeIcon(
+                                      icon: HugeIcons.strokeRoundedTaskDaily01,
+                                      size: 15,
+                                      color: AppColors.primary,
+                                      strokeWidth: 1.8,
+                                    ),
+                                    SizedBox(width: 7),
+                                    Text(
+                                      'Todo',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              const Spacer(),
-              GestureDetector(
-                onTap: () => onAdd(),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 11,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    color: AppColors.primary.withValues(alpha: 0.14),
-                    border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.22),
-                    ),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      HugeIcon(
-                        icon: HugeIcons.strokeRoundedTaskAdd01,
-                        size: 14,
-                        color: AppColors.primary,
-                        strokeWidth: 1.8,
+                          const SizedBox(height: 18),
+                          Text(
+                            'Todo',
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(
+                                  fontSize: isCompact ? 26 : 30,
+                                  color: AppColors.textPrimary,
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Recurring schedules, exact occurrence dates, and expense recording now match the web flow.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.55,
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.85,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      SizedBox(width: 8),
-                      Text(
-                        'Add todo',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 16),
+                    _AddTodoButton(onTap: widget.onAdd),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                const _GradientDivider(color: AppColors.primary),
+                const SizedBox(height: 20),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Total planned',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.7,
+                              ),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          _AnimatedCounter(
+                            value: widget.plannedTotal,
+                            style: TextStyle(
+                              fontSize: isCompact ? 30 : 36,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                              letterSpacing: -1.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.22),
                         ),
                       ),
-                    ],
-                  ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const HugeIcon(
+                            icon: HugeIcons.strokeRoundedTaskDone02,
+                            size: 12,
+                            color: AppColors.primary,
+                            strokeWidth: 2,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            '${widget.totalCount} items',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddTodoButton extends StatefulWidget {
+  const _AddTodoButton({required this.onTap});
+
+  final Future<void> Function() onTap;
+
+  @override
+  State<_AddTodoButton> createState() => _AddTodoButtonState();
+}
+
+class _AddTodoButtonState extends State<_AddTodoButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.93 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.primary.withValues(alpha: 0.18),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.35),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.18),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          const Text(
-            'Todo board',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+          child: const Center(
+            child: HugeIcon(
+              icon: HugeIcons.strokeRoundedAdd01,
+              size: 20,
+              color: AppColors.primary,
+              strokeWidth: 2,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Recurring schedules, exact occurrence dates, and expense recording now match the web flow.',
-            style: TextStyle(
-              fontSize: 12,
-              height: 1.55,
-              color: AppColors.textSecondary.withValues(alpha: 0.8),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1698,6 +1913,91 @@ class _PagerButton extends StatelessWidget {
       ),
     );
   }
+}
+
+class _AnimatedCounter extends StatefulWidget {
+  const _AnimatedCounter({required this.value, required this.style});
+
+  final double value;
+  final TextStyle style;
+
+  @override
+  State<_AnimatedCounter> createState() => _AnimatedCounterState();
+}
+
+class _AnimatedCounterState extends State<_AnimatedCounter>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+  double _previous = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+    _ctrl.forward();
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedCounter oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value) {
+      _previous = oldWidget.value;
+      _ctrl
+        ..reset()
+        ..forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (context, _) {
+        final value = _previous + _anim.value * (widget.value - _previous);
+        return Text(_rwf(value), style: widget.style);
+      },
+    );
+  }
+}
+
+class _GradientDivider extends StatelessWidget {
+  const _GradientDivider({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 1,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.transparent,
+            color.withValues(alpha: 0.22),
+            Colors.transparent,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _rwf(double amount) {
+  final formatted = amount
+      .toStringAsFixed(0)
+      .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
+  return 'RWF $formatted';
 }
 
 String _rwfCompact(double amount) {
