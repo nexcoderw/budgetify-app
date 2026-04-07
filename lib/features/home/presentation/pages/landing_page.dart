@@ -7,8 +7,10 @@ import '../../../expenses/application/expense_service.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../../../income/application/income_service.dart';
 import '../../../loans/application/loan_service.dart';
+import '../../../partnerships/application/partnership_service.dart';
 import '../../../savings/application/saving_service.dart';
 import '../../../todos/application/todo_service.dart';
+import '../../../todos/presentation/pages/todo_page.dart';
 import '../widgets/app_layout.dart';
 import 'dashboard/dashboard_page.dart';
 import 'expense_page.dart';
@@ -33,6 +35,8 @@ class _LandingPageState extends State<LandingPage> {
   final LoanService _loanService = LoanService.createDefault();
   final SavingService _savingService = SavingService.createDefault();
   final TodoService _todoService = TodoService.createDefault();
+  final PartnershipService _partnershipService =
+      PartnershipService.createDefault();
   bool _isLoggingOut = false;
   AppLayoutSection _currentSection = AppLayoutSection.dashboard;
 
@@ -41,6 +45,7 @@ class _LandingPageState extends State<LandingPage> {
     return AppLayout(
       user: widget.user,
       currentSection: _currentSection,
+      scrollChild: _currentSection != AppLayoutSection.todos,
       isLoggingOut: _isLoggingOut,
       onLogout: _isLoggingOut ? null : _logout,
       onSectionSelected: _selectSection,
@@ -62,13 +67,19 @@ class _LandingPageState extends State<LandingPage> {
         return DashboardPage(user: widget.user);
       case AppLayoutSection.income:
         return IncomePage(incomeService: _incomeService);
+      case AppLayoutSection.expense:
+        return ExpensePage(expenseService: _expenseService);
+      case AppLayoutSection.todos:
+        return TodoPage(
+          todoService: _todoService,
+          expenseService: _expenseService,
+          embedded: true,
+        );
       case AppLayoutSection.saving:
         return SavingPage(
           savingService: _savingService,
           expenseService: _expenseService,
         );
-      case AppLayoutSection.expense:
-        return ExpensePage(expenseService: _expenseService);
       case AppLayoutSection.loans:
         return LoanPage(loanService: _loanService);
       case AppLayoutSection.profile:
@@ -76,6 +87,7 @@ class _LandingPageState extends State<LandingPage> {
           user: widget.user,
           todoService: _todoService,
           expenseService: _expenseService,
+          partnershipService: _partnershipService,
           isLoggingOut: _isLoggingOut,
           onLogout: _isLoggingOut ? null : _logout,
         );
