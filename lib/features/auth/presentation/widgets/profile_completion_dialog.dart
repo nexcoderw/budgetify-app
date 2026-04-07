@@ -8,7 +8,6 @@ import '../../../../core/widgets/app_modal_dialog.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../application/auth_service_contract.dart';
 import '../../data/models/auth_user.dart';
-import 'auth_loading_button.dart';
 
 class ProfileCompletionDialog extends StatefulWidget {
   const ProfileCompletionDialog({
@@ -318,18 +317,22 @@ class _ProfileCompletionDialogState extends State<ProfileCompletionDialog>
                     ),
                   ),
                   const SizedBox(height: 20),
-                  AuthLoadingButton(
-                    label: 'Save and continue',
-                    loadingLabel: 'Saving profile…',
-                    isLoading: _isSaving,
-                    fontSize: 14,
-                    leading: HugeIcon(
-                      icon: HugeIcons.strokeRoundedCheckmarkCircle02,
-                      size: 18,
-                      color: AppColors.background,
-                      strokeWidth: 1.8,
+                  SizedBox(
+                    width: double.infinity,
+                    child: AppModalActionButton(
+                      label: 'Save and continue',
+                      isPrimary: true,
+                      isLoading: _isSaving,
+                      onPressed: _submit,
+                      primaryColor: AppColors.primary,
+                      primaryForegroundColor: AppColors.background,
+                      leading: HugeIcon(
+                        icon: HugeIcons.strokeRoundedCheckmarkCircle02,
+                        size: 18,
+                        color: AppColors.background,
+                        strokeWidth: 1.8,
+                      ),
                     ),
-                    onPressed: _submit,
                   ),
                 ],
               ),
