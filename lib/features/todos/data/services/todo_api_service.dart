@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:http_parser/http_parser.dart';
 
 import '../../../../core/network/api_client.dart';
@@ -58,16 +60,28 @@ class TodoApiService {
     required String name,
     required double price,
     required TodoPriority priority,
+    required bool done,
+    required TodoFrequency frequency,
+    required String startDate,
+    String? endDate,
+    List<int> frequencyDays = const <int>[],
+    List<String> occurrenceDates = const <String>[],
     required List<TodoUploadImage> images,
   }) async {
     final json = await _apiClient.postMultipart(
       _routes.list,
       headers: <String, String>{'Authorization': 'Bearer $accessToken'},
-      fields: <String, String>{
-        'name': name,
-        'price': _encodeAmount(price),
-        'priority': priority.apiValue,
-      },
+      fields: _buildTodoFields(
+        name: name,
+        price: price,
+        priority: priority,
+        done: done,
+        frequency: frequency,
+        startDate: startDate,
+        endDate: endDate,
+        frequencyDays: frequencyDays,
+        occurrenceDates: occurrenceDates,
+      ),
       files: images.map(_toMultipartFile).toList(growable: false),
     );
 
@@ -77,26 +91,37 @@ class TodoApiService {
   Future<TodoItem> updateTodo({
     required String accessToken,
     required String todoId,
-    required String name,
-    required double price,
-    required TodoPriority priority,
+    String? name,
+    double? price,
+    TodoPriority? priority,
+    bool? done,
+    TodoFrequency? frequency,
+    String? startDate,
+    String? endDate,
+    List<int>? frequencyDays,
+    List<String>? occurrenceDates,
+    double? deductAmount,
+    String? recordedOccurrenceDate,
     String? primaryImageId,
     List<TodoUploadImage> images = const [],
   }) async {
-    final fields = <String, String>{
-      'name': name,
-      'price': _encodeAmount(price),
-      'priority': priority.apiValue,
-    };
-
-    if (primaryImageId != null) {
-      fields['primaryImageId'] = primaryImageId;
-    }
-
     final json = await _apiClient.patchMultipart(
       _routes.byId(todoId),
       headers: <String, String>{'Authorization': 'Bearer $accessToken'},
-      fields: fields,
+      fields: _buildTodoFields(
+        name: name,
+        price: price,
+        priority: priority,
+        done: done,
+        frequency: frequency,
+        startDate: startDate,
+        endDate: endDate,
+        frequencyDays: frequencyDays,
+        occurrenceDates: occurrenceDates,
+        deductAmount: deductAmount,
+        recordedOccurrenceDate: recordedOccurrenceDate,
+        primaryImageId: primaryImageId,
+      ),
       files: images.map(_toMultipartFile).toList(growable: false),
     );
 
@@ -128,5 +153,47 @@ class TodoApiService {
         : amount.toStringAsFixed(2);
 
     return normalized;
+  }
+
+  Map<String, String> _buildTodoFields({
+    String? name,
+    double? price,
+    TodoPriority? priority,
+    bool? done,
+    TodoFrequency? frequency,
+    String? startDate,
+    String? endDate,
+    List<int>? frequencyDays,
+    List<String>? occurrenceDates,
+    double? deductAmount,
+    String? recordedOccurrenceDate,
+    String? primaryImageId,
+  }) {
+    final fields = <String, String>{};
+
+    if (name != null) fields['name'] = name;
+    if (price != null) fields['price'] = _encodeAmount(price);
+    if (priority != null) fields['priority'] = priority.apiValue;
+    if (done != null) fields['done'] = done.toString();
+    if (frequency != null) fields['frequency'] = frequency.apiValue;
+    if (startDate != null) fields['startDate'] = startDate;
+    if (endDate != null) fields['endDate'] = endDate;
+    if (frequencyDays != null) {
+      fields['frequencyDays'] = jsonEncode(frequencyDays);
+    }
+    if (occurrenceDates != null) {
+      fields['occurrenceDates'] = jsonEncode(occurrenceDates);
+    }
+    if (deductAmount != null) {
+      fields['deductAmount'] = _encodeAmount(deductAmount);
+    }
+    if (recordedOccurrenceDate != null) {
+      fields['recordedOccurrenceDate'] = recordedOccurrenceDate;
+    }
+    if (primaryImageId != null) {
+      fields['primaryImageId'] = primaryImageId;
+    }
+
+    return fields;
   }
 }
