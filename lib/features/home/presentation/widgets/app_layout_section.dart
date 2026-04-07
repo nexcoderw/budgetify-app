@@ -53,9 +53,4 @@ const List<AppNavDestination> defaultAppNavDestinations = [
     label: 'Loans',
     icon: HugeIcons.strokeRoundedWallet03,
   ),
-  AppNavDestination(
-    section: AppLayoutSection.profile,
-    label: 'Profile',
-    icon: HugeIcons.strokeRoundedUserCircle,
-  ),
 ];
