@@ -1077,7 +1077,7 @@ class _LoadingEntryRow extends StatelessWidget {
   }
 }
 
-class _LoanHeader extends StatelessWidget {
+class _LoanHeader extends StatefulWidget {
   const _LoanHeader({
     required this.periodLabel,
     required this.totalLoans,
@@ -1099,161 +1099,209 @@ class _LoanHeader extends StatelessWidget {
   final Future<void> Function() onPreviousMonth;
 
   @override
+  State<_LoanHeader> createState() => _LoanHeaderState();
+}
+
+class _LoanHeaderState extends State<_LoanHeader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _shimmer;
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmer = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _shimmer.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return GlassPanel(
-      padding: const EdgeInsets.all(24),
-      borderRadius: BorderRadius.circular(30),
-      blur: 24,
-      opacity: 0.12,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              GlassBadge(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    HugeIcon(
-                      icon: HugeIcons.strokeRoundedWallet03,
-                      size: 16,
-                      color: _loanAccent,
-                      strokeWidth: 1.8,
+    final isCompact = MediaQuery.sizeOf(context).width < 760;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(32),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+        child: AnimatedBuilder(
+          animation: _shimmer,
+          builder: (context, _) => Container(
+            padding: EdgeInsets.all(isCompact ? 22 : 28),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(32),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  _loanAccent.withValues(alpha: 0.15),
+                  Colors.white.withValues(alpha: 0.07),
+                  _loanAccent.withValues(alpha: 0.04),
+                ],
+                stops: [0.0, _shimmer.value, 1.0],
+              ),
+              border: Border.all(color: _loanAccent.withValues(alpha: 0.30)),
+              boxShadow: [
+                BoxShadow(
+                  color: _loanAccent.withValues(alpha: 0.10),
+                  blurRadius: 48,
+                  offset: const Offset(0, 20),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              GlassBadge(
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    HugeIcon(
+                                      icon: HugeIcons.strokeRoundedWallet03,
+                                      size: 15,
+                                      color: _loanAccent,
+                                      strokeWidth: 1.8,
+                                    ),
+                                    SizedBox(width: 7),
+                                    Text(
+                                      'Loan',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: _loanAccent,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Flexible(
+                                child: _MonthStepper(
+                                  label: widget.periodLabel,
+                                  canGoNext: widget.canGoNextMonth,
+                                  onNext: widget.onNextMonth,
+                                  onPrevious: widget.onPreviousMonth,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          Text(
+                            'Loans',
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(
+                                  fontSize: isCompact ? 26 : 30,
+                                  color: AppColors.textPrimary,
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Track borrowed money, follow settlement status, and convert unpaid loans into expenses when they are repaid.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.55,
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.85,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    SizedBox(width: 8),
-                    Text(
-                      'Loan ledger',
-                      style: TextStyle(fontSize: 12, color: _loanAccent),
+                    const SizedBox(width: 16),
+                    _AddLoanButton(onTap: widget.onAdd),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                const _GradientDivider(color: _loanAccent),
+                const SizedBox(height: 20),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Total in ${widget.periodLabel}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.7,
+                              ),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          _AnimatedCounter(
+                            value: widget.totalLoans,
+                            style: TextStyle(
+                              fontSize: isCompact ? 30 : 36,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                              letterSpacing: -1.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        color: _loanAccent.withValues(alpha: 0.12),
+                        border: Border.all(
+                          color: _loanAccent.withValues(alpha: 0.22),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const HugeIcon(
+                            icon: HugeIcons.strokeRoundedWallet03,
+                            size: 12,
+                            color: _loanAccent,
+                            strokeWidth: 2,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            '${widget.entryCount} records',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: _loanAccent,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
-              ),
-              _MonthStepper(
-                label: periodLabel,
-                canGoNext: canGoNextMonth,
-                onNext: onNextMonth,
-                onPrevious: onPreviousMonth,
-              ),
-            ],
-          ),
-          const SizedBox(height: 22),
-          Text(
-            'Loans',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontSize: 30,
-              color: AppColors.textPrimary,
+              ],
             ),
           ),
-          const SizedBox(height: 10),
-          Text(
-            'Track borrowed money, follow settlement status, and convert unpaid loans into expenses when they are repaid.',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              fontSize: 13,
-              height: 1.6,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 22),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _HeaderMetricPill(
-                label: 'Total loans',
-                value: _rwfCompact(totalLoans),
-              ),
-              _HeaderMetricPill(
-                label: 'Outstanding',
-                value: _rwfCompact(outstandingAmount),
-              ),
-              _HeaderMetricPill(label: 'Records', value: '$entryCount'),
-              _PrimaryActionButton(onTap: onAdd),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeaderMetricPill extends StatelessWidget {
-  const _HeaderMetricPill({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        color: Colors.white.withValues(alpha: 0.05),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: AppColors.textSecondary.withValues(alpha: 0.6),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PrimaryActionButton extends StatelessWidget {
-  const _PrimaryActionButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: _loanAccent.withValues(alpha: 0.14),
-          border: Border.all(color: _loanAccent.withValues(alpha: 0.22)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            HugeIcon(
-              icon: HugeIcons.strokeRoundedMoneyReceiveSquare,
-              size: 16,
-              color: _loanAccent,
-              strokeWidth: 1.8,
-            ),
-            SizedBox(width: 8),
-            Text(
-              'Add loan',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: _loanAccent,
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -1348,6 +1396,60 @@ class _MonthStepperButton extends StatelessWidget {
                 ? AppColors.textSecondary.withValues(alpha: 0.35)
                 : _loanAccent,
             strokeWidth: 1.9,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddLoanButton extends StatefulWidget {
+  const _AddLoanButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  State<_AddLoanButton> createState() => _AddLoanButtonState();
+}
+
+class _AddLoanButtonState extends State<_AddLoanButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.93 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _loanAccent.withValues(alpha: 0.18),
+            border: Border.all(color: _loanAccent.withValues(alpha: 0.35)),
+            boxShadow: [
+              BoxShadow(
+                color: _loanAccent.withValues(alpha: 0.18),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: const Center(
+            child: HugeIcon(
+              icon: HugeIcons.strokeRoundedAdd01,
+              size: 20,
+              color: _loanAccent,
+              strokeWidth: 2,
+            ),
           ),
         ),
       ),
@@ -1724,36 +1826,33 @@ class _LoanStatsRow extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 560;
-        if (isCompact) {
-          return Column(
-            children: [
-              for (var i = 0; i < items.length; i++) ...[
-                items[i],
-                if (i != items.length - 1) const SizedBox(height: 10),
-              ],
-            ],
+        if (constraints.maxWidth < 920) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < items.length; i++) ...[
+                    SizedBox(width: 220, child: items[i]),
+                    if (i != items.length - 1) const SizedBox(width: 10),
+                  ],
+                ],
+              ),
+            ),
           );
         }
 
-        return Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: items[0]),
-                const SizedBox(width: 10),
-                Expanded(child: items[1]),
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < items.length; i++) ...[
+                Expanded(child: items[i]),
+                if (i != items.length - 1) const SizedBox(width: 10),
               ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(child: items[2]),
-                const SizedBox(width: 10),
-                Expanded(child: items[3]),
-              ],
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
@@ -1800,12 +1899,14 @@ class _MetricCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          Text(
-            detail,
-            style: TextStyle(
-              fontSize: 11,
-              color: AppColors.textSecondary.withValues(alpha: 0.6),
-              height: 1.4,
+          Expanded(
+            child: Text(
+              detail,
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary.withValues(alpha: 0.6),
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -3580,6 +3681,62 @@ class _DialogButtonState extends State<_DialogButton> {
                 ),
         ),
       ),
+    );
+  }
+}
+
+class _AnimatedCounter extends StatefulWidget {
+  const _AnimatedCounter({required this.value, required this.style});
+
+  final double value;
+  final TextStyle style;
+
+  @override
+  State<_AnimatedCounter> createState() => _AnimatedCounterState();
+}
+
+class _AnimatedCounterState extends State<_AnimatedCounter>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+  double _previous = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+    _ctrl.forward();
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedCounter oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value) {
+      _previous = oldWidget.value;
+      _ctrl
+        ..reset()
+        ..forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (context, _) {
+        final value = _previous + _anim.value * (widget.value - _previous);
+        return Text(_rwf(value), style: widget.style);
+      },
     );
   }
 }
