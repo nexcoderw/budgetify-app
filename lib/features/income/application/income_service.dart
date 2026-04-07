@@ -6,8 +6,10 @@ import '../../auth/data/routes/auth_api_routes.dart';
 import '../../auth/data/services/auth_api_service.dart';
 import '../../auth/data/services/auth_session_storage.dart';
 import '../data/models/income_entry.dart';
+import '../data/models/income_list_query.dart';
 import '../data/routes/income_api_routes.dart';
 import '../data/services/income_api_service.dart';
+import '../../../core/network/paginated_response.dart';
 
 class IncomeService {
   IncomeService({
@@ -40,10 +42,20 @@ class IncomeService {
   final AuthApiService _authApiService;
   final AuthSessionStorage _sessionStorage;
 
-  Future<List<IncomeEntry>> listIncome() async {
+  Future<List<IncomeEntry>> listIncome({
+    IncomeListQuery query = const IncomeListQuery(),
+  }) async {
     final session = await _resolveActiveSession();
 
-    return _incomeApiService.fetchIncome(session.accessToken);
+    return _incomeApiService.fetchIncome(session.accessToken, query: query);
+  }
+
+  Future<PaginatedResponse<IncomeEntry>> listIncomePage({
+    IncomeListQuery query = const IncomeListQuery(),
+  }) async {
+    final session = await _resolveActiveSession();
+
+    return _incomeApiService.fetchIncomePage(session.accessToken, query: query);
   }
 
   Future<IncomeEntry> createIncome({
@@ -51,6 +63,7 @@ class IncomeService {
     required double amount,
     required IncomeCategory category,
     required DateTime date,
+    bool received = false,
   }) async {
     final session = await _resolveActiveSession();
 
@@ -60,6 +73,7 @@ class IncomeService {
       amount: amount,
       category: category,
       date: date,
+      received: received,
     );
   }
 
@@ -69,6 +83,7 @@ class IncomeService {
     required double amount,
     required IncomeCategory category,
     required DateTime date,
+    bool? received,
   }) async {
     final session = await _resolveActiveSession();
 
@@ -79,6 +94,7 @@ class IncomeService {
       amount: amount,
       category: category,
       date: date,
+      received: received,
     );
   }
 
