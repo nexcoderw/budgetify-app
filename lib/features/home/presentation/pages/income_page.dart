@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -5,11 +6,23 @@ import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/widgets/app_toast.dart';
+import '../../../../core/network/paginated_response.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/glass_panel.dart';
 import '../../../../core/widgets/skeleton_loader.dart';
 import '../../../income/application/income_service.dart';
 import '../../../income/data/models/income_entry.dart';
+import '../../../income/data/models/income_list_query.dart';
+
+enum _IncomeReceivedFilter { all, received, pending }
+
+extension _IncomeReceivedFilterX on _IncomeReceivedFilter {
+  String get label => switch (this) {
+    _IncomeReceivedFilter.all => 'All',
+    _IncomeReceivedFilter.received => 'Received',
+    _IncomeReceivedFilter.pending => 'Pending',
+  };
+}
 
 extension _IncomeCategoryPresentation on IncomeCategory {
   dynamic get icon => switch (this) {
@@ -63,23 +76,47 @@ class IncomePage extends StatefulWidget {
 
 class _IncomePageState extends State<IncomePage>
     with SingleTickerProviderStateMixin {
+  static const int _pageSize = 12;
+
   late final AnimationController _entranceCtrl;
+  late final TextEditingController _searchCtrl;
   List<IncomeEntry> _entries = const [];
+  List<IncomeEntry> _pageEntries = const [];
   bool _isLoading = true;
   String? _loadError;
+  Timer? _searchDebounce;
+  String? _busyReceivedId;
+  int _currentPage = 1;
+  int _totalItems = 0;
+  int _totalPages = 1;
+  late int _selectedMonth;
+  late int _selectedYear;
+  IncomeCategory? _selectedCategory;
+  _IncomeReceivedFilter _selectedReceived = _IncomeReceivedFilter.all;
+  DateTime? _selectedDateFrom;
+  DateTime? _selectedDateTo;
+  String _searchInput = '';
+  String? _appliedSearch;
+  int _loadSequence = 0;
 
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _selectedMonth = now.month;
+    _selectedYear = now.year;
     _entranceCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 950),
     )..forward();
+    _searchCtrl = TextEditingController();
     _loadIncome();
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
+    _searchCtrl.dispose();
     _entranceCtrl.dispose();
     super.dispose();
   }
@@ -88,23 +125,40 @@ class _IncomePageState extends State<IncomePage>
 
   double get _total => _entries.fold(0, (sum, e) => sum + e.amount);
 
-  double get _activeTotal => _entries
-      .where(
-        (e) =>
-            e.category == IncomeCategory.salary ||
-            e.category == IncomeCategory.freelance ||
-            e.category == IncomeCategory.sideHustle,
-      )
-      .fold(0, (sum, e) => sum + e.amount);
+  double get _receivedTotal => _entries
+      .where((entry) => entry.received)
+      .fold(0, (sum, entry) => sum + entry.amount);
 
-  double get _passiveTotal => _entries
-      .where(
-        (e) =>
-            e.category == IncomeCategory.dividends ||
-            e.category == IncomeCategory.rental ||
-            e.category == IncomeCategory.other,
-      )
-      .fold(0, (sum, e) => sum + e.amount);
+  double get _pendingTotal =>
+      (_total - _receivedTotal).clamp(0, double.infinity).toDouble();
+
+  bool get _hasExplicitDateFilter =>
+      _selectedDateFrom != null || _selectedDateTo != null;
+
+  bool get _hasActiveFilters {
+    final now = DateTime.now();
+
+    return _selectedMonth != now.month ||
+        _selectedYear != now.year ||
+        _selectedCategory != null ||
+        _selectedReceived != _IncomeReceivedFilter.all ||
+        _appliedSearch != null ||
+        _hasExplicitDateFilter;
+  }
+
+  bool get _canGoToNextMonth {
+    final now = DateTime.now();
+    return _selectedYear < now.year ||
+        (_selectedYear == now.year && _selectedMonth < now.month);
+  }
+
+  String get _periodLabel {
+    if (_hasExplicitDateFilter) {
+      return 'Custom range';
+    }
+
+    return '${_monthLabel(_selectedMonth)} $_selectedYear';
+  }
 
   // ── CRUD ──────────────────────────────────────────────────────────────────────
 
@@ -112,19 +166,23 @@ class _IncomePageState extends State<IncomePage>
     final entry = await showDialog<IncomeEntry>(
       context: context,
       builder: (_) => _IncomeFormDialog(
-        entry: null,
+        initialCategory: _selectedCategory ?? IncomeCategory.salary,
+        initialDate: _defaultCreateDate(),
+        initialReceived: false,
         onSubmit:
             ({
               required String label,
               required double amount,
               required IncomeCategory category,
               required DateTime date,
+              required bool received,
             }) {
               return widget.incomeService.createIncome(
                 label: label,
                 amount: amount,
                 category: category,
                 date: date,
+                received: received,
               );
             },
       ),
@@ -135,9 +193,13 @@ class _IncomePageState extends State<IncomePage>
     }
 
     setState(() {
-      _entries = _sortedEntries(<IncomeEntry>[entry, ..._entries]);
+      _currentPage = 1;
       _loadError = null;
     });
+    await _loadIncome();
+    if (!mounted) {
+      return;
+    }
 
     AppToast.success(
       context,
@@ -151,12 +213,14 @@ class _IncomePageState extends State<IncomePage>
       context: context,
       builder: (_) => _IncomeFormDialog(
         entry: entry,
+        initialReceived: entry.received,
         onSubmit:
             ({
               required String label,
               required double amount,
               required IncomeCategory category,
               required DateTime date,
+              required bool received,
             }) {
               return widget.incomeService.updateIncome(
                 incomeId: entry.id,
@@ -164,6 +228,7 @@ class _IncomePageState extends State<IncomePage>
                 amount: amount,
                 category: category,
                 date: date,
+                received: received,
               );
             },
       ),
@@ -173,18 +238,68 @@ class _IncomePageState extends State<IncomePage>
       return;
     }
 
-    setState(() {
-      final nextEntries = _entries
-          .map((current) => current.id == updated.id ? updated : current)
-          .toList(growable: false);
-      _entries = _sortedEntries(nextEntries);
-      _loadError = null;
-    });
+    setState(() => _loadError = null);
+    await _loadIncome();
+    if (!mounted) {
+      return;
+    }
 
     AppToast.success(
       context,
       title: 'Income updated',
       description: '${updated.label} was updated successfully.',
+    );
+  }
+
+  Future<void> _openRecordNextMonthDialog(IncomeEntry entry) async {
+    final nextMonthDate = _shiftToNextMonth(entry.date);
+    final created = await showDialog<IncomeEntry>(
+      context: context,
+      builder: (_) => _IncomeFormDialog(
+        title: 'Record for next month',
+        subtitle: 'Start from the current entry and adjust anything you need.',
+        submitLabel: 'Add income',
+        initialLabel: entry.label,
+        initialAmount: entry.amount,
+        initialCategory: entry.category,
+        initialDate: nextMonthDate,
+        initialReceived: false,
+        onSubmit:
+            ({
+              required String label,
+              required double amount,
+              required IncomeCategory category,
+              required DateTime date,
+              required bool received,
+            }) {
+              return widget.incomeService.createIncome(
+                label: label,
+                amount: amount,
+                category: category,
+                date: date,
+                received: received,
+              );
+            },
+      ),
+    );
+
+    if (created == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _currentPage = 1;
+      _loadError = null;
+    });
+    await _loadIncome();
+    if (!mounted) {
+      return;
+    }
+
+    AppToast.success(
+      context,
+      title: 'Next month income prepared',
+      description: '${created.label} was recorded for the next month.',
     );
   }
 
@@ -202,10 +317,14 @@ class _IncomePageState extends State<IncomePage>
         }
 
         setState(() {
-          _entries = _entries
-              .where((current) => current.id != entry.id)
-              .toList(growable: false);
+          if (_pageEntries.length == 1 && _currentPage > 1) {
+            _currentPage -= 1;
+          }
         });
+        await _loadIncome();
+        if (!mounted) {
+          return;
+        }
 
         AppToast.success(
           context,
@@ -227,32 +346,46 @@ class _IncomePageState extends State<IncomePage>
   }
 
   Future<void> _loadIncome() async {
+    final loadId = ++_loadSequence;
     setState(() {
       _isLoading = true;
       _loadError = null;
     });
 
     try {
-      final entries = await widget.incomeService.listIncome();
+      final summaryQuery = _buildIncomeQuery();
+      final pageQuery = _buildIncomeQuery(page: _currentPage, limit: _pageSize);
+      final results = await Future.wait([
+        widget.incomeService.listIncome(query: summaryQuery),
+        widget.incomeService.listIncomePage(query: pageQuery),
+      ]);
+      final entries = results[0] as List<IncomeEntry>;
+      final pageResponse = results[1] as PaginatedResponse<IncomeEntry>;
 
-      if (!mounted) {
+      if (!mounted || loadId != _loadSequence) {
         return;
       }
 
       setState(() {
         _entries = _sortedEntries(entries);
+        _pageEntries = _sortedEntries(pageResponse.items);
+        _totalItems = pageResponse.meta.totalItems;
+        _totalPages = pageResponse.meta.totalPages;
         _isLoading = false;
       });
     } catch (error) {
-      if (!mounted) {
+      if (!mounted || loadId != _loadSequence) {
         return;
       }
 
       final message = _readableError(error);
       setState(() {
         _entries = const [];
+        _pageEntries = const [];
         _isLoading = false;
         _loadError = message;
+        _totalItems = 0;
+        _totalPages = 1;
       });
 
       AppToast.error(
@@ -261,6 +394,184 @@ class _IncomePageState extends State<IncomePage>
         description: message,
       );
     }
+  }
+
+  Future<void> _toggleReceived(IncomeEntry entry) async {
+    setState(() => _busyReceivedId = entry.id);
+
+    try {
+      await widget.incomeService.updateIncome(
+        incomeId: entry.id,
+        label: entry.label,
+        amount: entry.amount,
+        category: entry.category,
+        date: entry.date,
+        received: !entry.received,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      await _loadIncome();
+      if (!mounted) {
+        return;
+      }
+
+      AppToast.success(
+        context,
+        title: !entry.received
+            ? 'Income marked received'
+            : 'Income marked pending',
+        description: '${entry.label} was updated successfully.',
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      AppToast.error(
+        context,
+        title: 'Unable to update received state',
+        description: _readableError(error),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _busyReceivedId = null);
+      }
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    setState(() => _searchInput = value);
+
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) {
+        return;
+      }
+
+      final trimmed = value.trim();
+      setState(() {
+        _appliedSearch = trimmed.length >= 3 ? trimmed : null;
+        _currentPage = 1;
+      });
+      _loadIncome();
+    });
+  }
+
+  Future<void> _pickFilterDate({required bool isFrom}) async {
+    final initialDate = isFrom
+        ? (_selectedDateFrom ?? DateTime.now())
+        : (_selectedDateTo ?? _selectedDateFrom ?? DateTime.now());
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: AppColors.success,
+            onPrimary: AppColors.background,
+            surface: AppColors.surfaceElevated,
+            onSurface: AppColors.textPrimary,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (picked == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      if (isFrom) {
+        _selectedDateFrom = picked;
+        if (_selectedDateTo != null && _selectedDateTo!.isBefore(picked)) {
+          _selectedDateTo = picked;
+        }
+      } else {
+        _selectedDateTo = picked;
+        if (_selectedDateFrom != null && _selectedDateFrom!.isAfter(picked)) {
+          _selectedDateFrom = picked;
+        }
+      }
+      _currentPage = 1;
+    });
+    await _loadIncome();
+  }
+
+  Future<void> _clearDateFilter({required bool isFrom}) async {
+    setState(() {
+      if (isFrom) {
+        _selectedDateFrom = null;
+      } else {
+        _selectedDateTo = null;
+      }
+      _currentPage = 1;
+    });
+    await _loadIncome();
+  }
+
+  Future<void> _clearAllFilters() async {
+    final now = DateTime.now();
+    _searchDebounce?.cancel();
+    _searchCtrl.clear();
+
+    setState(() {
+      _selectedMonth = now.month;
+      _selectedYear = now.year;
+      _selectedCategory = null;
+      _selectedReceived = _IncomeReceivedFilter.all;
+      _selectedDateFrom = null;
+      _selectedDateTo = null;
+      _searchInput = '';
+      _appliedSearch = null;
+      _currentPage = 1;
+    });
+    await _loadIncome();
+  }
+
+  Future<void> _goToPreviousMonth() async {
+    setState(() {
+      if (_selectedMonth == 1) {
+        _selectedMonth = 12;
+        _selectedYear -= 1;
+      } else {
+        _selectedMonth -= 1;
+      }
+      _currentPage = 1;
+    });
+    await _loadIncome();
+  }
+
+  Future<void> _goToNextMonth() async {
+    if (!_canGoToNextMonth) {
+      return;
+    }
+
+    setState(() {
+      if (_selectedMonth == 12) {
+        _selectedMonth = 1;
+        _selectedYear += 1;
+      } else {
+        _selectedMonth += 1;
+      }
+      _currentPage = 1;
+    });
+    await _loadIncome();
+  }
+
+  Future<void> _goToPage(int page) async {
+    if (page < 1 || page > _totalPages || page == _currentPage) {
+      return;
+    }
+
+    setState(() => _currentPage = page);
+    await _loadIncome();
   }
 
   List<IncomeEntry> _sortedEntries(List<IncomeEntry> entries) {
@@ -275,6 +586,77 @@ class _IncomePageState extends State<IncomePage>
     });
 
     return sorted;
+  }
+
+  IncomeListQuery _buildIncomeQuery({int? page, int? limit}) {
+    return IncomeListQuery(
+      month: _hasExplicitDateFilter ? null : _selectedMonth,
+      year: _hasExplicitDateFilter ? null : _selectedYear,
+      category: _selectedCategory,
+      received: switch (_selectedReceived) {
+        _IncomeReceivedFilter.all => null,
+        _IncomeReceivedFilter.received => true,
+        _IncomeReceivedFilter.pending => false,
+      },
+      search: _appliedSearch,
+      dateFrom: _selectedDateFrom == null
+          ? null
+          : _formatDateOnly(_selectedDateFrom!),
+      dateTo: _selectedDateTo == null
+          ? null
+          : _formatDateOnly(_selectedDateTo!),
+      page: page,
+      limit: limit,
+    );
+  }
+
+  String _formatDateOnly(DateTime value) {
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    return '${value.year}-$month-$day';
+  }
+
+  String _monthLabel(int month) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+
+    return months[month - 1];
+  }
+
+  DateTime _defaultCreateDate() {
+    if (_hasExplicitDateFilter) {
+      return _selectedDateFrom ?? DateTime.now();
+    }
+
+    final now = DateTime.now();
+    if (_selectedMonth == now.month && _selectedYear == now.year) {
+      return now;
+    }
+
+    return DateTime(_selectedYear, _selectedMonth, 1);
+  }
+
+  DateTime _shiftToNextMonth(DateTime source) {
+    final targetMonth = source.month == 12 ? 1 : source.month + 1;
+    final targetYear = source.month == 12 ? source.year + 1 : source.year;
+    final lastDayOfTargetMonth = DateTime(targetYear, targetMonth + 1, 0).day;
+    final targetDay = source.day > lastDayOfTargetMonth
+        ? lastDayOfTargetMonth
+        : source.day;
+
+    return DateTime(targetYear, targetMonth, targetDay);
   }
 
   String _readableError(Object error) {
@@ -313,8 +695,8 @@ class _IncomePageState extends State<IncomePage>
     }
 
     final total = _total;
-    final activeTotal = _activeTotal;
-    final passiveTotal = _passiveTotal;
+    final receivedTotal = _receivedTotal;
+    final pendingTotal = _pendingTotal;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,7 +707,11 @@ class _IncomePageState extends State<IncomePage>
           child: _IncomeHeader(
             total: total,
             entryCount: _entries.length,
+            periodLabel: _periodLabel,
+            canGoNextMonth: _canGoToNextMonth,
             onAdd: _openAddDialog,
+            onNextMonth: _goToNextMonth,
+            onPreviousMonth: _goToPreviousMonth,
           ),
         ),
         const SizedBox(height: 14),
@@ -333,31 +719,76 @@ class _IncomePageState extends State<IncomePage>
         _Staggered(
           fade: _fade(0.12, 0.55),
           slide: _slide(0.12, 0.55),
-          child: _BreakdownRow(
-            activeTotal: activeTotal,
-            passiveTotal: passiveTotal,
-            total: total,
+          child: _IncomeFiltersPanel(
+            category: _selectedCategory,
+            dateFrom: _selectedDateFrom,
+            dateTo: _selectedDateTo,
+            hasActiveFilters: _hasActiveFilters,
+            received: _selectedReceived,
+            searchController: _searchCtrl,
+            searchInput: _searchInput,
+            onCategoryChanged: (value) async {
+              setState(() {
+                _selectedCategory = value;
+                _currentPage = 1;
+              });
+              await _loadIncome();
+            },
+            onClearAll: _clearAllFilters,
+            onClearDate: _clearDateFilter,
+            onDatePicked: _pickFilterDate,
+            onReceivedChanged: (value) async {
+              setState(() {
+                _selectedReceived = value;
+                _currentPage = 1;
+              });
+              await _loadIncome();
+            },
+            onSearchChanged: _onSearchChanged,
           ),
         ),
         const SizedBox(height: 14),
 
         _Staggered(
-          fade: _fade(0.26, 0.68),
-          slide: _slide(0.26, 0.68),
+          fade: _fade(0.20, 0.62),
+          slide: _slide(0.20, 0.62),
+          child: _BreakdownRow(
+            activeTotal: receivedTotal,
+            passiveTotal: pendingTotal,
+            total: total,
+            leftLabel: 'Received',
+            leftSublabel: 'Money already collected',
+            rightLabel: 'Pending',
+            rightSublabel: 'Expected but not yet received',
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        _Staggered(
+          fade: _fade(0.34, 0.72),
+          slide: _slide(0.34, 0.72),
           child: _CategoryBars(entries: _entries, total: total),
         ),
         const SizedBox(height: 14),
 
         _Staggered(
-          fade: _fade(0.40, 0.82),
-          slide: _slide(0.40, 0.82),
+          fade: _fade(0.48, 0.88),
+          slide: _slide(0.48, 0.88),
           child: _EntryList(
-            entries: _entries,
+            busyReceivedId: _busyReceivedId,
+            currentPage: _currentPage,
+            entries: _pageEntries,
             total: total,
+            totalItems: _totalItems,
+            totalPages: _totalPages,
             loadError: _loadError,
+            onNextPage: () => _goToPage(_currentPage + 1),
+            onPreviousPage: () => _goToPage(_currentPage - 1),
+            onRecordNextMonth: _openRecordNextMonthDialog,
             onRetry: _loadIncome,
             onEdit: _openEditDialog,
             onDelete: _confirmDelete,
+            onToggleReceived: _toggleReceived,
           ),
         ),
         const SizedBox(height: 8),
@@ -590,12 +1021,20 @@ class _IncomeHeader extends StatefulWidget {
   const _IncomeHeader({
     required this.total,
     required this.entryCount,
+    required this.periodLabel,
+    required this.canGoNextMonth,
     required this.onAdd,
+    required this.onNextMonth,
+    required this.onPreviousMonth,
   });
 
   final double total;
   final int entryCount;
+  final String periodLabel;
+  final bool canGoNextMonth;
   final VoidCallback onAdd;
+  final Future<void> Function() onNextMonth;
+  final Future<void> Function() onPreviousMonth;
 
   @override
   State<_IncomeHeader> createState() => _IncomeHeaderState();
@@ -670,28 +1109,41 @@ class _IncomeHeaderState extends State<_IncomeHeader>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          GlassBadge(
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                HugeIcon(
-                                  icon:
-                                      HugeIcons.strokeRoundedMoneyReceiveCircle,
-                                  size: 15,
-                                  color: AppColors.success,
-                                  strokeWidth: 1.8,
+                          Row(
+                            children: [
+                              GlassBadge(
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    HugeIcon(
+                                      icon: HugeIcons
+                                          .strokeRoundedMoneyReceiveCircle,
+                                      size: 15,
+                                      color: AppColors.success,
+                                      strokeWidth: 1.8,
+                                    ),
+                                    SizedBox(width: 7),
+                                    Text(
+                                      'Income workspace',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.success,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                SizedBox(width: 7),
-                                Text(
-                                  'Income workspace',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.success,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                              ),
+                              const SizedBox(width: 10),
+                              Flexible(
+                                child: _MonthStepperBadge(
+                                  label: widget.periodLabel,
+                                  canGoNext: widget.canGoNextMonth,
+                                  onNext: widget.onNextMonth,
+                                  onPrevious: widget.onPreviousMonth,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 18),
                           Text(
@@ -731,7 +1183,7 @@ class _IncomeHeaderState extends State<_IncomeHeader>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Total this month',
+                            'Total in ${widget.periodLabel}',
                             style: TextStyle(
                               fontSize: 11,
                               color: AppColors.textSecondary.withValues(
@@ -852,6 +1304,481 @@ class _AddButtonState extends State<_AddButton> {
   }
 }
 
+class _MonthStepperBadge extends StatelessWidget {
+  const _MonthStepperBadge({
+    required this.label,
+    required this.canGoNext,
+    required this.onNext,
+    required this.onPrevious,
+  });
+
+  final String label;
+  final bool canGoNext;
+  final Future<void> Function() onNext;
+  final Future<void> Function() onPrevious;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: Colors.white.withValues(alpha: 0.06),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _MonthStepperButton(
+            icon: HugeIcons.strokeRoundedArrowLeft01,
+            onTap: onPrevious,
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          _MonthStepperButton(
+            icon: HugeIcons.strokeRoundedArrowRight01,
+            isDisabled: !canGoNext,
+            onTap: onNext,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MonthStepperButton extends StatelessWidget {
+  const _MonthStepperButton({
+    required this.icon,
+    required this.onTap,
+    this.isDisabled = false,
+  });
+
+  final dynamic icon;
+  final Future<void> Function() onTap;
+  final bool isDisabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: isDisabled ? null : () => onTap(),
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isDisabled
+              ? Colors.white.withValues(alpha: 0.03)
+              : AppColors.success.withValues(alpha: 0.12),
+          border: Border.all(
+            color: isDisabled
+                ? Colors.white.withValues(alpha: 0.06)
+                : AppColors.success.withValues(alpha: 0.16),
+          ),
+        ),
+        child: Center(
+          child: HugeIcon(
+            icon: icon,
+            size: 13,
+            color: isDisabled
+                ? AppColors.textSecondary.withValues(alpha: 0.35)
+                : AppColors.success,
+            strokeWidth: 1.9,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _IncomeFiltersPanel extends StatelessWidget {
+  const _IncomeFiltersPanel({
+    required this.category,
+    required this.dateFrom,
+    required this.dateTo,
+    required this.hasActiveFilters,
+    required this.received,
+    required this.searchController,
+    required this.searchInput,
+    required this.onCategoryChanged,
+    required this.onClearAll,
+    required this.onClearDate,
+    required this.onDatePicked,
+    required this.onReceivedChanged,
+    required this.onSearchChanged,
+  });
+
+  final IncomeCategory? category;
+  final DateTime? dateFrom;
+  final DateTime? dateTo;
+  final bool hasActiveFilters;
+  final _IncomeReceivedFilter received;
+  final TextEditingController searchController;
+  final String searchInput;
+  final Future<void> Function(IncomeCategory? value) onCategoryChanged;
+  final Future<void> Function() onClearAll;
+  final Future<void> Function({required bool isFrom}) onClearDate;
+  final Future<void> Function({required bool isFrom}) onDatePicked;
+  final Future<void> Function(_IncomeReceivedFilter value) onReceivedChanged;
+  final ValueChanged<String> onSearchChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPanel(
+      padding: const EdgeInsets.all(20),
+      borderRadius: BorderRadius.circular(28),
+      blur: 24,
+      opacity: 0.12,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Filters',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              if (hasActiveFilters)
+                GestureDetector(
+                  onTap: () => onClearAll(),
+                  child: Text(
+                    'Clear all',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.success.withValues(alpha: 0.9),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: searchController,
+            onChanged: onSearchChanged,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w500,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Search income label or category',
+              prefixIcon: Padding(
+                padding: const EdgeInsets.all(12),
+                child: HugeIcon(
+                  icon: HugeIcons.strokeRoundedSearch01,
+                  size: 16,
+                  color: AppColors.textSecondary.withValues(alpha: 0.6),
+                  strokeWidth: 1.8,
+                ),
+              ),
+              suffixIcon: searchInput.isNotEmpty
+                  ? GestureDetector(
+                      onTap: () {
+                        searchController.clear();
+                        onSearchChanged('');
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: HugeIcon(
+                          icon: HugeIcons.strokeRoundedCancel01,
+                          size: 16,
+                          color: AppColors.textSecondary.withValues(alpha: 0.6),
+                          strokeWidth: 1.8,
+                        ),
+                      ),
+                    )
+                  : null,
+              hintStyle: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary.withValues(alpha: 0.42),
+              ),
+              filled: true,
+              fillColor: Colors.white.withValues(alpha: 0.06),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.12),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.12),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: AppColors.success.withValues(alpha: 0.45),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            searchInput.isNotEmpty && searchInput.trim().length < 3
+                ? 'Type at least 3 characters to apply search.'
+                : 'Category, received state, and chosen dates use the same API filters as web.',
+            style: TextStyle(
+              fontSize: 11,
+              height: 1.5,
+              color: AppColors.textSecondary.withValues(alpha: 0.62),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Category',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _FilterChoiceChip(
+                label: 'All',
+                isSelected: category == null,
+                onTap: () => onCategoryChanged(null),
+              ),
+              ...IncomeCategory.values.map(
+                (item) => _FilterChoiceChip(
+                  label: item.displayName,
+                  isSelected: category == item,
+                  accent: item.color,
+                  onTap: () => onCategoryChanged(item),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Received state',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _IncomeReceivedFilter.values
+                .map(
+                  (item) => _FilterChoiceChip(
+                    label: item.label,
+                    isSelected: received == item,
+                    accent: item == _IncomeReceivedFilter.pending
+                        ? const Color(0xFFFFB86C)
+                        : AppColors.success,
+                    onTap: () => onReceivedChanged(item),
+                  ),
+                )
+                .toList(growable: false),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Chosen dates',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _DateFilterButton(
+                  label: 'From',
+                  value: dateFrom,
+                  onClear: dateFrom == null
+                      ? null
+                      : () => onClearDate(isFrom: true),
+                  onTap: () => onDatePicked(isFrom: true),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _DateFilterButton(
+                  label: 'To',
+                  value: dateTo,
+                  onClear: dateTo == null
+                      ? null
+                      : () => onClearDate(isFrom: false),
+                  onTap: () => onDatePicked(isFrom: false),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterChoiceChip extends StatelessWidget {
+  const _FilterChoiceChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    this.accent = AppColors.success,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: isSelected
+              ? accent.withValues(alpha: 0.18)
+              : Colors.white.withValues(alpha: 0.05),
+          border: Border.all(
+            color: isSelected
+                ? accent.withValues(alpha: 0.34)
+                : Colors.white.withValues(alpha: 0.10),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: isSelected ? accent : AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DateFilterButton extends StatelessWidget {
+  const _DateFilterButton({
+    required this.label,
+    required this.value,
+    required this.onTap,
+    this.onClear,
+  });
+
+  final String label;
+  final DateTime? value;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final displayValue = value == null
+        ? 'Pick date'
+        : '${_monthShort(value!.month)} ${value!.day}, ${value!.year}';
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: Colors.white.withValues(alpha: 0.05),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textSecondary.withValues(alpha: 0.58),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    displayValue,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (onClear != null)
+              GestureDetector(
+                onTap: onClear,
+                child: HugeIcon(
+                  icon: HugeIcons.strokeRoundedCancel01,
+                  size: 14,
+                  color: AppColors.textSecondary.withValues(alpha: 0.56),
+                  strokeWidth: 1.8,
+                ),
+              )
+            else
+              HugeIcon(
+                icon: HugeIcons.strokeRoundedCalendar03,
+                size: 15,
+                color: AppColors.textSecondary.withValues(alpha: 0.56),
+                strokeWidth: 1.8,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _monthShort(int month) {
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  return months[month - 1];
+}
+
 // ── Breakdown row (Active / Passive) ──────────────────────────────────────────
 
 class _BreakdownRow extends StatelessWidget {
@@ -859,11 +1786,19 @@ class _BreakdownRow extends StatelessWidget {
     required this.activeTotal,
     required this.passiveTotal,
     required this.total,
+    required this.leftLabel,
+    required this.leftSublabel,
+    required this.rightLabel,
+    required this.rightSublabel,
   });
 
   final double activeTotal;
   final double passiveTotal;
   final double total;
+  final String leftLabel;
+  final String leftSublabel;
+  final String rightLabel;
+  final String rightSublabel;
 
   @override
   Widget build(BuildContext context) {
@@ -871,23 +1806,23 @@ class _BreakdownRow extends StatelessWidget {
       children: [
         Expanded(
           child: _TypeCard(
-            label: 'Active',
-            sublabel: 'Salary, freelance, side hustle',
+            label: leftLabel,
+            sublabel: leftSublabel,
             amount: activeTotal,
             percentage: total > 0 ? activeTotal / total * 100 : 0,
-            icon: HugeIcons.strokeRoundedBriefcase01,
+            icon: HugeIcons.strokeRoundedCheckmarkCircle02,
             accentColor: AppColors.success,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: _TypeCard(
-            label: 'Passive',
-            sublabel: 'Dividends, rental, other',
+            label: rightLabel,
+            sublabel: rightSublabel,
             amount: passiveTotal,
             percentage: total > 0 ? passiveTotal / total * 100 : 0,
-            icon: HugeIcons.strokeRoundedCoins01,
-            accentColor: const Color(0xFF7EB8FF),
+            icon: HugeIcons.strokeRoundedClock01,
+            accentColor: const Color(0xFFFFB86C),
           ),
         ),
       ],
@@ -1318,20 +2253,36 @@ class _CategoryBarState extends State<_CategoryBar>
 
 class _EntryList extends StatelessWidget {
   const _EntryList({
+    required this.busyReceivedId,
+    required this.currentPage,
     required this.entries,
     required this.total,
+    required this.totalItems,
+    required this.totalPages,
     required this.loadError,
+    required this.onNextPage,
+    required this.onPreviousPage,
+    required this.onRecordNextMonth,
     required this.onRetry,
     required this.onEdit,
     required this.onDelete,
+    required this.onToggleReceived,
   });
 
+  final String? busyReceivedId;
+  final int currentPage;
   final List<IncomeEntry> entries;
   final double total;
+  final int totalItems;
+  final int totalPages;
   final String? loadError;
+  final Future<void> Function() onNextPage;
+  final Future<void> Function() onPreviousPage;
+  final void Function(IncomeEntry) onRecordNextMonth;
   final Future<void> Function() onRetry;
   final void Function(IncomeEntry) onEdit;
   final void Function(IncomeEntry) onDelete;
+  final Future<void> Function(IncomeEntry) onToggleReceived;
 
   @override
   Widget build(BuildContext context) {
@@ -1365,7 +2316,7 @@ class _EntryList extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               const Text(
-                'All entries',
+                'Income ledger',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -1374,7 +2325,7 @@ class _EntryList extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                '${entries.length} records',
+                '$totalItems records',
                 style: TextStyle(
                   fontSize: 11,
                   color: AppColors.textSecondary.withValues(alpha: 0.6),
@@ -1392,12 +2343,25 @@ class _EntryList extends StatelessWidget {
               return _EntryRow(
                 entry: entries[i],
                 total: total,
+                busyReceivedId: busyReceivedId,
                 isLast: i == entries.length - 1,
                 index: i,
                 onEdit: onEdit,
                 onDelete: onDelete,
+                onRecordNextMonth: onRecordNextMonth,
+                onToggleReceived: onToggleReceived,
               );
             }),
+          if (entries.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            _PaginationRow(
+              currentPage: currentPage,
+              totalItems: totalItems,
+              totalPages: totalPages,
+              onNextPage: onNextPage,
+              onPreviousPage: onPreviousPage,
+            ),
+          ],
         ],
       ),
     );
@@ -1408,18 +2372,24 @@ class _EntryRow extends StatefulWidget {
   const _EntryRow({
     required this.entry,
     required this.total,
+    required this.busyReceivedId,
     required this.isLast,
     required this.index,
     required this.onEdit,
     required this.onDelete,
+    required this.onRecordNextMonth,
+    required this.onToggleReceived,
   });
 
   final IncomeEntry entry;
   final double total;
+  final String? busyReceivedId;
   final bool isLast;
   final int index;
   final void Function(IncomeEntry) onEdit;
   final void Function(IncomeEntry) onDelete;
+  final void Function(IncomeEntry) onRecordNextMonth;
+  final Future<void> Function(IncomeEntry) onToggleReceived;
 
   @override
   State<_EntryRow> createState() => _EntryRowState();
@@ -1471,6 +2441,8 @@ class _EntryRowState extends State<_EntryRow>
   @override
   Widget build(BuildContext context) {
     final color = widget.entry.category.color;
+    final creatorLabel = _resolveCreatorLabel(widget.entry);
+    final updatingReceived = widget.busyReceivedId == widget.entry.id;
 
     return AnimatedBuilder(
       animation: _anim,
@@ -1534,6 +2506,18 @@ class _EntryRowState extends State<_EntryRow>
                             ),
                           ),
                         ),
+                        if (creatorLabel != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'Added by $creatorLabel',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.54,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -1587,6 +2571,7 @@ class _EntryRowState extends State<_EntryRow>
                         ),
                       ),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Column(
@@ -1601,18 +2586,40 @@ class _EntryRowState extends State<_EntryRow>
                                   label: 'Date',
                                   value: _formatDate(widget.entry.date),
                                 ),
+                                const SizedBox(height: 4),
+                                _DetailItem(
+                                  label: 'Status',
+                                  value: widget.entry.received
+                                      ? 'Received'
+                                      : 'Pending',
+                                ),
                               ],
                             ),
                           ),
-                          Row(
+                          const SizedBox(width: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
                             children: [
+                              _ReceivedToggleChip(
+                                isBusy: updatingReceived,
+                                received: widget.entry.received,
+                                onTap: () =>
+                                    widget.onToggleReceived(widget.entry),
+                              ),
                               _ActionIcon(
                                 icon: HugeIcons.strokeRoundedPencil,
                                 color: const Color(0xFF7EB8FF),
                                 tooltip: 'Edit',
                                 onTap: () => widget.onEdit(widget.entry),
                               ),
-                              const SizedBox(width: 8),
+                              _ActionIcon(
+                                icon: HugeIcons.strokeRoundedCalendar03,
+                                color: AppColors.success,
+                                tooltip: 'Record for next month',
+                                onTap: () =>
+                                    widget.onRecordNextMonth(widget.entry),
+                              ),
                               _ActionIcon(
                                 icon: HugeIcons.strokeRoundedDelete01,
                                 color: AppColors.danger,
@@ -1644,6 +2651,22 @@ class _EntryRowState extends State<_EntryRow>
         ],
       ),
     );
+  }
+
+  String? _resolveCreatorLabel(IncomeEntry entry) {
+    final creator = entry.createdBy;
+    if (creator == null) {
+      return null;
+    }
+
+    final firstName = creator.firstName?.trim();
+    final lastName = creator.lastName?.trim();
+    final fullName = [
+      firstName,
+      lastName,
+    ].whereType<String>().where((value) => value.isNotEmpty).join(' ');
+
+    return fullName.isEmpty ? 'partner' : fullName;
   }
 }
 
@@ -1731,17 +2754,173 @@ class _ActionIconState extends State<_ActionIcon> {
   }
 }
 
+class _ReceivedToggleChip extends StatelessWidget {
+  const _ReceivedToggleChip({
+    required this.isBusy,
+    required this.received,
+    required this.onTap,
+  });
+
+  final bool isBusy;
+  final bool received;
+  final Future<void> Function() onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = received ? AppColors.success : const Color(0xFFFFB86C);
+
+    return GestureDetector(
+      onTap: isBusy ? null : () => onTap(),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: accent.withValues(alpha: 0.14),
+          border: Border.all(color: accent.withValues(alpha: 0.24)),
+        ),
+        child: isBusy
+            ? SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.8,
+                  valueColor: AlwaysStoppedAnimation<Color>(accent),
+                ),
+              )
+            : Text(
+                received ? 'Received' : 'Pending',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: accent,
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+class _PaginationRow extends StatelessWidget {
+  const _PaginationRow({
+    required this.currentPage,
+    required this.totalItems,
+    required this.totalPages,
+    required this.onNextPage,
+    required this.onPreviousPage,
+  });
+
+  final int currentPage;
+  final int totalItems;
+  final int totalPages;
+  final Future<void> Function() onNextPage;
+  final Future<void> Function() onPreviousPage;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _PagerButton(
+          label: 'Previous',
+          isDisabled: currentPage <= 1,
+          onTap: onPreviousPage,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'Page $currentPage of $totalPages · $totalItems rows',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.textSecondary.withValues(alpha: 0.65),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        _PagerButton(
+          label: 'Next',
+          isDisabled: currentPage >= totalPages,
+          onTap: onNextPage,
+        ),
+      ],
+    );
+  }
+}
+
+class _PagerButton extends StatelessWidget {
+  const _PagerButton({
+    required this.label,
+    required this.isDisabled,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isDisabled;
+  final Future<void> Function() onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: isDisabled ? null : () => onTap(),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: isDisabled
+              ? Colors.white.withValues(alpha: 0.03)
+              : AppColors.success.withValues(alpha: 0.12),
+          border: Border.all(
+            color: isDisabled
+                ? Colors.white.withValues(alpha: 0.08)
+                : AppColors.success.withValues(alpha: 0.20),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: isDisabled
+                ? AppColors.textSecondary.withValues(alpha: 0.36)
+                : AppColors.success,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ── Form dialog (Add / Edit) ──────────────────────────────────────────────────
 
 class _IncomeFormDialog extends StatefulWidget {
-  const _IncomeFormDialog({required this.entry, required this.onSubmit});
+  const _IncomeFormDialog({
+    required this.onSubmit,
+    this.entry,
+    this.initialLabel,
+    this.initialAmount,
+    this.initialCategory,
+    this.initialDate,
+    this.initialReceived = false,
+    this.title,
+    this.subtitle,
+    this.submitLabel,
+  });
 
   final IncomeEntry? entry;
+  final String? initialLabel;
+  final double? initialAmount;
+  final IncomeCategory? initialCategory;
+  final DateTime? initialDate;
+  final bool initialReceived;
+  final String? title;
+  final String? subtitle;
+  final String? submitLabel;
   final Future<IncomeEntry> Function({
     required String label,
     required double amount,
     required IncomeCategory category,
     required DateTime date,
+    required bool received,
   })
   onSubmit;
 
@@ -1755,6 +2934,7 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
   late final TextEditingController _amountCtrl;
   late IncomeCategory _category;
   late DateTime _date;
+  late bool _received;
   late final AnimationController _animCtrl;
   late final Animation<double> _scaleAnim;
   late final Animation<double> _fadeAnim;
@@ -1767,12 +2947,21 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
   @override
   void initState() {
     super.initState();
-    _labelCtrl = TextEditingController(text: widget.entry?.label ?? '');
-    _amountCtrl = TextEditingController(
-      text: widget.entry?.amount.toStringAsFixed(0) ?? '',
+    _labelCtrl = TextEditingController(
+      text: widget.entry?.label ?? widget.initialLabel ?? '',
     );
-    _category = widget.entry?.category ?? IncomeCategory.salary;
-    _date = widget.entry?.date ?? DateTime.now();
+    _amountCtrl = TextEditingController(
+      text:
+          widget.entry?.amount.toStringAsFixed(0) ??
+          widget.initialAmount?.toStringAsFixed(0) ??
+          '',
+    );
+    _category =
+        widget.entry?.category ??
+        widget.initialCategory ??
+        IncomeCategory.salary;
+    _date = widget.entry?.date ?? widget.initialDate ?? DateTime.now();
+    _received = widget.entry?.received ?? widget.initialReceived;
 
     _animCtrl = AnimationController(
       vsync: this,
@@ -1835,6 +3024,7 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
         amount: amount,
         category: _category,
         date: _date,
+        received: _received,
       );
 
       if (!mounted) {
@@ -1971,7 +3161,10 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    _isEditing ? 'Edit income' : 'Add income',
+                                    widget.title ??
+                                        (_isEditing
+                                            ? 'Edit income'
+                                            : 'Add income'),
                                     style: const TextStyle(
                                       fontSize: 17,
                                       fontWeight: FontWeight.w700,
@@ -1979,9 +3172,10 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
                                     ),
                                   ),
                                   Text(
-                                    _isEditing
-                                        ? 'Update the details below'
-                                        : 'Fill in the details below',
+                                    widget.subtitle ??
+                                        (_isEditing
+                                            ? 'Update the details below'
+                                            : 'Fill in the details below'),
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: AppColors.textSecondary.withValues(
@@ -2067,6 +3261,15 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
                         ),
                         const SizedBox(height: 18),
 
+                        _FieldLabel(label: 'Received state'),
+                        const SizedBox(height: 8),
+                        _ReceivedStatePicker(
+                          received: _received,
+                          onChanged: (value) =>
+                              setState(() => _received = value),
+                        ),
+                        const SizedBox(height: 18),
+
                         // Date
                         _FieldLabel(label: 'Date'),
                         const SizedBox(height: 8),
@@ -2134,9 +3337,11 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
                             const SizedBox(width: 12),
                             Expanded(
                               child: _DialogButton(
-                                label: _isEditing
-                                    ? 'Save changes'
-                                    : 'Add income',
+                                label:
+                                    widget.submitLabel ??
+                                    (_isEditing
+                                        ? 'Save changes'
+                                        : 'Add income'),
                                 isPrimary: true,
                                 isLoading: _isSubmitting,
                                 onTap: _submit,
@@ -2212,6 +3417,79 @@ class _CategoryPicker extends StatelessWidget {
           ),
         );
       }).toList(),
+    );
+  }
+}
+
+class _ReceivedStatePicker extends StatelessWidget {
+  const _ReceivedStatePicker({required this.received, required this.onChanged});
+
+  final bool received;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _ReceivedStateChoice(
+          label: 'Received',
+          isSelected: received,
+          color: AppColors.success,
+          onTap: () => onChanged(true),
+        ),
+        _ReceivedStateChoice(
+          label: 'Pending',
+          isSelected: !received,
+          color: const Color(0xFFFFB86C),
+          onTap: () => onChanged(false),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReceivedStateChoice extends StatelessWidget {
+  const _ReceivedStateChoice({
+    required this.label,
+    required this.isSelected,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: isSelected
+              ? color.withValues(alpha: 0.18)
+              : Colors.white.withValues(alpha: 0.05),
+          border: Border.all(
+            color: isSelected
+                ? color.withValues(alpha: 0.42)
+                : Colors.white.withValues(alpha: 0.10),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: isSelected ? color : AppColors.textSecondary,
+          ),
+        ),
+      ),
     );
   }
 }
