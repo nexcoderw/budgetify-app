@@ -3,372 +3,390 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/glass_panel.dart';
-import '../../../../core/widgets/skeleton_loader.dart';
 import '../../data/models/todo_item.dart';
+import '../todo_utils.dart';
 
 class TodoItemCard extends StatefulWidget {
   const TodoItemCard({
     super.key,
     required this.todo,
-    required this.staggerIndex,
-    required this.onEdit,
+    required this.busyDone,
+    required this.busyRecordExpense,
     required this.onDelete,
+    required this.onEdit,
+    required this.onRecordExpense,
+    required this.onToggleDone,
   });
 
   final TodoItem todo;
-  final int staggerIndex;
-  final VoidCallback onEdit;
+  final bool busyDone;
+  final bool busyRecordExpense;
   final VoidCallback onDelete;
+  final VoidCallback onEdit;
+  final VoidCallback onRecordExpense;
+  final VoidCallback onToggleDone;
 
   @override
   State<TodoItemCard> createState() => _TodoItemCardState();
 }
 
-class _TodoItemCardState extends State<TodoItemCard>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _entranceCtrl;
-  late final Animation<double> _fade;
-  late final Animation<Offset> _slide;
-  bool _pressed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _entranceCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 520),
-    );
-    _fade = CurvedAnimation(
-      parent: _entranceCtrl,
-      curve: Curves.easeOutCubic,
-    );
-    _slide = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _entranceCtrl, curve: Curves.easeOutCubic),
-    );
-
-    final delay = Duration(milliseconds: widget.staggerIndex * 75);
-    Future.delayed(delay, () {
-      if (mounted) _entranceCtrl.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _entranceCtrl.dispose();
-    super.dispose();
-  }
+class _TodoItemCardState extends State<TodoItemCard> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
     final priorityColor = _priorityColor(widget.todo.priority);
-    final coverUrl =
-        widget.todo.primaryImage?.imageUrl ?? widget.todo.coverImageUrl;
+    final recurring = isRecurringTodo(widget.todo);
+    final canRecord = canRecordTodoExpense(widget.todo);
+    final creator = _resolveCreatorLabel(widget.todo);
+    final remainingShare =
+        recurring &&
+            widget.todo.remainingAmount != null &&
+            widget.todo.price > 0
+        ? ((widget.todo.remainingAmount! / widget.todo.price) * 100)
+              .clamp(0, 100)
+              .round()
+        : 0;
 
-    return FadeTransition(
-      opacity: _fade,
-      child: SlideTransition(
-        position: _slide,
-        child: GestureDetector(
-          onTapDown: (_) => setState(() => _pressed = true),
-          onTapUp: (_) => setState(() => _pressed = false),
-          onTapCancel: () => setState(() => _pressed = false),
-          child: AnimatedScale(
-            scale: _pressed ? 0.984 : 1.0,
-            duration: const Duration(milliseconds: 150),
-            curve: Curves.easeOutCubic,
-            child: GlassPanel(
-              borderRadius: BorderRadius.circular(28),
-              padding: EdgeInsets.zero,
-              blur: 26,
-              opacity: 0.12,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(28),
+    return GlassPanel(
+      padding: const EdgeInsets.all(18),
+      borderRadius: BorderRadius.circular(24),
+      blur: 22,
+      opacity: 0.11,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _PriorityDot(color: priorityColor),
+              const SizedBox(width: 12),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── Priority accent band ────────────────────────────────
-                    Container(
-                      height: 3,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            priorityColor,
-                            priorityColor.withValues(alpha: 0.3),
-                          ],
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _MetaChip(
+                          label: widget.todo.priority.label,
+                          color: priorityColor,
+                        ),
+                        _MetaChip(
+                          label: formatTodoFrequencyLabel(
+                            widget.todo.frequency,
+                          ),
+                          color: AppColors.primary,
+                        ),
+                        _MetaChip(
+                          label: widget.todo.done ? 'Done' : 'Open',
+                          color: widget.todo.done
+                              ? AppColors.success
+                              : const Color(0xFFFFB86C),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      widget.todo.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      formatTodoScheduleSummary(widget.todo),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary.withValues(alpha: 0.78),
+                      ),
+                    ),
+                    if (creator != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Added by $creator',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary.withValues(
+                            alpha: 0.56,
+                          ),
                         ),
                       ),
-                    ),
-
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // ── Top row: priority badge + photo count ─────────
-                          Row(
-                            children: [
-                              _PriorityBadge(
-                                priority: widget.todo.priority,
-                                color: priorityColor,
-                              ),
-                              const Spacer(),
-                              if (widget.todo.imageCount > 0)
-                                _PhotoCountBadge(
-                                  count: widget.todo.imageCount,
-                                ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 14),
-
-                          // ── Cover image ─────────────────────────────────
-                          if (coverUrl != null) ...[
-                            _CoverImage(coverUrl: coverUrl),
-                            const SizedBox(height: 14),
-                          ],
-
-                          // ── Title + price ──────────────────────────────
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  widget.todo.name,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                    letterSpacing: -0.4,
-                                    height: 1.25,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    _rwf(widget.todo.price),
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      color: priorityColor,
-                                      letterSpacing: -0.3,
-                                    ),
-                                  ),
-                                  const Text(
-                                    'budget',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 8),
-
-                          // ── Subtitle row ───────────────────────────────
-                          Text(
-                            'Updated ${_formatDate(widget.todo.updatedAt)}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-
-                          // ── Thumbnail strip ────────────────────────────
-                          if (widget.todo.images.isNotEmpty) ...[
-                            const SizedBox(height: 14),
-                            _ThumbnailStrip(images: widget.todo.images),
-                          ],
-
-                          const SizedBox(height: 16),
-                        ],
-                      ),
-                    ),
-
-                    // ── Divider ──────────────────────────────────────────────
-                    Container(
-                      height: 1,
-                      color: Colors.white.withValues(alpha: 0.07),
-                    ),
-
-                    // ── Action row ──────────────────────────────────────────
-                    IntrinsicHeight(
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _ActionButton(
-                              icon: HugeIcons.strokeRoundedTaskEdit01,
-                              label: 'Edit',
-                              onTap: widget.onEdit,
-                            ),
-                          ),
-                          Container(
-                            width: 1,
-                            color: Colors.white.withValues(alpha: 0.07),
-                          ),
-                          Expanded(
-                            child: _ActionButton(
-                              icon: HugeIcons.strokeRoundedDelete02,
-                              label: 'Delete',
-                              onTap: widget.onDelete,
-                              color: AppColors.danger,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    ],
                   ],
                 ),
               ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    _rwf(widget.todo.price),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Updated ${formatTodoDate(widget.todo.updatedAt)}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textSecondary.withValues(alpha: 0.56),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (widget.todo.primaryImage?.imageUrl != null) ...[
+            const SizedBox(height: 14),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Image.network(
+                  widget.todo.primaryImage!.imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: AppColors.surfaceElevated,
+                    child: const Center(
+                      child: HugeIcon(
+                        icon: HugeIcons.strokeRoundedImageNotFound01,
+                        size: 24,
+                        color: AppColors.textSecondary,
+                        strokeWidth: 1.8,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+          if (recurring) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                color: Colors.white.withValues(alpha: 0.04),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Remaining budget',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary.withValues(
+                            alpha: 0.64,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        _rwf(widget.todo.remainingAmount ?? 0),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: remainingShare / 100,
+                      minHeight: 6,
+                      backgroundColor: Colors.white.withValues(alpha: 0.06),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          GestureDetector(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Row(
+              children: [
+                Text(
+                  _expanded ? 'Hide details' : 'Show details',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary.withValues(alpha: 0.84),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                AnimatedRotation(
+                  turns: _expanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 180),
+                  child: HugeIcon(
+                    icon: HugeIcons.strokeRoundedArrowDown01,
+                    size: 14,
+                    color: AppColors.textSecondary.withValues(alpha: 0.6),
+                    strokeWidth: 1.8,
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Cover image ───────────────────────────────────────────────────────────────
-
-class _CoverImage extends StatelessWidget {
-  const _CoverImage({required this.coverUrl});
-
-  final String coverUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: AspectRatio(
-        aspectRatio: 16 / 9,
-        child: Image.network(
-          coverUrl,
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, progress) {
-            if (progress == null) return child;
-            return const SkeletonLoader(child: SizedBox.expand());
-          },
-          errorBuilder: (context, error, stackTrace) => Container(
-            color: AppColors.surfaceElevated,
-            child: const Center(
-              child: HugeIcon(
-                icon: HugeIcons.strokeRoundedImageNotFound01,
-                size: 28,
-                color: AppColors.textSecondary,
-                strokeWidth: 1.6,
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 220),
+            crossFadeState: _expanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            firstChild: const SizedBox.shrink(),
+            secondChild: Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (widget.todo.startDate != null ||
+                      widget.todo.endDate != null)
+                    Text(
+                      recurring
+                          ? 'Window: ${widget.todo.startDate == null ? 'Now' : formatTodoDate(widget.todo.startDate!)} - ${widget.todo.endDate == null ? 'Open' : formatTodoDate(widget.todo.endDate!)}'
+                          : 'Planned for ${widget.todo.startDate == null ? 'today' : formatTodoDate(widget.todo.startDate!)}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary.withValues(alpha: 0.72),
+                      ),
+                    ),
+                  if (widget.todo.frequency == TodoFrequency.weekly &&
+                      widget.todo.frequencyDays.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: widget.todo.frequencyDays
+                          .map(
+                            (day) => _SubtlePill(label: todoWeekdayLabels[day]),
+                          )
+                          .toList(growable: false),
+                    ),
+                  ],
+                  if (widget.todo.frequency != TodoFrequency.once &&
+                      widget.todo.occurrenceDates.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: getRemainingOccurrenceDates(widget.todo)
+                          .take(4)
+                          .map(
+                            (date) => _SubtlePill(
+                              label: formatTodoDate(parseDateOnly(date)),
+                            ),
+                          )
+                          .toList(growable: false),
+                    ),
+                  ],
+                ],
               ),
             ),
           ),
-        ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _ActionButton(
+                label: widget.busyRecordExpense
+                    ? 'Recording...'
+                    : canRecord
+                    ? 'Record expense'
+                    : recurring
+                    ? 'No budget left'
+                    : 'Recorded',
+                icon: HugeIcons.strokeRoundedMoneySendSquare,
+                color: AppColors.primary,
+                disabled: widget.busyRecordExpense || !canRecord,
+                onTap: widget.onRecordExpense,
+              ),
+              _ActionButton(
+                label: widget.busyDone
+                    ? 'Updating...'
+                    : widget.todo.done
+                    ? 'Mark open'
+                    : 'Mark done',
+                icon: HugeIcons.strokeRoundedCheckmarkCircle02,
+                color: widget.todo.done
+                    ? const Color(0xFFFFB86C)
+                    : AppColors.success,
+                disabled: widget.busyDone,
+                onTap: widget.onToggleDone,
+              ),
+              _ActionButton(
+                label: 'Edit',
+                icon: HugeIcons.strokeRoundedTaskEdit01,
+                color: const Color(0xFF7EB8FF),
+                onTap: widget.onEdit,
+              ),
+              _ActionButton(
+                label: 'Delete',
+                icon: HugeIcons.strokeRoundedDelete02,
+                color: AppColors.danger,
+                onTap: widget.onDelete,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
-}
 
-// ── Thumbnail strip ───────────────────────────────────────────────────────────
+  String? _resolveCreatorLabel(TodoItem entry) {
+    final creator = entry.createdBy;
+    if (creator == null) {
+      return null;
+    }
 
-class _ThumbnailStrip extends StatelessWidget {
-  const _ThumbnailStrip({required this.images});
+    final firstName = creator.firstName?.trim();
+    final lastName = creator.lastName?.trim();
+    final fullName = <String>[
+      if (firstName != null && firstName.isNotEmpty) firstName,
+      if (lastName != null && lastName.isNotEmpty) lastName,
+    ].join(' ');
 
-  final List<TodoImageItem> images;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 48,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: images.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, index) =>
-            _ThumbnailTile(image: images[index]),
-      ),
-    );
+    return fullName.isEmpty ? 'partner' : fullName;
   }
 }
 
-class _ThumbnailTile extends StatelessWidget {
-  const _ThumbnailTile({required this.image});
+class _PriorityDot extends StatelessWidget {
+  const _PriorityDot({required this.color});
 
-  final TodoImageItem image;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: image.isPrimary
-              ? AppColors.primary.withValues(alpha: 0.55)
-              : Colors.white.withValues(alpha: 0.09),
-          width: image.isPrimary ? 1.5 : 1.0,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(13),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.network(
-              image.imageUrl,
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, progress) {
-                if (progress == null) return child;
-                return const SkeletonLoader(child: SizedBox.expand());
-              },
-              errorBuilder: (context, error, stackTrace) => Container(
-                color: AppColors.surfaceElevated,
-                child: const Icon(
-                  Icons.image_not_supported_rounded,
-                  size: 14,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
-            if (image.isPrimary)
-              Positioned(
-                top: 3,
-                right: 3,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.star_rounded,
-                    size: 9,
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
+      width: 14,
+      height: 14,
+      margin: const EdgeInsets.only(top: 4),
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
     );
   }
 }
 
-// ── Priority badge ────────────────────────────────────────────────────────────
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({required this.label, required this.color});
 
-class _PriorityBadge extends StatelessWidget {
-  const _PriorityBadge({required this.priority, required this.color});
-
-  final TodoPriority priority;
+  final String label;
   final Color color;
 
   @override
@@ -378,40 +396,24 @@ class _PriorityBadge extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
         color: color.withValues(alpha: 0.14),
-        border: Border.all(color: color.withValues(alpha: 0.30)),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            priority.label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
       ),
     );
   }
 }
 
-// ── Photo count badge ─────────────────────────────────────────────────────────
+class _SubtlePill extends StatelessWidget {
+  const _SubtlePill({required this.label});
 
-class _PhotoCountBadge extends StatelessWidget {
-  const _PhotoCountBadge({required this.count});
-
-  final int count;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -419,88 +421,68 @@ class _PhotoCountBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        color: Colors.black.withValues(alpha: 0.28),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.12),
-        ),
+        color: Colors.white.withValues(alpha: 0.05),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const HugeIcon(
-            icon: HugeIcons.strokeRoundedCamera01,
-            size: 13,
-            color: AppColors.textSecondary,
-            strokeWidth: 1.8,
-          ),
-          const SizedBox(width: 5),
-          Text(
-            '$count ${count == 1 ? 'photo' : 'photos'}',
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          color: AppColors.textSecondary.withValues(alpha: 0.78),
+        ),
       ),
     );
   }
 }
 
-// ── Action button ─────────────────────────────────────────────────────────────
-
-class _ActionButton extends StatefulWidget {
+class _ActionButton extends StatelessWidget {
   const _ActionButton({
-    required this.icon,
     required this.label,
+    required this.icon,
+    required this.color,
     required this.onTap,
-    this.color = AppColors.textSecondary,
+    this.disabled = false,
   });
 
-  final dynamic icon;
   final String label;
-  final VoidCallback onTap;
+  final dynamic icon;
   final Color color;
-
-  @override
-  State<_ActionButton> createState() => _ActionButtonState();
-}
-
-class _ActionButtonState extends State<_ActionButton> {
-  bool _pressed = false;
+  final VoidCallback onTap;
+  final bool disabled;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        widget.onTap();
-      },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 130),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        color: _pressed
-            ? widget.color.withValues(alpha: 0.06)
-            : Colors.transparent,
+      onTap: disabled ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: disabled
+              ? Colors.white.withValues(alpha: 0.04)
+              : color.withValues(alpha: 0.14),
+          border: Border.all(
+            color: disabled
+                ? Colors.white.withValues(alpha: 0.10)
+                : color.withValues(alpha: 0.22),
+          ),
+        ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             HugeIcon(
-              icon: widget.icon,
-              size: 14,
-              color: widget.color,
+              icon: icon,
+              size: 13,
+              color: disabled ? AppColors.textSecondary : color,
               strokeWidth: 1.8,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Text(
-              widget.label,
+              label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: widget.color,
+                color: disabled ? AppColors.textSecondary : color,
               ),
             ),
           ],
@@ -510,8 +492,6 @@ class _ActionButtonState extends State<_ActionButton> {
   }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 Color _priorityColor(TodoPriority priority) => switch (priority) {
   TodoPriority.topPriority => AppColors.danger,
   TodoPriority.priority => AppColors.primary,
@@ -519,16 +499,8 @@ Color _priorityColor(TodoPriority priority) => switch (priority) {
 };
 
 String _rwf(double amount) {
-  final s = amount
+  final formatted = amount
       .toStringAsFixed(0)
       .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
-  return 'RWF $s';
+  return 'RWF $formatted';
 }
-
-const List<String> _months = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-String _formatDate(DateTime date) =>
-    '${_months[date.month - 1]} ${date.day}, ${date.year}';
