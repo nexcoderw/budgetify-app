@@ -1149,7 +1149,9 @@ class _LoadingStatCard extends StatelessWidget {
           SizedBox(height: 10),
           SkeletonBox(width: 116, height: 20, radius: 12),
           SizedBox(height: 6),
-          Expanded(child: SkeletonBox(height: 11, radius: 10)),
+          SkeletonBox(height: 11, radius: 10),
+          SizedBox(height: 6),
+          SkeletonBox(width: 132, height: 11, radius: 10),
         ],
       ),
     );
