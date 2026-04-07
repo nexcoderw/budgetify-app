@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_modal_dialog.dart';
 import '../../../../core/widgets/app_toast.dart';
-import '../../../../core/widgets/glass_panel.dart';
 import '../../application/auth_service_contract.dart';
 import '../../data/models/auth_user.dart';
 import 'auth_loading_button.dart';
@@ -176,167 +176,162 @@ class _ProfileCompletionDialogState extends State<ProfileCompletionDialog>
         opacity: fade,
         child: ScaleTransition(
           scale: scale,
-          child: Dialog(
-            backgroundColor: Colors.transparent,
+          child: AppModalDialog(
+            maxWidth: 520,
+            padding: const EdgeInsets.all(24),
             insetPadding: const EdgeInsets.symmetric(
               horizontal: 20,
               vertical: 32,
             ),
-            child: GlassPanel(
-              padding: const EdgeInsets.all(24),
-              borderRadius: BorderRadius.circular(30),
-              blur: 28,
-              opacity: 0.18,
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _ProfileHeader(email: widget.user.email),
-                    const SizedBox(height: 22),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final isCompact = constraints.maxWidth < 360;
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _ProfileHeader(email: widget.user.email),
+                  const SizedBox(height: 22),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isCompact = constraints.maxWidth < 360;
 
-                        if (isCompact) {
-                          return Column(
-                            children: [
-                              _NameField(
-                                controller: _firstNameController,
-                                focusNode: _firstNameFocusNode,
-                                label: 'First name',
-                                hintText: 'Alice',
-                                icon: HugeIcons.strokeRoundedUser02,
-                                textInputAction: TextInputAction.next,
-                                onSubmitted: (_) {
-                                  _lastNameFocusNode.requestFocus();
-                                },
-                                validator: (value) =>
-                                    _validateName(value, 'first name'),
-                              ),
-                              const SizedBox(height: 12),
-                              _NameField(
-                                controller: _lastNameController,
-                                focusNode: _lastNameFocusNode,
-                                label: 'Last name',
-                                hintText: 'Mutoni',
-                                icon: HugeIcons.strokeRoundedUserSquare,
-                                textInputAction: TextInputAction.done,
-                                onSubmitted: (_) => _submit(),
-                                validator: (value) =>
-                                    _validateName(value, 'last name'),
-                              ),
-                            ],
-                          );
-                        }
-
-                        return Row(
+                      if (isCompact) {
+                        return Column(
                           children: [
-                            Expanded(
-                              child: _NameField(
-                                controller: _firstNameController,
-                                focusNode: _firstNameFocusNode,
-                                label: 'First name',
-                                hintText: 'Alice',
-                                icon: HugeIcons.strokeRoundedUser02,
-                                textInputAction: TextInputAction.next,
-                                onSubmitted: (_) {
-                                  _lastNameFocusNode.requestFocus();
-                                },
-                                validator: (value) =>
-                                    _validateName(value, 'first name'),
-                              ),
+                            _NameField(
+                              controller: _firstNameController,
+                              focusNode: _firstNameFocusNode,
+                              label: 'First name',
+                              hintText: 'Alice',
+                              icon: HugeIcons.strokeRoundedUser02,
+                              textInputAction: TextInputAction.next,
+                              onSubmitted: (_) {
+                                _lastNameFocusNode.requestFocus();
+                              },
+                              validator: (value) =>
+                                  _validateName(value, 'first name'),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _NameField(
-                                controller: _lastNameController,
-                                focusNode: _lastNameFocusNode,
-                                label: 'Last name',
-                                hintText: 'Mutoni',
-                                icon: HugeIcons.strokeRoundedUserSquare,
-                                textInputAction: TextInputAction.done,
-                                onSubmitted: (_) => _submit(),
-                                validator: (value) =>
-                                    _validateName(value, 'last name'),
-                              ),
+                            const SizedBox(height: 12),
+                            _NameField(
+                              controller: _lastNameController,
+                              focusNode: _lastNameFocusNode,
+                              label: 'Last name',
+                              hintText: 'Mutoni',
+                              icon: HugeIcons.strokeRoundedUserSquare,
+                              textInputAction: TextInputAction.done,
+                              onSubmitted: (_) => _submit(),
+                              validator: (value) =>
+                                  _validateName(value, 'last name'),
                             ),
                           ],
                         );
-                      },
-                    ),
-                    const SizedBox(height: 18),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            AppColors.primary.withValues(alpha: 0.10),
-                            Colors.white.withValues(alpha: 0.04),
-                          ],
-                        ),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.10),
-                        ),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      }
+
+                      return Row(
                         children: [
-                          Container(
-                            width: 34,
-                            height: 34,
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceElevated,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.border),
-                            ),
-                            child: const Center(
-                              child: HugeIcon(
-                                icon: HugeIcons.strokeRoundedSparkles,
-                                size: 16,
-                                color: AppColors.primary,
-                                strokeWidth: 1.8,
-                              ),
+                          Expanded(
+                            child: _NameField(
+                              controller: _firstNameController,
+                              focusNode: _firstNameFocusNode,
+                              label: 'First name',
+                              hintText: 'Alice',
+                              icon: HugeIcons.strokeRoundedUser02,
+                              textInputAction: TextInputAction.next,
+                              onSubmitted: (_) {
+                                _lastNameFocusNode.requestFocus();
+                              },
+                              validator: (value) =>
+                                  _validateName(value, 'first name'),
                             ),
                           ),
                           const SizedBox(width: 12),
-                          const Expanded(
-                            child: Text(
-                              'These names will appear across your dashboard, activity history, and account profile.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                                fontFamily: 'DMSans',
-                                height: 1.45,
-                              ),
+                          Expanded(
+                            child: _NameField(
+                              controller: _lastNameController,
+                              focusNode: _lastNameFocusNode,
+                              label: 'Last name',
+                              hintText: 'Mutoni',
+                              icon: HugeIcons.strokeRoundedUserSquare,
+                              textInputAction: TextInputAction.done,
+                              onSubmitted: (_) => _submit(),
+                              validator: (value) =>
+                                  _validateName(value, 'last name'),
                             ),
                           ),
                         ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 18),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColors.primary.withValues(alpha: 0.10),
+                          Colors.white.withValues(alpha: 0.04),
+                        ],
+                      ),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.10),
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    AuthLoadingButton(
-                      label: 'Save and continue',
-                      loadingLabel: 'Saving profile…',
-                      isLoading: _isSaving,
-                      fontSize: 14,
-                      leading: HugeIcon(
-                        icon: HugeIcons.strokeRoundedCheckmarkCircle02,
-                        size: 18,
-                        color: AppColors.background,
-                        strokeWidth: 1.8,
-                      ),
-                      onPressed: _submit,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceElevated,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: const Center(
+                            child: HugeIcon(
+                              icon: HugeIcons.strokeRoundedSparkles,
+                              size: 16,
+                              color: AppColors.primary,
+                              strokeWidth: 1.8,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'These names will appear across your dashboard, activity history, and account profile.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                              fontFamily: 'DMSans',
+                              height: 1.45,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 20),
+                  AuthLoadingButton(
+                    label: 'Save and continue',
+                    loadingLabel: 'Saving profile…',
+                    isLoading: _isSaving,
+                    fontSize: 14,
+                    leading: HugeIcon(
+                      icon: HugeIcons.strokeRoundedCheckmarkCircle02,
+                      size: 18,
+                      color: AppColors.background,
+                      strokeWidth: 1.8,
+                    ),
+                    onPressed: _submit,
+                  ),
+                ],
               ),
             ),
           ),
