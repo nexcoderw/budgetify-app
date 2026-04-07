@@ -29,6 +29,8 @@ abstract class AuthServiceContract {
     required String lastName,
   });
 
+  Future<AuthUser> requestCurrentUserDeletion();
+
   // ── Session management ──────────────────────────────────────────────────────
 
   Future<AuthUser?> restoreAuthenticatedUser();
