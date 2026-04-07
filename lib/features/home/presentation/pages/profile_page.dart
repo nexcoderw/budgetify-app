@@ -588,28 +588,48 @@ class _ProfileSkeletonShortcutCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(24),
         color: Colors.white.withValues(alpha: 0.04),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
-      child: const Row(
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SkeletonBox(width: 40, height: 40, radius: 999),
-          SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SkeletonBox(width: 110, height: 12, radius: 10),
-                SizedBox(height: 8),
-                SkeletonBox(height: 10, radius: 10),
-                SizedBox(height: 6),
-                SkeletonBox(width: 150, height: 10, radius: 10),
-              ],
-            ),
+          Row(
+            children: [
+              SkeletonBox(width: 72, height: 24, radius: 999),
+              Spacer(),
+              SkeletonBox(width: 26, height: 26, radius: 999),
+            ],
           ),
-          SizedBox(width: 12),
-          SkeletonBox(width: 18, height: 18, radius: 999),
+          SizedBox(height: 14),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SkeletonBox(width: 34, height: 34, radius: 12),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SkeletonBox(width: 132, height: 13, radius: 10),
+                    SizedBox(height: 8),
+                    SkeletonBox(height: 10, radius: 10),
+                    SizedBox(height: 6),
+                    SkeletonBox(width: 156, height: 10, radius: 10),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 14),
+          Row(
+            children: [
+              SkeletonBox(width: 84, height: 10, radius: 10),
+              Spacer(),
+              SkeletonBox(width: 58, height: 10, radius: 10),
+            ],
+          ),
         ],
       ),
     );
@@ -989,6 +1009,9 @@ class _ProfileShortcutCardState extends State<_ProfileShortcutCard> {
 
   @override
   Widget build(BuildContext context) {
+    final accentSoft = widget.accent.withValues(alpha: 0.12);
+    final accentStrong = widget.accent.withValues(alpha: 0.2);
+
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) {
@@ -1009,68 +1032,147 @@ class _ProfileShortcutCardState extends State<_ProfileShortcutCard> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                widget.accent.withValues(alpha: 0.12),
-                Colors.white.withValues(alpha: 0.05),
+                accentSoft,
+                Colors.white.withValues(alpha: 0.045),
+                Colors.white.withValues(alpha: 0.025),
               ],
+              stops: const [0, 0.48, 1],
             ),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            border: Border.all(color: widget.accent.withValues(alpha: 0.18)),
+            boxShadow: [
+              BoxShadow(
+                color: widget.accent.withValues(alpha: 0.08),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  color: widget.accent.withValues(alpha: 0.16),
-                ),
-                child: HugeIcon(
-                  icon: widget.icon,
-                  size: 18,
-                  color: widget.accent,
-                  strokeWidth: 1.8,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.title,
-                      style: const TextStyle(
-                        fontSize: 14,
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(999),
+                      color: accentStrong,
+                      border: Border.all(
+                        color: widget.accent.withValues(alpha: 0.24),
+                      ),
+                    ),
+                    child: Text(
+                      widget.title == 'Partners' ? 'Shared access' : 'Legal',
+                      style: TextStyle(
+                        fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: widget.accent,
+                        letterSpacing: 0.1,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.description,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        height: 1.45,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.08),
-                ),
-                child: const Center(
-                  child: HugeIcon(
-                    icon: HugeIcons.strokeRoundedArrowRight01,
-                    size: 16,
-                    color: AppColors.textPrimary,
-                    strokeWidth: 1.8,
                   ),
-                ),
+                  const Spacer(),
+                  Container(
+                    width: 26,
+                    height: 26,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.06),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: const Center(
+                      child: HugeIcon(
+                        icon: HugeIcons.strokeRoundedArrowUpRight01,
+                        size: 12,
+                        color: AppColors.textPrimary,
+                        strokeWidth: 1.8,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: widget.accent.withValues(alpha: 0.14),
+                      border: Border.all(
+                        color: widget.accent.withValues(alpha: 0.18),
+                      ),
+                    ),
+                    child: HugeIcon(
+                      icon: widget.icon,
+                      size: 15,
+                      color: widget.accent,
+                      strokeWidth: 1.8,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.title,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -0.1,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          widget.description,
+                          style: TextStyle(
+                            fontSize: 11,
+                            height: 1.5,
+                            color: AppColors.textSecondary.withValues(
+                              alpha: 0.9,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(999),
+                      color: widget.accent.withValues(alpha: 0.9),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      widget.title == 'Partners'
+                          ? 'Open shared workspace'
+                          : 'Read the full document',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: widget.accent.withValues(alpha: 0.92),
+                        letterSpacing: 0.15,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
