@@ -33,10 +33,11 @@ class ApiClient {
   Future<Map<String, dynamic>> getJson(
     String path, {
     Map<String, String>? headers,
+    Map<String, dynamic>? queryParameters,
   }) async {
     try {
       final response = await _httpClient.get(
-        _buildUri(path),
+        _buildUri(path, queryParameters: queryParameters),
         headers: _headers(headers),
       );
       return _decodeMapResponse(response);
@@ -51,10 +52,11 @@ class ApiClient {
   Future<List<dynamic>> getJsonList(
     String path, {
     Map<String, String>? headers,
+    Map<String, dynamic>? queryParameters,
   }) async {
     try {
       final response = await _httpClient.get(
-        _buildUri(path),
+        _buildUri(path, queryParameters: queryParameters),
         headers: _headers(headers),
       );
       return _decodeListResponse(response);
@@ -70,10 +72,11 @@ class ApiClient {
     String path, {
     Map<String, String>? headers,
     Object? body,
+    Map<String, dynamic>? queryParameters,
   }) async {
     try {
       final response = await _httpClient.post(
-        _buildUri(path),
+        _buildUri(path, queryParameters: queryParameters),
         headers: _headers(headers),
         body: body == null ? null : jsonEncode(body),
       );
@@ -90,10 +93,11 @@ class ApiClient {
     String path, {
     Map<String, String>? headers,
     Object? body,
+    Map<String, dynamic>? queryParameters,
   }) async {
     try {
       final response = await _httpClient.patch(
-        _buildUri(path),
+        _buildUri(path, queryParameters: queryParameters),
         headers: _headers(headers),
         body: body == null ? null : jsonEncode(body),
       );
@@ -111,6 +115,7 @@ class ApiClient {
     Map<String, String>? headers,
     Map<String, String>? fields,
     List<ApiMultipartFile> files = const [],
+    Map<String, dynamic>? queryParameters,
   }) {
     return _sendMultipart(
       'POST',
@@ -118,6 +123,7 @@ class ApiClient {
       headers: headers,
       fields: fields,
       files: files,
+      queryParameters: queryParameters,
     );
   }
 
@@ -126,6 +132,7 @@ class ApiClient {
     Map<String, String>? headers,
     Map<String, String>? fields,
     List<ApiMultipartFile> files = const [],
+    Map<String, dynamic>? queryParameters,
   }) {
     return _sendMultipart(
       'PATCH',
@@ -133,13 +140,37 @@ class ApiClient {
       headers: headers,
       fields: fields,
       files: files,
+      queryParameters: queryParameters,
     );
   }
 
-  Future<void> delete(String path, {Map<String, String>? headers}) async {
+  Future<Map<String, dynamic>?> getNullableJson(
+    String path, {
+    Map<String, String>? headers,
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    try {
+      final response = await _httpClient.get(
+        _buildUri(path, queryParameters: queryParameters),
+        headers: _headers(headers),
+      );
+      return _decodeNullableMapResponse(response);
+    } on http.ClientException {
+      throw const ApiException(
+        message:
+            'Unable to reach the server. Check your network connection and ensure the API server is running.',
+      );
+    }
+  }
+
+  Future<void> delete(
+    String path, {
+    Map<String, String>? headers,
+    Map<String, dynamic>? queryParameters,
+  }) async {
     try {
       final response = await _httpClient.delete(
-        _buildUri(path),
+        _buildUri(path, queryParameters: queryParameters),
         headers: _headers(headers),
       );
       _ensureSuccess(response);
@@ -151,8 +182,20 @@ class ApiClient {
     }
   }
 
-  Uri _buildUri(String path) {
-    return Uri.parse('${_baseUrlResolver()}$path');
+  Uri _buildUri(String path, {Map<String, dynamic>? queryParameters}) {
+    final uri = Uri.parse('${_baseUrlResolver()}$path');
+    final normalized = _normalizeQueryParameters(queryParameters);
+
+    if (normalized.isEmpty) {
+      return uri;
+    }
+
+    return uri.replace(
+      query: _buildQueryString(<String, List<String>>{
+        ...uri.queryParametersAll,
+        ...normalized,
+      }),
+    );
   }
 
   Map<String, String> _headers(Map<String, String>? headers) {
@@ -173,11 +216,16 @@ class ApiClient {
     Map<String, String>? headers,
     Map<String, String>? fields,
     List<ApiMultipartFile> files = const [],
+    Map<String, dynamic>? queryParameters,
   }) async {
     try {
-      final request = http.MultipartRequest(method, _buildUri(path))
-        ..headers.addAll(_multipartHeaders(headers))
-        ..fields.addAll(fields ?? const <String, String>{});
+      final request =
+          http.MultipartRequest(
+              method,
+              _buildUri(path, queryParameters: queryParameters),
+            )
+            ..headers.addAll(_multipartHeaders(headers))
+            ..fields.addAll(fields ?? const <String, String>{});
 
       request.files.addAll(
         files.map(
@@ -205,6 +253,24 @@ class ApiClient {
   Map<String, dynamic> _decodeMapResponse(http.Response response) {
     final dynamic decoded = _decodeDynamicBody(response);
     _ensureSuccess(response, decoded: decoded);
+
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+
+    throw ApiException(
+      message: 'Unexpected API response format.',
+      statusCode: response.statusCode,
+    );
+  }
+
+  Map<String, dynamic>? _decodeNullableMapResponse(http.Response response) {
+    final dynamic decoded = _decodeDynamicBody(response);
+    _ensureSuccess(response, decoded: decoded);
+
+    if (decoded == null) {
+      return null;
+    }
 
     if (decoded is Map<String, dynamic>) {
       return decoded;
@@ -261,5 +327,70 @@ class ApiClient {
     }
 
     return 'Request failed. Please try again.';
+  }
+
+  Map<String, List<String>> _normalizeQueryParameters(
+    Map<String, dynamic>? queryParameters,
+  ) {
+    if (queryParameters == null || queryParameters.isEmpty) {
+      return const <String, List<String>>{};
+    }
+
+    final normalized = <String, List<String>>{};
+
+    for (final entry in queryParameters.entries) {
+      final value = entry.value;
+
+      if (value == null) {
+        continue;
+      }
+
+      if (value is Iterable && value is! String) {
+        final values = value
+            .map(_normalizeQueryValue)
+            .whereType<String>()
+            .where((item) => item.isNotEmpty)
+            .toList(growable: false);
+
+        if (values.isNotEmpty) {
+          normalized[entry.key] = values;
+        }
+
+        continue;
+      }
+
+      final normalizedValue = _normalizeQueryValue(value);
+      if (normalizedValue != null && normalizedValue.isNotEmpty) {
+        normalized[entry.key] = <String>[normalizedValue];
+      }
+    }
+
+    return normalized;
+  }
+
+  String? _normalizeQueryValue(Object? value) {
+    if (value == null) {
+      return null;
+    }
+
+    if (value is DateTime) {
+      return value.toIso8601String();
+    }
+
+    return value.toString();
+  }
+
+  String _buildQueryString(Map<String, List<String>> queryParameters) {
+    final parts = <String>[];
+
+    for (final entry in queryParameters.entries) {
+      final encodedKey = Uri.encodeQueryComponent(entry.key);
+
+      for (final value in entry.value) {
+        parts.add('$encodedKey=${Uri.encodeQueryComponent(value)}');
+      }
+    }
+
+    return parts.join('&');
   }
 }
