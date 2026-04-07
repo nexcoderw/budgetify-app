@@ -97,7 +97,7 @@ class AppModalActionButton extends StatelessWidget {
     this.primaryForegroundColor = AppColors.background,
     this.outlineForegroundColor = AppColors.textPrimary,
     this.leading,
-    this.height = 48,
+    this.height = 52,
   });
 
   final String label;
@@ -112,15 +112,24 @@ class AppModalActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final effectivePrimaryForeground =
+        primaryForegroundColor.toARGB32() == Colors.white.toARGB32() ||
+            primaryForegroundColor.toARGB32() ==
+                AppColors.background.toARGB32()
+        ? primaryColor
+        : primaryForegroundColor;
+    final foregroundColor = isPrimary
+        ? effectivePrimaryForeground
+        : outlineForegroundColor;
+    final isEnabled = onPressed != null && !isLoading;
+
     final child = isLoading
         ? SizedBox(
             width: 16,
             height: 16,
             child: CircularProgressIndicator(
               strokeWidth: 1.8,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                isPrimary ? primaryForegroundColor : outlineForegroundColor,
-              ),
+              valueColor: AlwaysStoppedAnimation<Color>(foregroundColor),
             ),
           )
         : Row(
@@ -138,43 +147,102 @@ class AppModalActionButton extends StatelessWidget {
             ],
           );
 
-    final button = isPrimary
-        ? ElevatedButton(
-            onPressed: isLoading ? null : onPressed,
-            style: ElevatedButton.styleFrom(
-              minimumSize: Size(0, height),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 0),
-              backgroundColor: primaryColor.withValues(alpha: 0.16),
-              foregroundColor: primaryForegroundColor,
-              disabledBackgroundColor: primaryColor.withValues(alpha: 0.08),
-              disabledForegroundColor: primaryForegroundColor.withValues(
-                alpha: 0.55,
-              ),
-              elevation: 0,
-              shadowColor: primaryColor.withValues(alpha: 0.18),
-              side: BorderSide(color: primaryColor.withValues(alpha: 0.24)),
-              shape: const StadiumBorder(),
-            ),
-            child: child,
-          )
-        : OutlinedButton(
-            onPressed: isLoading ? null : onPressed,
-            style: OutlinedButton.styleFrom(
-              minimumSize: Size(0, height),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 0),
-              foregroundColor: outlineForegroundColor,
-              backgroundColor: Colors.white.withValues(alpha: 0.045),
-              side: BorderSide(color: Colors.white.withValues(alpha: 0.16)),
-              shape: const StadiumBorder(),
-            ),
-            child: child,
-          );
+    final topAlpha = isEnabled
+        ? (isPrimary ? 0.34 : 0.26)
+        : (isPrimary ? 0.18 : 0.14);
+    final bottomAlpha = isEnabled
+        ? (isPrimary ? 0.18 : 0.12)
+        : (isPrimary ? 0.10 : 0.08);
+    final borderAlpha = isEnabled ? (isPrimary ? 0.34 : 0.24) : 0.16;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(999),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: button,
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 180),
+      opacity: isEnabled ? 1 : 0.72,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(999),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: topAlpha),
+                  Colors.white.withValues(alpha: bottomAlpha),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: borderAlpha),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withValues(alpha: 0.10),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 18,
+                  offset: const Offset(0, 10),
+                ),
+                BoxShadow(
+                  color: primaryColor.withValues(
+                    alpha: isPrimary ? 0.12 : 0.05,
+                  ),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Container(
+                      height: height * 0.55,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withValues(alpha: 0.28),
+                            Colors.white.withValues(alpha: 0.02),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: isEnabled ? onPressed : null,
+                    borderRadius: BorderRadius.circular(999),
+                    splashColor: foregroundColor.withValues(alpha: 0.08),
+                    highlightColor: foregroundColor.withValues(alpha: 0.03),
+                    child: SizedBox(
+                      height: height,
+                      child: Center(
+                        child: IconTheme(
+                          data: IconThemeData(color: foregroundColor),
+                          child: DefaultTextStyle.merge(
+                            style: TextStyle(color: foregroundColor),
+                            child: child,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
