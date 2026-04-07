@@ -6,9 +6,10 @@ import '../../../../core/widgets/glass_panel.dart';
 import '../../../auth/data/models/auth_user.dart';
 
 class AppNavbar extends StatelessWidget {
-  const AppNavbar({super.key, required this.user});
+  const AppNavbar({super.key, required this.user, required this.onProfileTap});
 
   final AuthUser user;
+  final VoidCallback onProfileTap;
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +71,7 @@ class AppNavbar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          _UserIdentity(user: user),
+          _UserIdentity(user: user, onTap: onProfileTap),
         ],
       ),
     );
@@ -78,9 +79,10 @@ class AppNavbar extends StatelessWidget {
 }
 
 class _UserIdentity extends StatelessWidget {
-  const _UserIdentity({required this.user});
+  const _UserIdentity({required this.user, required this.onTap});
 
   final AuthUser user;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -91,43 +93,47 @@ class _UserIdentity extends StatelessWidget {
         ? firstName
         : '$firstName $lastInitial.';
 
-    return GlassBadge(
-      padding: EdgeInsets.symmetric(
-        horizontal: isCompact ? 10 : 12,
-        vertical: 8,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircleAvatar(
-            radius: 15,
-            backgroundColor: Colors.white.withValues(alpha: 0.08),
-            backgroundImage: user.avatarUrl == null
-                ? null
-                : NetworkImage(user.avatarUrl!),
-            child: user.avatarUrl == null
-                ? const HugeIcon(
-                    icon: HugeIcons.strokeRoundedUserCircle,
-                    size: 16,
-                    color: AppColors.textPrimary,
-                    strokeWidth: 1.7,
-                  )
-                : null,
-          ),
-          const SizedBox(width: 10),
-          ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: isCompact ? 90 : 150),
-            child: Text(
-              displayName,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: GlassBadge(
+        padding: EdgeInsets.symmetric(
+          horizontal: isCompact ? 10 : 12,
+          vertical: 8,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 15,
+              backgroundColor: Colors.white.withValues(alpha: 0.08),
+              backgroundImage: user.avatarUrl == null
+                  ? null
+                  : NetworkImage(user.avatarUrl!),
+              child: user.avatarUrl == null
+                  ? const HugeIcon(
+                      icon: HugeIcons.strokeRoundedUserCircle,
+                      size: 16,
+                      color: AppColors.textPrimary,
+                      strokeWidth: 1.7,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 10),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: isCompact ? 90 : 150),
+              child: Text(
+                displayName,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
