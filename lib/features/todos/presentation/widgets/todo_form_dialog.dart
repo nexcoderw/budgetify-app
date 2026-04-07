@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -125,55 +126,120 @@ class _TodoFormDialogState extends State<TodoFormDialog>
           child: ClipRRect(
             borderRadius: BorderRadius.circular(28),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+              filter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 620),
-                padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(28),
-                  color: AppColors.surfaceElevated.withValues(alpha: 0.9),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.14),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.15),
+                      Colors.white.withValues(alpha: 0.08),
+                    ],
                   ),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.28),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      blurRadius: 48,
+                      offset: const Offset(0, 20),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.4),
+                      blurRadius: 32,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
                 ),
-                child: Form(
-                  key: _formKey,
-                  child: SingleChildScrollView(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(28),
+                  child: Form(
+                    key: _formKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Expanded(
-                              child: Text(
-                                _isEditing ? 'Edit todo item' : 'Add todo item',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.primary.withValues(
+                                  alpha: 0.16,
+                                ),
+                              ),
+                              child: Center(
+                                child: HugeIcon(
+                                  icon: _isEditing
+                                      ? HugeIcons.strokeRoundedPencil
+                                      : HugeIcons.strokeRoundedTaskAdd01,
+                                  size: 18,
+                                  color: AppColors.primary,
+                                  strokeWidth: 1.8,
                                 ),
                               ),
                             ),
-                            IconButton(
-                              onPressed: _isSubmitting
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _isEditing
+                                        ? 'Edit todo item'
+                                        : 'Add todo item',
+                                    style: const TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Plan the budget, choose the schedule, and keep the item visually grounded with images.',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.textSecondary.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: _isSubmitting
                                   ? null
                                   : () => Navigator.of(context).pop(),
-                              icon: const Icon(Icons.close, size: 18),
-                              color: AppColors.textSecondary,
+                              child: Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withValues(alpha: 0.07),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.12),
+                                  ),
+                                ),
+                                child: Center(
+                                  child: HugeIcon(
+                                    icon: HugeIcons.strokeRoundedCancel01,
+                                    size: 14,
+                                    color: AppColors.textSecondary,
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                        Text(
-                          'Plan the budget, choose the schedule, and keep the item visually grounded with images.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            height: 1.5,
-                            color: AppColors.textSecondary.withValues(
-                              alpha: 0.8,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 24),
+                        const _GradientDivider(color: AppColors.primary),
+                        const SizedBox(height: 24),
                         _FieldLabel(label: 'Todo name'),
                         const SizedBox(height: 8),
                         TextFormField(
@@ -432,38 +498,24 @@ class _TodoFormDialogState extends State<TodoFormDialog>
                         Row(
                           children: [
                             Expanded(
-                              child: OutlinedButton(
-                                onPressed: _isSubmitting
-                                    ? null
-                                    : () => Navigator.of(context).pop(),
-                                child: const Text('Cancel'),
+                              child: _DialogButton(
+                                label: 'Cancel',
+                                isPrimary: false,
+                                isDisabled: _isSubmitting,
+                                onTap: () async {
+                                  Navigator.of(context).pop();
+                                },
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: ElevatedButton(
-                                onPressed: _isSubmitting ? null : _submit,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: AppColors.background,
-                                ),
-                                child: _isSubmitting
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 1.8,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                AppColors.background,
-                                              ),
-                                        ),
-                                      )
-                                    : Text(
-                                        _isEditing
-                                            ? 'Save changes'
-                                            : 'Create todo',
-                                      ),
+                              child: _DialogButton(
+                                label: _isEditing
+                                    ? 'Save changes'
+                                    : 'Create todo',
+                                isPrimary: true,
+                                isLoading: _isSubmitting,
+                                onTap: _submit,
                               ),
                             ),
                           ],
@@ -1050,3 +1102,91 @@ Color _priorityColor(TodoPriority priority) => switch (priority) {
   TodoPriority.priority => AppColors.primary,
   TodoPriority.notPriority => AppColors.success,
 };
+
+class _GradientDivider extends StatelessWidget {
+  const _GradientDivider({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 1,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.transparent,
+            color.withValues(alpha: 0.45),
+            Colors.transparent,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DialogButton extends StatelessWidget {
+  const _DialogButton({
+    required this.label,
+    required this.onTap,
+    required this.isPrimary,
+    this.isLoading = false,
+    this.isDisabled = false,
+  });
+
+  final String label;
+  final Future<void> Function() onTap;
+  final bool isPrimary;
+  final bool isLoading;
+  final bool isDisabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final backgroundColor = isPrimary
+        ? AppColors.primary.withValues(alpha: isDisabled ? 0.12 : 0.16)
+        : Colors.white.withValues(alpha: 0.05);
+    final borderColor = isPrimary
+        ? AppColors.primary.withValues(alpha: isDisabled ? 0.16 : 0.24)
+        : Colors.white.withValues(alpha: 0.12);
+    final foregroundColor = isPrimary
+        ? (isDisabled
+              ? AppColors.primary.withValues(alpha: 0.55)
+              : AppColors.primary)
+        : (isDisabled
+              ? AppColors.textSecondary.withValues(alpha: 0.45)
+              : AppColors.textPrimary);
+
+    return GestureDetector(
+      onTap: isDisabled || isLoading ? null : () => onTap(),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: backgroundColor,
+          border: Border.all(color: borderColor),
+        ),
+        child: Center(
+          child: isLoading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.8,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppColors.primary,
+                    ),
+                  ),
+                )
+              : Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: foregroundColor,
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+}
