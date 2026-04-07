@@ -350,9 +350,10 @@ class _TodoFormDialogState extends State<TodoFormDialog>
                             backgroundColor: Colors.white.withValues(
                               alpha: 0.06,
                             ),
+                            minimumSize: const Size(0, 48),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 14,
-                              vertical: 10,
+                              vertical: 0,
                             ),
                             shape: const StadiumBorder(),
                           ),
@@ -937,9 +938,10 @@ class _PhotosSection extends StatelessWidget {
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.textPrimary,
                       backgroundColor: Colors.white.withValues(alpha: 0.06),
+                      minimumSize: const Size(0, 48),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
-                        vertical: 10,
+                        vertical: 0,
                       ),
                       shape: const StadiumBorder(),
                     ),
