@@ -124,6 +124,35 @@ class AuthService implements AuthServiceContract {
     return updatedUser;
   }
 
+  @override
+  Future<AuthUser> requestCurrentUserDeletion() async {
+    final session = await _sessionStorage.read();
+
+    if (session == null) {
+      throw StateError(
+        'No stored session was found for this account deletion request.',
+      );
+    }
+
+    final activeSession = await _resolveActiveSession(session);
+    final updatedUser = await _usersApiService.requestCurrentUserDeletion(
+      accessToken: activeSession.accessToken,
+    );
+
+    await _sessionStorage.save(
+      AuthSession(
+        accessToken: activeSession.accessToken,
+        refreshToken: activeSession.refreshToken,
+        expiresIn: activeSession.expiresIn,
+        tokenType: activeSession.tokenType,
+        user: updatedUser,
+        issuedAt: activeSession.issuedAt,
+      ),
+    );
+
+    return updatedUser;
+  }
+
   // ── Session management ──────────────────────────────────────────────────────
 
   @override
