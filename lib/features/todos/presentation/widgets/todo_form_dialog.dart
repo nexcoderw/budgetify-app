@@ -343,21 +343,13 @@ class _TodoFormDialogState extends State<TodoFormDialog>
                         const Expanded(
                           child: _FieldLabel(label: 'Select occurrence dates'),
                         ),
-                        TextButton(
-                          onPressed: _pickOccurrenceDate,
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppColors.textPrimary,
-                            backgroundColor: Colors.white.withValues(
-                              alpha: 0.06,
-                            ),
-                            minimumSize: const Size(0, 48),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 0,
-                            ),
-                            shape: const StadiumBorder(),
+                        SizedBox(
+                          height: 52,
+                          child: AppModalActionButton(
+                            label: 'Add date',
+                            onPressed: _pickOccurrenceDate,
+                            outlineForegroundColor: AppColors.textPrimary,
                           ),
-                          child: const Text('Add date'),
                         ),
                       ],
                     ),
@@ -931,21 +923,15 @@ class _PhotosSection extends StatelessWidget {
                       ),
                     ),
                   ),
-                  TextButton(
-                    onPressed: isSubmitting || totalCount >= _maxTodoImages
-                        ? null
-                        : onAddTap,
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.textPrimary,
-                      backgroundColor: Colors.white.withValues(alpha: 0.06),
-                      minimumSize: const Size(0, 48),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 0,
-                      ),
-                      shape: const StadiumBorder(),
+                  SizedBox(
+                    height: 52,
+                    child: AppModalActionButton(
+                      label: isLoadingImages ? 'Loading…' : 'Add photos',
+                      onPressed: isSubmitting || totalCount >= _maxTodoImages
+                          ? null
+                          : onAddTap,
+                      outlineForegroundColor: AppColors.textPrimary,
                     ),
-                    child: Text(isLoadingImages ? 'Loading…' : 'Add photos'),
                   ),
                 ],
               ),
