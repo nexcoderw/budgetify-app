@@ -8,26 +8,21 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/glass_panel.dart';
 import '../../../../core/widgets/skeleton_loader.dart';
 import '../../../auth/data/models/auth_user.dart';
-import '../../../expenses/application/expense_service.dart';
 import '../../../partnerships/application/partnership_service.dart';
 import '../../../partnerships/presentation/pages/partners_page.dart';
-import '../../../todos/application/todo_service.dart';
-import '../../../todos/presentation/pages/todo_page.dart';
+import 'privacy_policy_page.dart';
+import 'terms_conditions_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({
     super.key,
     required this.user,
-    required this.todoService,
-    required this.expenseService,
     required this.partnershipService,
     required this.isLoggingOut,
     required this.onLogout,
   });
 
   final AuthUser user;
-  final TodoService todoService;
-  final ExpenseService expenseService;
   final PartnershipService partnershipService;
   final bool isLoggingOut;
   final VoidCallback? onLogout;
@@ -336,9 +331,32 @@ class _ProfilePageState extends State<ProfilePage>
                 children: [
                   _AccountDetails(user: widget.user),
                   const SizedBox(height: 18),
-                  _TodoShortcutCard(onTap: _openTodoBoard),
+                  _ProfileShortcutCard(
+                    icon: HugeIcons.strokeRoundedUserMultiple,
+                    title: 'Partners',
+                    description:
+                        'Invite a partner, accept a shared workspace invitation, or manage the connection from one place.',
+                    accent: AppColors.success,
+                    onTap: _openPartnersWorkspace,
+                  ),
                   const SizedBox(height: 14),
-                  _PartnersShortcutCard(onTap: _openPartnersWorkspace),
+                  _ProfileShortcutCard(
+                    icon: HugeIcons.strokeRoundedLicenseDraft,
+                    title: 'Terms & conditions',
+                    description:
+                        'Read the rules for using Budgetify, your responsibilities, and how shared finances work inside the product.',
+                    accent: const Color(0xFFFFB86C),
+                    onTap: _openTermsAndConditions,
+                  ),
+                  const SizedBox(height: 14),
+                  _ProfileShortcutCard(
+                    icon: HugeIcons.strokeRoundedShieldEnergy,
+                    title: 'Privacy policy',
+                    description:
+                        'Understand what data Budgetify collects, why it is needed, and how your financial information is protected.',
+                    accent: AppColors.primary,
+                    onTap: _openPrivacyPolicy,
+                  ),
                 ],
               ),
             ),
@@ -393,17 +411,6 @@ class _ProfilePageState extends State<ProfilePage>
 
   String _shortDate(DateTime dt) => '${_months[dt.month - 1]} ${dt.year}';
 
-  Future<void> _openTodoBoard() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => TodoPage(
-          todoService: widget.todoService,
-          expenseService: widget.expenseService,
-        ),
-      ),
-    );
-  }
-
   Future<void> _openPartnersWorkspace() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -413,6 +420,18 @@ class _ProfilePageState extends State<ProfilePage>
         ),
       ),
     );
+  }
+
+  Future<void> _openTermsAndConditions() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const TermsConditionsPage()),
+    );
+  }
+
+  Future<void> _openPrivacyPolicy() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const PrivacyPolicyPage()));
   }
 }
 
@@ -478,6 +497,8 @@ class _ProfilePageLoading extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
+          const _ProfileSkeletonShortcutCard(),
+          const SizedBox(height: 14),
           const _ProfileSkeletonShortcutCard(),
           const SizedBox(height: 14),
           const _ProfileSkeletonShortcutCard(),
@@ -944,25 +965,26 @@ class _InfoRow extends StatefulWidget {
   State<_InfoRow> createState() => _InfoRowState();
 }
 
-class _TodoShortcutCard extends StatefulWidget {
-  const _TodoShortcutCard({required this.onTap});
+class _ProfileShortcutCard extends StatefulWidget {
+  const _ProfileShortcutCard({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.accent,
+    required this.onTap,
+  });
 
+  final dynamic icon;
+  final String title;
+  final String description;
+  final Color accent;
   final VoidCallback onTap;
 
   @override
-  State<_TodoShortcutCard> createState() => _TodoShortcutCardState();
+  State<_ProfileShortcutCard> createState() => _ProfileShortcutCardState();
 }
 
-class _PartnersShortcutCard extends StatefulWidget {
-  const _PartnersShortcutCard({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  State<_PartnersShortcutCard> createState() => _PartnersShortcutCardState();
-}
-
-class _PartnersShortcutCardState extends State<_PartnersShortcutCard> {
+class _ProfileShortcutCardState extends State<_ProfileShortcutCard> {
   bool _pressed = false;
 
   @override
@@ -987,7 +1009,7 @@ class _PartnersShortcutCardState extends State<_PartnersShortcutCard> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.success.withValues(alpha: 0.12),
+                widget.accent.withValues(alpha: 0.12),
                 Colors.white.withValues(alpha: 0.05),
               ],
             ),
@@ -1000,128 +1022,32 @@ class _PartnersShortcutCardState extends State<_PartnersShortcutCard> {
                 height: 42,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
-                  color: AppColors.success.withValues(alpha: 0.16),
+                  color: widget.accent.withValues(alpha: 0.16),
                 ),
-                child: const HugeIcon(
-                  icon: HugeIcons.strokeRoundedUserMultiple,
+                child: HugeIcon(
+                  icon: widget.icon,
                   size: 18,
-                  color: AppColors.success,
+                  color: widget.accent,
                   strokeWidth: 1.8,
                 ),
               ),
               const SizedBox(width: 14),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Partners',
-                      style: TextStyle(
+                      widget.title,
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
-                      'Invite a partner, accept a shared-workspace invitation, or manage the partnership from one place.',
-                      style: TextStyle(
-                        fontSize: 11,
-                        height: 1.45,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.08),
-                ),
-                child: const Center(
-                  child: HugeIcon(
-                    icon: HugeIcons.strokeRoundedArrowRight01,
-                    size: 16,
-                    color: AppColors.textPrimary,
-                    strokeWidth: 1.8,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TodoShortcutCardState extends State<_TodoShortcutCard> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        widget.onTap();
-      },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 140),
-        curve: Curves.easeOutCubic,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.primary.withValues(alpha: 0.14),
-                Colors.white.withValues(alpha: 0.05),
-              ],
-            ),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  color: AppColors.primary.withValues(alpha: 0.16),
-                ),
-                child: const HugeIcon(
-                  icon: HugeIcons.strokeRoundedTaskDaily01,
-                  size: 18,
-                  color: AppColors.primary,
-                  strokeWidth: 1.8,
-                ),
-              ),
-              const SizedBox(width: 14),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Todo board',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Open your visual todo list to add, edit, and manage planned tasks with photos and budgets.',
-                      style: TextStyle(
+                      widget.description,
+                      style: const TextStyle(
                         fontSize: 11,
                         height: 1.45,
                         color: AppColors.textSecondary,
