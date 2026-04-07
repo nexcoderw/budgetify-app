@@ -25,4 +25,15 @@ class UsersApiService {
 
     return AuthUser.fromJson(json);
   }
+
+  Future<AuthUser> requestCurrentUserDeletion({
+    required String accessToken,
+  }) async {
+    final json = await _apiClient.postJson(
+      _routes.deletionRequest,
+      headers: <String, String>{'Authorization': 'Bearer $accessToken'},
+    );
+
+    return AuthUser.fromJson(json);
+  }
 }
