@@ -172,10 +172,9 @@ Future<void> showAddIncomeDialog(BuildContext context) async {
                               ),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: AppModalActionButton(
-                                  label: 'Save income',
-                                  isPrimary: true,
-                                  onPressed: () {
+                                child: _IncomeGlowActionButton(
+                                  label: 'Add income',
+                                  onTap: () {
                                     if (!formKey.currentState!.validate()) {
                                       return;
                                     }
@@ -187,8 +186,6 @@ Future<void> showAddIncomeDialog(BuildContext context) async {
                                           'We will sync this entry into your analytics soon.',
                                     );
                                   },
-                                  primaryColor: AppColors.success,
-                                  primaryForegroundColor: AppColors.background,
                                 ),
                               ),
                             ],
@@ -205,6 +202,72 @@ Future<void> showAddIncomeDialog(BuildContext context) async {
       );
     },
   );
+}
+
+class _IncomeGlowActionButton extends StatefulWidget {
+  const _IncomeGlowActionButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  State<_IncomeGlowActionButton> createState() =>
+      _IncomeGlowActionButtonState();
+}
+
+class _IncomeGlowActionButtonState extends State<_IncomeGlowActionButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.96 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOutCubic,
+          height: 52,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            color: AppColors.success.withValues(alpha: _pressed ? 0.22 : 0.18),
+            border: Border.all(
+              color: AppColors.success.withValues(
+                alpha: _pressed ? 0.42 : 0.35,
+              ),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.success.withValues(
+                  alpha: _pressed ? 0.24 : 0.18,
+                ),
+                blurRadius: _pressed ? 20 : 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: const Center(
+            child: Text(
+              'Add income',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.success,
+                letterSpacing: 0.05,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _FormField extends StatelessWidget {
