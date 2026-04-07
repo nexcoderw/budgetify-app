@@ -385,6 +385,9 @@ class _LoginFormState extends State<_LoginForm>
   late final AnimationController _entranceController;
   bool _hasEmail = false;
 
+  bool get _showsGoogleSignIn =>
+      kIsWeb || defaultTargetPlatform != TargetPlatform.iOS;
+
   @override
   void initState() {
     super.initState();
@@ -432,6 +435,9 @@ class _LoginFormState extends State<_LoginForm>
     final isCompact = MediaQuery.sizeOf(context).width < 420;
     final panelPadding = isCompact ? 22.0 : 28.0;
     final titleSize = isCompact ? 22.0 : 24.0;
+    final subtitle = _showsGoogleSignIn
+        ? 'Enter your email to receive a one-time code, or continue with Google.'
+        : 'Enter your email to receive a one-time code and continue securely.';
 
     return GlassPanel(
       key: const ValueKey('login-form'),
@@ -464,7 +470,7 @@ class _LoginFormState extends State<_LoginForm>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Enter your email to receive a one-time code, or continue with Google.',
+                      subtitle,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontSize: 12,
                         color: AppColors.textSecondary,
@@ -519,42 +525,46 @@ class _LoginFormState extends State<_LoginForm>
               ),
             ),
 
-            const SizedBox(height: 22),
+            if (_showsGoogleSignIn) ...[
+              const SizedBox(height: 22),
 
-            // ── OR divider ──────────────────────────────────────────────────
-            FadeTransition(
-              opacity: _fadeAt(0.3, 0.85),
-              child: SlideTransition(
-                position: _slideAt(0.3, 0.85),
-                child: const _OrDivider(),
+              // ── OR divider ────────────────────────────────────────────────
+              FadeTransition(
+                opacity: _fadeAt(0.3, 0.85),
+                child: SlideTransition(
+                  position: _slideAt(0.3, 0.85),
+                  child: const _OrDivider(),
+                ),
               ),
-            ),
 
-            const SizedBox(height: 22),
+              const SizedBox(height: 22),
 
-            // ── Google button ───────────────────────────────────────────────
-            FadeTransition(
-              opacity: _fadeAt(0.4, 1.0),
-              child: SlideTransition(
-                position: _slideAt(0.4, 1.0),
-                child: kIsWeb
-                    ? _WebSignInButton(isSubmitting: widget.isGoogleSubmitting)
-                    : AuthLoadingButton(
-                        label: 'Continue with Google',
-                        loadingLabel: 'Connecting to Google…',
-                        isLoading: widget.isGoogleSubmitting,
-                        fontSize: 14,
-                        leading: Image.asset(
-                          'assets/images/google.png',
-                          width: 18,
-                          height: 18,
+              // ── Google button ─────────────────────────────────────────────
+              FadeTransition(
+                opacity: _fadeAt(0.4, 1.0),
+                child: SlideTransition(
+                  position: _slideAt(0.4, 1.0),
+                  child: kIsWeb
+                      ? _WebSignInButton(
+                          isSubmitting: widget.isGoogleSubmitting,
+                        )
+                      : AuthLoadingButton(
+                          label: 'Continue with Google',
+                          loadingLabel: 'Connecting to Google…',
+                          isLoading: widget.isGoogleSubmitting,
+                          fontSize: 14,
+                          leading: Image.asset(
+                            'assets/images/google.png',
+                            width: 18,
+                            height: 18,
+                          ),
+                          onPressed: () {
+                            unawaited(widget.onGoogleSubmit!());
+                          },
                         ),
-                        onPressed: () {
-                          unawaited(widget.onGoogleSubmit!());
-                        },
-                      ),
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
