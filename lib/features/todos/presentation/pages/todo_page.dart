@@ -819,19 +819,37 @@ class _TodoPageLoading extends StatelessWidget {
           _Staggered(
             fade: fade(0.0, 0.42),
             slide: slide(0.0, 0.42),
-            child: const _LoadingPanel(height: 120),
+            child: _LoadingHeaderPanel(showBackButton: !embedded),
           ),
           const SizedBox(height: 14),
           _Staggered(
             fade: fade(0.14, 0.58),
             slide: slide(0.14, 0.58),
-            child: const _LoadingPanel(height: 160),
+            child: const _LoadingHeroPanel(),
           ),
           const SizedBox(height: 14),
           _Staggered(
             fade: fade(0.28, 0.72),
             slide: slide(0.28, 0.72),
-            child: const _LoadingPanel(height: 180),
+            child: const _LoadingStatsRow(),
+          ),
+          const SizedBox(height: 14),
+          _Staggered(
+            fade: fade(0.38, 0.82),
+            slide: slide(0.38, 0.82),
+            child: const _LoadingPanel(
+              padding: EdgeInsets.all(20),
+              child: _LoadingFiltersPanel(),
+            ),
+          ),
+          const SizedBox(height: 14),
+          _Staggered(
+            fade: fade(0.50, 0.92),
+            slide: slide(0.50, 0.92),
+            child: const _LoadingPanel(
+              padding: EdgeInsets.all(22),
+              child: _LoadingEntriesPanel(),
+            ),
           ),
         ],
       ),
@@ -849,18 +867,275 @@ class _TodoPageLoading extends StatelessWidget {
 }
 
 class _LoadingPanel extends StatelessWidget {
-  const _LoadingPanel({required this.height});
+  const _LoadingPanel({required this.padding, required this.child});
 
-  final double height;
+  final EdgeInsetsGeometry padding;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     return GlassPanel(
-      padding: const EdgeInsets.all(22),
+      padding: padding,
       borderRadius: BorderRadius.circular(26),
       blur: 22,
       opacity: 0.12,
-      child: SizedBox(height: height),
+      child: child,
+    );
+  }
+}
+
+class _LoadingHeaderPanel extends StatelessWidget {
+  const _LoadingHeaderPanel({required this.showBackButton});
+
+  final bool showBackButton;
+
+  @override
+  Widget build(BuildContext context) {
+    return _LoadingPanel(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        if (showBackButton) ...[
+                          const SkeletonBox(width: 88, height: 34, radius: 999),
+                          const SizedBox(width: 10),
+                        ],
+                        const SkeletonBox(width: 94, height: 30, radius: 999),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    const SkeletonBox(width: 176, height: 28, radius: 18),
+                    const SizedBox(height: 8),
+                    const SkeletonBox(height: 12, radius: 12),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              const SkeletonBox(width: 46, height: 46, radius: 999),
+            ],
+          ),
+          const SizedBox(height: 22),
+          const SkeletonBox(height: 1, radius: 999),
+          const SizedBox(height: 18),
+          const Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SkeletonBox(width: 124, height: 11, radius: 10),
+                    SizedBox(height: 6),
+                    SkeletonBox(width: 188, height: 34, radius: 18),
+                  ],
+                ),
+              ),
+              SizedBox(width: 12),
+              SkeletonBox(width: 90, height: 28, radius: 10),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingHeroPanel extends StatelessWidget {
+  const _LoadingHeroPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _LoadingPanel(
+      padding: EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              SkeletonBox(width: 84, height: 28, radius: 999),
+              SkeletonBox(width: 108, height: 28, radius: 999),
+              SkeletonBox(width: 118, height: 28, radius: 999),
+            ],
+          ),
+          SizedBox(height: 18),
+          SkeletonBox(width: 168, height: 34, radius: 18),
+          SizedBox(height: 8),
+          SkeletonBox(width: 220, height: 12, radius: 12),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingStatsRow extends StatelessWidget {
+  const _LoadingStatsRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: const [
+        Expanded(child: _LoadingStatCard()),
+        SizedBox(width: 10),
+        Expanded(child: _LoadingStatCard()),
+        SizedBox(width: 10),
+        Expanded(child: _LoadingStatCard()),
+      ],
+    );
+  }
+}
+
+class _LoadingStatCard extends StatelessWidget {
+  const _LoadingStatCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _LoadingPanel(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SkeletonBox(width: 64, height: 11, radius: 10),
+          SizedBox(height: 8),
+          SkeletonBox(width: 86, height: 18, radius: 12),
+          SizedBox(height: 6),
+          SkeletonBox(height: 11, radius: 10),
+          SizedBox(height: 6),
+          SkeletonBox(width: 72, height: 11, radius: 10),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingFiltersPanel extends StatelessWidget {
+  const _LoadingFiltersPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            SkeletonBox(width: 70, height: 14, radius: 12),
+            Spacer(),
+            SkeletonBox(width: 62, height: 12, radius: 12),
+          ],
+        ),
+        SizedBox(height: 16),
+        SkeletonBox(height: 46, radius: 16),
+        SizedBox(height: 10),
+        SkeletonBox(width: 244, height: 10, radius: 12),
+        SizedBox(height: 16),
+        SkeletonBox(width: 60, height: 12, radius: 12),
+        SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            SkeletonBox(width: 56, height: 32, radius: 999),
+            SkeletonBox(width: 88, height: 32, radius: 999),
+            SkeletonBox(width: 96, height: 32, radius: 999),
+          ],
+        ),
+        SizedBox(height: 16),
+        SkeletonBox(width: 74, height: 12, radius: 12),
+        SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            SkeletonBox(width: 56, height: 32, radius: 999),
+            SkeletonBox(width: 66, height: 32, radius: 999),
+            SkeletonBox(width: 78, height: 32, radius: 999),
+            SkeletonBox(width: 72, height: 32, radius: 999),
+          ],
+        ),
+        SizedBox(height: 16),
+        SkeletonBox(width: 60, height: 12, radius: 12),
+        SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            SkeletonBox(width: 56, height: 32, radius: 999),
+            SkeletonBox(width: 62, height: 32, radius: 999),
+            SkeletonBox(width: 70, height: 32, radius: 999),
+          ],
+        ),
+        SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(child: SkeletonBox(height: 44, radius: 16)),
+            SizedBox(width: 10),
+            Expanded(child: SkeletonBox(height: 44, radius: 16)),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _LoadingEntriesPanel extends StatelessWidget {
+  const _LoadingEntriesPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      children: [
+        Row(
+          children: [
+            SkeletonBox(width: 126, height: 16, radius: 12),
+            Spacer(),
+            SkeletonBox(width: 76, height: 12, radius: 12),
+          ],
+        ),
+        SizedBox(height: 20),
+        _LoadingEntryRow(),
+        SizedBox(height: 14),
+        _LoadingEntryRow(),
+        SizedBox(height: 14),
+        _LoadingEntryRow(),
+      ],
+    );
+  }
+}
+
+class _LoadingEntryRow extends StatelessWidget {
+  const _LoadingEntryRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: const [
+        SkeletonBox(width: 68, height: 68, radius: 18),
+        SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SkeletonBox(width: 136, height: 14, radius: 12),
+              SizedBox(height: 8),
+              SkeletonBox(width: 88, height: 11, radius: 10),
+              SizedBox(height: 10),
+              SkeletonBox(width: 192, height: 10, radius: 10),
+            ],
+          ),
+        ),
+        SizedBox(width: 12),
+        SkeletonBox(width: 56, height: 24, radius: 10),
+      ],
     );
   }
 }
