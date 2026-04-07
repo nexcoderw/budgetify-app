@@ -5,6 +5,7 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/glass_panel.dart';
 import '../../../auth/data/models/auth_user.dart';
+import '../../../expenses/application/expense_service.dart';
 import '../../../todos/application/todo_service.dart';
 import '../../../todos/presentation/pages/todo_page.dart';
 
@@ -13,12 +14,14 @@ class ProfilePage extends StatefulWidget {
     super.key,
     required this.user,
     required this.todoService,
+    required this.expenseService,
     required this.isLoggingOut,
     required this.onLogout,
   });
 
   final AuthUser user;
   final TodoService todoService;
+  final ExpenseService expenseService;
   final bool isLoggingOut;
   final VoidCallback? onLogout;
 
@@ -365,7 +368,10 @@ class _ProfilePageState extends State<ProfilePage>
   Future<void> _openTodoBoard() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => TodoPage(todoService: widget.todoService),
+        builder: (_) => TodoPage(
+          todoService: widget.todoService,
+          expenseService: widget.expenseService,
+        ),
       ),
     );
   }
