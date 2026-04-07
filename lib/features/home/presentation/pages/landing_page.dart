@@ -144,8 +144,8 @@ class _LandingPageState extends State<LandingPage> {
       return;
     }
 
-    final token = _inviteLinkStore.takePendingInviteToken();
-    if (token == null) {
+    final token = await _inviteLinkStore.takePendingInviteToken();
+    if (!mounted || token == null) {
       return;
     }
 
