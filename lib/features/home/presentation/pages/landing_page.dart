@@ -6,12 +6,14 @@ import '../../../auth/data/models/auth_user.dart';
 import '../../../expenses/application/expense_service.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../../../income/application/income_service.dart';
+import '../../../loans/application/loan_service.dart';
 import '../../../savings/application/saving_service.dart';
 import '../../../todos/application/todo_service.dart';
 import '../widgets/app_layout.dart';
 import 'dashboard/dashboard_page.dart';
 import 'expense_page.dart';
 import 'income_page.dart';
+import 'loan_page.dart';
 import 'profile_page.dart';
 import 'saving_page.dart';
 
@@ -28,6 +30,7 @@ class LandingPage extends StatefulWidget {
 class _LandingPageState extends State<LandingPage> {
   final IncomeService _incomeService = IncomeService.createDefault();
   final ExpenseService _expenseService = ExpenseService.createDefault();
+  final LoanService _loanService = LoanService.createDefault();
   final SavingService _savingService = SavingService.createDefault();
   final TodoService _todoService = TodoService.createDefault();
   bool _isLoggingOut = false;
@@ -66,6 +69,8 @@ class _LandingPageState extends State<LandingPage> {
         );
       case AppLayoutSection.expense:
         return ExpensePage(expenseService: _expenseService);
+      case AppLayoutSection.loans:
+        return LoanPage(loanService: _loanService);
       case AppLayoutSection.profile:
         return ProfilePage(
           user: widget.user,
