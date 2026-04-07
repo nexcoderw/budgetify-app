@@ -9,6 +9,8 @@ class AuthUser {
     required this.isEmailVerified,
     required this.status,
     required this.lastLoginAt,
+    required this.accountDeletionRequestedAt,
+    required this.accountDeletionScheduledFor,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -24,6 +26,12 @@ class AuthUser {
       isEmailVerified: json['isEmailVerified'] as bool,
       status: json['status'] as String,
       lastLoginAt: _parseDateTime(json['lastLoginAt']),
+      accountDeletionRequestedAt: _parseDateTime(
+        json['accountDeletionRequestedAt'],
+      ),
+      accountDeletionScheduledFor: _parseDateTime(
+        json['accountDeletionScheduledFor'],
+      ),
       createdAt: DateTime.parse(json['createdAt'] as String).toUtc(),
       updatedAt: DateTime.parse(json['updatedAt'] as String).toUtc(),
     );
@@ -38,6 +46,8 @@ class AuthUser {
   final bool isEmailVerified;
   final String status;
   final DateTime? lastLoginAt;
+  final DateTime? accountDeletionRequestedAt;
+  final DateTime? accountDeletionScheduledFor;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -52,6 +62,10 @@ class AuthUser {
       'isEmailVerified': isEmailVerified,
       'status': status,
       'lastLoginAt': lastLoginAt?.toIso8601String(),
+      'accountDeletionRequestedAt': accountDeletionRequestedAt
+          ?.toIso8601String(),
+      'accountDeletionScheduledFor': accountDeletionScheduledFor
+          ?.toIso8601String(),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
