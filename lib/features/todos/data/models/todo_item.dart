@@ -1,3 +1,5 @@
+import '../../../../core/models/created_by_summary.dart';
+
 enum TodoPriority {
   topPriority,
   priority,
@@ -20,6 +22,27 @@ enum TodoPriority {
     'PRIORITY' => TodoPriority.priority,
     'NOT_PRIORITY' => TodoPriority.notPriority,
     _ => throw FormatException('Unsupported todo priority value: $value'),
+  };
+}
+
+enum TodoFrequency {
+  once,
+  weekly,
+  monthly,
+  yearly;
+
+  String get apiValue => switch (this) {
+    TodoFrequency.once => 'ONCE',
+    TodoFrequency.weekly => 'WEEKLY',
+    TodoFrequency.monthly => 'MONTHLY',
+    TodoFrequency.yearly => 'YEARLY',
+  };
+
+  static TodoFrequency fromApiValue(String? value) => switch (value) {
+    'WEEKLY' => TodoFrequency.weekly,
+    'MONTHLY' => TodoFrequency.monthly,
+    'YEARLY' => TodoFrequency.yearly,
+    _ => TodoFrequency.once,
   };
 }
 
@@ -70,9 +93,18 @@ class TodoItem {
     required this.name,
     required this.price,
     required this.priority,
+    required this.done,
+    required this.frequency,
+    required this.startDate,
+    required this.endDate,
+    required this.frequencyDays,
+    required this.occurrenceDates,
+    required this.recordedOccurrenceDates,
+    required this.remainingAmount,
     required this.coverImageUrl,
     required this.imageCount,
     required this.images,
+    required this.createdBy,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -88,9 +120,30 @@ class TodoItem {
       name: json['name'] as String,
       price: (json['price'] as num).toDouble(),
       priority: TodoPriority.fromApiValue(json['priority'] as String),
+      done: json['done'] as bool? ?? false,
+      frequency: TodoFrequency.fromApiValue(json['frequency'] as String?),
+      startDate: _parseOptionalDateOnly(json['startDate']),
+      endDate: _parseOptionalDateOnly(json['endDate']),
+      frequencyDays:
+          (json['frequencyDays'] as List<dynamic>? ?? const <dynamic>[])
+              .map((value) => (value as num).toInt())
+              .toList(growable: false),
+      occurrenceDates:
+          (json['occurrenceDates'] as List<dynamic>? ?? const <dynamic>[])
+              .map((value) => value as String)
+              .toList(growable: false),
+      recordedOccurrenceDates:
+          (json['recordedOccurrenceDates'] as List<dynamic>? ??
+                  const <dynamic>[])
+              .map((value) => value as String)
+              .toList(growable: false),
+      remainingAmount: (json['remainingAmount'] as num?)?.toDouble(),
       coverImageUrl: json['coverImageUrl'] as String?,
       imageCount: (json['imageCount'] as num).toInt(),
       images: images,
+      createdBy: (json['createdBy'] as Map<String, dynamic>?) != null
+          ? CreatedBySummary.fromJson(json['createdBy'] as Map<String, dynamic>)
+          : null,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -100,9 +153,18 @@ class TodoItem {
   final String name;
   final double price;
   final TodoPriority priority;
+  final bool done;
+  final TodoFrequency frequency;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final List<int> frequencyDays;
+  final List<String> occurrenceDates;
+  final List<String> recordedOccurrenceDates;
+  final double? remainingAmount;
   final String? coverImageUrl;
   final int imageCount;
   final List<TodoImageItem> images;
+  final CreatedBySummary? createdBy;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -114,5 +176,13 @@ class TodoItem {
     }
 
     return images.isEmpty ? null : images.first;
+  }
+
+  static DateTime? _parseOptionalDateOnly(Object? value) {
+    if (value is! String || value.isEmpty) {
+      return null;
+    }
+
+    return DateTime.tryParse(value);
   }
 }
