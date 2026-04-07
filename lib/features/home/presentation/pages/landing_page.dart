@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/widgets/app_toast.dart';
@@ -8,6 +10,8 @@ import '../../../auth/presentation/pages/login_page.dart';
 import '../../../income/application/income_service.dart';
 import '../../../loans/application/loan_service.dart';
 import '../../../partnerships/application/partnership_service.dart';
+import '../../../partnerships/application/partnership_invite_link_store.dart';
+import '../../../partnerships/presentation/pages/accept_partnership_invite_page.dart';
 import '../../../savings/application/saving_service.dart';
 import '../../../todos/application/todo_service.dart';
 import '../../../todos/presentation/pages/todo_page.dart';
@@ -30,6 +34,8 @@ class LandingPage extends StatefulWidget {
 }
 
 class _LandingPageState extends State<LandingPage> {
+  final PartnershipInviteLinkStore _inviteLinkStore =
+      PartnershipInviteLinkStore.instance;
   final IncomeService _incomeService = IncomeService.createDefault();
   final ExpenseService _expenseService = ExpenseService.createDefault();
   final LoanService _loanService = LoanService.createDefault();
@@ -38,7 +44,24 @@ class _LandingPageState extends State<LandingPage> {
   final PartnershipService _partnershipService =
       PartnershipService.createDefault();
   bool _isLoggingOut = false;
+  bool _isInviteAcceptanceOpen = false;
   AppLayoutSection _currentSection = AppLayoutSection.dashboard;
+
+  @override
+  void initState() {
+    super.initState();
+    _inviteLinkStore.pendingInviteToken.addListener(_onPendingInviteChanged);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _onPendingInviteChanged();
+    });
+  }
+
+  @override
+  void dispose() {
+    _inviteLinkStore.pendingInviteToken.removeListener(_onPendingInviteChanged);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -110,6 +133,40 @@ class _LandingPageState extends State<LandingPage> {
     setState(() {
       _currentSection = section;
     });
+  }
+
+  void _onPendingInviteChanged() {
+    unawaited(_openPendingInviteIfNeeded());
+  }
+
+  Future<void> _openPendingInviteIfNeeded() async {
+    if (!mounted || _isInviteAcceptanceOpen) {
+      return;
+    }
+
+    final token = _inviteLinkStore.takePendingInviteToken();
+    if (token == null) {
+      return;
+    }
+
+    _isInviteAcceptanceOpen = true;
+
+    try {
+      await Navigator.of(context).push<bool>(
+        MaterialPageRoute<bool>(
+          builder: (_) => AcceptPartnershipInvitePage(
+            currentUser: widget.user,
+            partnershipService: _partnershipService,
+            initialInviteValue: token,
+          ),
+        ),
+      );
+    } finally {
+      _isInviteAcceptanceOpen = false;
+      if (mounted && _inviteLinkStore.pendingInviteToken.value != null) {
+        unawaited(_openPendingInviteIfNeeded());
+      }
+    }
   }
 
   Future<void> _logout() async {
