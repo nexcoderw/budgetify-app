@@ -8,9 +8,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/glass_panel.dart';
 import '../../application/auth_service_contract.dart';
-import '../../data/models/auth_user.dart';
 import '../../data/models/email_initiate_response.dart';
-import '../../../home/presentation/pages/landing_page.dart';
+import '../auth_post_auth_navigation.dart';
 import '../widgets/auth_layout.dart';
 import '../widgets/auth_loading_button.dart';
 import '../widgets/profile_completion_dialog.dart';
@@ -95,7 +94,12 @@ class _EmailOtpPageState extends State<EmailOtpPage> {
         description: 'Welcome, ${resolvedUser.fullName ?? resolvedUser.email}.',
       );
 
-      _openLanding(resolvedUser);
+      await openPostAuthDestination(
+        context: context,
+        authService: widget.authService,
+        user: resolvedUser,
+        clearStack: true,
+      );
     } catch (error) {
       if (mounted) {
         AppToast.error(
@@ -147,32 +151,6 @@ class _EmailOtpPageState extends State<EmailOtpPage> {
       return message.replaceFirst('StateError: ', '');
     }
     return message;
-  }
-
-  void _openLanding(AuthUser user) {
-    Navigator.of(context).pushAndRemoveUntil(
-      PageRouteBuilder<void>(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            LandingPage(authService: widget.authService, user: user),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          final curved = CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-          );
-          return FadeTransition(
-            opacity: curved,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.03),
-                end: Offset.zero,
-              ).animate(curved),
-              child: child,
-            ),
-          );
-        },
-      ),
-      (route) => false,
-    );
   }
 
   @override
