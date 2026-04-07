@@ -87,3 +87,33 @@ String? extractInviteToken(String input) {
       ? null
       : normalized.replaceAll(RegExp(r'^.*token='), '');
 }
+
+String? extractInviteTokenFromUri(Uri uri) {
+  final pathSegments = uri.pathSegments
+      .where((segment) => segment.trim().isNotEmpty)
+      .toList(growable: false);
+  final host = uri.host.trim().toLowerCase();
+  final scheme = uri.scheme.trim().toLowerCase();
+
+  final isCustomInviteRoute =
+      scheme == 'budgetify' &&
+      host == 'partnership' &&
+      pathSegments.length == 1 &&
+      pathSegments.first == 'accept';
+
+  final isWebInviteRoute =
+      pathSegments.length >= 2 &&
+      pathSegments[pathSegments.length - 2] == 'partnership' &&
+      pathSegments.last == 'accept';
+
+  if (!isCustomInviteRoute && !isWebInviteRoute) {
+    return null;
+  }
+
+  final queryToken = uri.queryParameters['token'];
+  if (queryToken == null || queryToken.trim().isEmpty) {
+    return null;
+  }
+
+  return queryToken.trim();
+}
