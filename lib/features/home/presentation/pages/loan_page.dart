@@ -946,23 +946,7 @@ class _LoanPageLoading extends StatelessWidget {
           _Staggered(
             fade: fade(0.0, 0.45),
             slide: slide(0.0, 0.45),
-            child: _LoadingPanel(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  SkeletonBox(width: 138, height: 24, radius: 999),
-                  SizedBox(height: 22),
-                  SkeletonBox(width: 180, height: 32, radius: 18),
-                  SizedBox(height: 12),
-                  SkeletonBox(height: 12, radius: 12),
-                  SizedBox(height: 8),
-                  SkeletonBox(width: 220, height: 12, radius: 12),
-                  SizedBox(height: 26),
-                  SkeletonBox(width: 210, height: 42, radius: 18),
-                ],
-              ),
-            ),
+            child: const _LoadingHeroPanel(),
           ),
           const SizedBox(height: 14),
           _Staggered(
@@ -975,12 +959,81 @@ class _LoanPageLoading extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           _Staggered(
-            fade: fade(0.28, 0.78),
-            slide: slide(0.28, 0.78),
+            fade: fade(0.26, 0.70),
+            slide: slide(0.26, 0.70),
+            child: const _LoadingStatsRow(),
+          ),
+          const SizedBox(height: 14),
+          _Staggered(
+            fade: fade(0.38, 0.86),
+            slide: slide(0.38, 0.86),
             child: const _LoadingPanel(
               padding: EdgeInsets.all(22),
               child: _LoadingEntriesPanel(),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingHeroPanel extends StatelessWidget {
+  const _LoadingHeroPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return _LoadingPanel(
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        SkeletonBox(width: 72, height: 30, radius: 999),
+                        SizedBox(width: 10),
+                        SkeletonBox(width: 126, height: 30, radius: 999),
+                      ],
+                    ),
+                    SizedBox(height: 18),
+                    SkeletonBox(width: 170, height: 30, radius: 18),
+                    SizedBox(height: 8),
+                    SkeletonBox(height: 12, radius: 12),
+                    SizedBox(height: 8),
+                    SkeletonBox(width: 240, height: 12, radius: 12),
+                  ],
+                ),
+              ),
+              SizedBox(width: 16),
+              SkeletonBox(width: 46, height: 46, radius: 999),
+            ],
+          ),
+          SizedBox(height: 22),
+          SkeletonBox(height: 1, radius: 999),
+          SizedBox(height: 20),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SkeletonBox(width: 124, height: 11, radius: 10),
+                    SizedBox(height: 6),
+                    SkeletonBox(width: 190, height: 34, radius: 18),
+                  ],
+                ),
+              ),
+              SizedBox(width: 12),
+              SkeletonBox(width: 104, height: 28, radius: 10),
+            ],
           ),
         ],
       ),
@@ -1014,14 +1067,101 @@ class _LoadingFiltersPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: const [
-        SkeletonBox(width: 72, height: 14, radius: 12),
+        Row(
+          children: [
+            SkeletonBox(width: 72, height: 14, radius: 12),
+            Spacer(),
+            SkeletonBox(width: 62, height: 12, radius: 12),
+          ],
+        ),
         SizedBox(height: 16),
         SkeletonBox(height: 46, radius: 16),
         SizedBox(height: 12),
         SkeletonBox(width: 220, height: 10, radius: 12),
         SizedBox(height: 16),
-        SkeletonBox(height: 36, radius: 999),
+        SkeletonBox(width: 92, height: 12, radius: 12),
+        SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            SkeletonBox(width: 56, height: 32, radius: 999),
+            SkeletonBox(width: 62, height: 32, radius: 999),
+            SkeletonBox(width: 74, height: 32, radius: 999),
+          ],
+        ),
+        SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(child: SkeletonBox(height: 44, radius: 16)),
+            SizedBox(width: 10),
+            Expanded(child: SkeletonBox(height: 44, radius: 16)),
+          ],
+        ),
       ],
+    );
+  }
+}
+
+class _LoadingStatsRow extends StatelessWidget {
+  const _LoadingStatsRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cards = List.generate(
+          4,
+          (_) => const SizedBox(width: 220, child: _LoadingStatCard()),
+        );
+
+        if (constraints.maxWidth < 920) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (var i = 0; i < cards.length; i++) ...[
+                  cards[i],
+                  if (i != cards.length - 1) const SizedBox(width: 10),
+                ],
+              ],
+            ),
+          );
+        }
+
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < cards.length; i++) ...[
+                Expanded(child: cards[i]),
+                if (i != cards.length - 1) const SizedBox(width: 10),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _LoadingStatCard extends StatelessWidget {
+  const _LoadingStatCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return _LoadingPanel(
+      padding: const EdgeInsets.all(18),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SkeletonBox(width: 90, height: 11, radius: 10),
+          SizedBox(height: 10),
+          SkeletonBox(width: 118, height: 20, radius: 12),
+          SizedBox(height: 6),
+          Expanded(child: SkeletonBox(height: 11, radius: 10)),
+        ],
+      ),
     );
   }
 }
