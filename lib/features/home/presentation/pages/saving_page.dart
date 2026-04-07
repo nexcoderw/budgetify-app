@@ -7,6 +7,7 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/network/paginated_response.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_modal_dialog.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/glass_panel.dart';
 import '../../../../core/widgets/skeleton_loader.dart';
@@ -802,113 +803,154 @@ class _SavingPageState extends State<SavingPage>
         ),
       );
 
+  bool get _hasActiveDialog =>
+      _formDialog != null ||
+      _expenseDialogEntry != null ||
+      _deleteTarget != null;
+
+  void _dismissTopDialog() {
+    if (_deleteTarget != null) {
+      setState(() => _deleteTarget = null);
+      return;
+    }
+
+    if (_expenseDialogEntry != null && !_isRecordingExpense) {
+      _closeExpenseDialog();
+      return;
+    }
+
+    if (_formDialog != null && !_isSaving) {
+      _closeFormDialog();
+      return;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return _SavingPageLoading(fade: _fade, slide: _slide);
     }
 
-    return Stack(
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _Staggered(
-              fade: _fade(0.0, 0.45),
-              slide: _slide(0.0, 0.45),
-              child: _SavingHeader(
-                periodLabel: _periodLabel,
-                totalSaved: _totalSaved,
-                activeAmount: _stillHaveSaved,
-                entryCount: _entries.length,
-                canGoNextMonth: _canGoToNextMonth,
-                onAdd: _openAddDialog,
-                onNextMonth: _goToNextMonth,
-                onPreviousMonth: _goToPreviousMonth,
+    return PopScope<void>(
+      canPop: !_hasActiveDialog,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          _dismissTopDialog();
+        }
+      },
+      child: Stack(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Staggered(
+                fade: _fade(0.0, 0.45),
+                slide: _slide(0.0, 0.45),
+                child: _SavingHeader(
+                  periodLabel: _periodLabel,
+                  totalSaved: _totalSaved,
+                  activeAmount: _stillHaveSaved,
+                  entryCount: _entries.length,
+                  canGoNextMonth: _canGoToNextMonth,
+                  onAdd: _openAddDialog,
+                  onNextMonth: _goToNextMonth,
+                  onPreviousMonth: _goToPreviousMonth,
+                ),
               ),
-            ),
-            const SizedBox(height: 14),
-            _Staggered(
-              fade: _fade(0.12, 0.55),
-              slide: _slide(0.12, 0.55),
-              child: _SavingFiltersPanel(
-                dateFrom: _selectedDateFrom,
-                dateTo: _selectedDateTo,
-                hasActiveFilters: _hasActiveFilters,
-                searchController: _searchCtrl,
-                searchInput: _searchInput,
-                onClearAll: _clearAllFilters,
-                onClearDate: _clearDateFilter,
-                onDatePicked: _pickFilterDate,
-                onSearchChanged: _onSearchChanged,
+              const SizedBox(height: 14),
+              _Staggered(
+                fade: _fade(0.12, 0.55),
+                slide: _slide(0.12, 0.55),
+                child: _SavingFiltersPanel(
+                  dateFrom: _selectedDateFrom,
+                  dateTo: _selectedDateTo,
+                  hasActiveFilters: _hasActiveFilters,
+                  searchController: _searchCtrl,
+                  searchInput: _searchInput,
+                  onClearAll: _clearAllFilters,
+                  onClearDate: _clearDateFilter,
+                  onDatePicked: _pickFilterDate,
+                  onSearchChanged: _onSearchChanged,
+                ),
               ),
-            ),
-            const SizedBox(height: 14),
-            _Staggered(
-              fade: _fade(0.22, 0.64),
-              slide: _slide(0.22, 0.64),
-              child: _SavingStatsRow(
-                activeShare: _activeShare,
-                inactiveSaved: _inactiveSaved,
-                largestSaving: _largestSaving,
-                latestEntry: _latestEntry,
-                stillHaveSaved: _stillHaveSaved,
-                totalSaved: _totalSaved,
+              const SizedBox(height: 14),
+              _Staggered(
+                fade: _fade(0.22, 0.64),
+                slide: _slide(0.22, 0.64),
+                child: _SavingStatsRow(
+                  activeShare: _activeShare,
+                  inactiveSaved: _inactiveSaved,
+                  largestSaving: _largestSaving,
+                  latestEntry: _latestEntry,
+                  stillHaveSaved: _stillHaveSaved,
+                  totalSaved: _totalSaved,
+                ),
               ),
-            ),
-            const SizedBox(height: 14),
-            _Staggered(
-              fade: _fade(0.36, 0.90),
-              slide: _slide(0.36, 0.90),
-              child: _SavingEntriesPanel(
-                currentPage: _currentPage,
-                entries: _pageEntries,
-                totalItems: _totalItems,
-                totalPages: _totalPages,
-                loadError: _loadError,
-                stillHaveBusyId: _stillHaveBusyId,
-                onDelete: (entry) => setState(() => _deleteTarget = entry),
-                onEdit: _openEditDialog,
-                onNextPage: () => _goToPage(_currentPage + 1),
-                onPreviousPage: () => _goToPage(_currentPage - 1),
-                onRecordExpense: _openExpenseDialog,
-                onRetry: _loadSavings,
-                onToggleStillHave: _toggleStillHave,
+              const SizedBox(height: 14),
+              _Staggered(
+                fade: _fade(0.36, 0.90),
+                slide: _slide(0.36, 0.90),
+                child: _SavingEntriesPanel(
+                  currentPage: _currentPage,
+                  entries: _pageEntries,
+                  totalItems: _totalItems,
+                  totalPages: _totalPages,
+                  loadError: _loadError,
+                  stillHaveBusyId: _stillHaveBusyId,
+                  onDelete: (entry) => setState(() => _deleteTarget = entry),
+                  onEdit: _openEditDialog,
+                  onNextPage: () => _goToPage(_currentPage + 1),
+                  onPreviousPage: () => _goToPage(_currentPage - 1),
+                  onRecordExpense: _openExpenseDialog,
+                  onRetry: _loadSavings,
+                  onToggleStillHave: _toggleStillHave,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            _Staggered(
-              fade: _fade(0.70, 1.0),
-              slide: _slide(0.70, 1.0),
-              child: const _FooterNote(),
-            ),
-          ],
-        ),
-        if (_formDialog != null)
-          _SavingFormDialog(
-            data: _formDialog!,
-            form: _form,
-            isSaving: _isSaving,
-            onChange: _updateForm,
-            onClose: _closeFormDialog,
-            onSubmit: _submitSaving,
+              const SizedBox(height: 8),
+              _Staggered(
+                fade: _fade(0.70, 1.0),
+                slide: _slide(0.70, 1.0),
+                child: const _FooterNote(),
+              ),
+            ],
           ),
-        if (_expenseDialogEntry != null)
-          _SavingExpenseDialog(
-            entry: _expenseDialogEntry!,
-            form: _expenseForm,
-            isSaving: _isRecordingExpense,
-            onChange: _updateExpenseForm,
-            onClose: _closeExpenseDialog,
-            onSubmit: _recordExpenseFromSaving,
-          ),
-        if (_deleteTarget != null)
-          _DeleteConfirmDialog(
-            label: _deleteTarget!.label,
-            onClose: () => setState(() => _deleteTarget = null),
-            onConfirm: _confirmDelete,
-          ),
-      ],
+          if (_formDialog != null)
+            AppModalOverlay(
+              dismissible: !_isSaving,
+              onDismiss: _closeFormDialog,
+              child: _SavingFormDialog(
+                data: _formDialog!,
+                form: _form,
+                isSaving: _isSaving,
+                onChange: _updateForm,
+                onClose: _closeFormDialog,
+                onSubmit: _submitSaving,
+              ),
+            ),
+          if (_expenseDialogEntry != null)
+            AppModalOverlay(
+              dismissible: !_isRecordingExpense,
+              onDismiss: _closeExpenseDialog,
+              child: _SavingExpenseDialog(
+                entry: _expenseDialogEntry!,
+                form: _expenseForm,
+                isSaving: _isRecordingExpense,
+                onChange: _updateExpenseForm,
+                onClose: _closeExpenseDialog,
+                onSubmit: _recordExpenseFromSaving,
+              ),
+            ),
+          if (_deleteTarget != null)
+            AppModalOverlay(
+              onDismiss: () => setState(() => _deleteTarget = null),
+              child: _DeleteConfirmDialog(
+                label: _deleteTarget!.label,
+                onClose: () => setState(() => _deleteTarget = null),
+                onConfirm: _confirmDelete,
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -2767,225 +2809,178 @@ class _SavingFormDialogState extends State<_SavingFormDialog>
       opacity: _fadeAnim,
       child: ScaleTransition(
         scale: _scaleAnim,
-        child: Dialog(
-          backgroundColor: Colors.transparent,
+        child: AppModalDialog(
+          maxWidth: 470,
+          padding: const EdgeInsets.all(28),
           insetPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 24,
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 470),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.15),
-                      Colors.white.withValues(alpha: 0.08),
-                    ],
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _savingAccent.withValues(alpha: 0.16),
+                      ),
+                      child: const Center(
+                        child: HugeIcon(
+                          icon: HugeIcons.strokeRoundedPiggyBank,
+                          size: 18,
+                          color: _savingAccent,
+                          strokeWidth: 1.8,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isEditing ? 'Edit saving' : 'Add saving',
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            isEditing
+                                ? 'Update the details below'
+                                : 'Fill in the details below',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.7,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    AppModalCloseButton(
+                      onTap: widget.isSaving ? null : widget.onClose,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                const _GradientDivider(color: _savingAccent),
+                const SizedBox(height: 24),
+                const _FieldLabel(label: 'Label'),
+                const SizedBox(height: 8),
+                _GlassField(
+                  initialValue: widget.form.label,
+                  hint: 'Emergency reserve contribution',
+                  accent: _savingAccent,
+                  onChanged: (value) =>
+                      widget.onChange(widget.form.copyWith(label: value)),
+                ),
+                const SizedBox(height: 18),
+                const _FieldLabel(label: 'Amount (USD)'),
+                const SizedBox(height: 8),
+                _GlassField(
+                  initialValue: widget.form.amount,
+                  hint: '250',
+                  accent: _savingAccent,
+                  prefixText: '\$ ',
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                  border: Border.all(
-                    color: _savingAccent.withValues(alpha: 0.28),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'^\d*\.?\d{0,2}$'),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      widget.onChange(widget.form.copyWith(amount: value)),
+                ),
+                const SizedBox(height: 18),
+                const _FieldLabel(label: 'Date'),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: _pickDate,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      color: Colors.white.withValues(alpha: 0.06),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.12),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        HugeIcon(
+                          icon: HugeIcons.strokeRoundedCalendar03,
+                          size: 16,
+                          color: AppColors.textSecondary.withValues(alpha: 0.7),
+                          strokeWidth: 1.8,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          dateLabel,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Spacer(),
+                        HugeIcon(
+                          icon: HugeIcons.strokeRoundedArrowDown01,
+                          size: 14,
+                          color: AppColors.textSecondary.withValues(alpha: 0.5),
+                          strokeWidth: 1.8,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(28),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _savingAccent.withValues(alpha: 0.16),
-                            ),
-                            child: const Center(
-                              child: HugeIcon(
-                                icon: HugeIcons.strokeRoundedPiggyBank,
-                                size: 18,
-                                color: _savingAccent,
-                                strokeWidth: 1.8,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  isEditing ? 'Edit saving' : 'Add saving',
-                                  style: const TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                Text(
-                                  isEditing
-                                      ? 'Update the details below'
-                                      : 'Fill in the details below',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textSecondary.withValues(
-                                      alpha: 0.7,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: widget.isSaving ? null : widget.onClose,
-                            child: Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white.withValues(alpha: 0.07),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.12),
-                                ),
-                              ),
-                              child: Center(
-                                child: HugeIcon(
-                                  icon: HugeIcons.strokeRoundedCancel01,
-                                  size: 14,
-                                  color: AppColors.textSecondary,
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      const _GradientDivider(color: _savingAccent),
-                      const SizedBox(height: 24),
-                      const _FieldLabel(label: 'Label'),
-                      const SizedBox(height: 8),
-                      _GlassField(
-                        initialValue: widget.form.label,
-                        hint: 'Emergency reserve contribution',
-                        accent: _savingAccent,
-                        onChanged: (value) =>
-                            widget.onChange(widget.form.copyWith(label: value)),
-                      ),
-                      const SizedBox(height: 18),
-                      const _FieldLabel(label: 'Amount (USD)'),
-                      const SizedBox(height: 8),
-                      _GlassField(
-                        initialValue: widget.form.amount,
-                        hint: '250',
-                        accent: _savingAccent,
-                        prefixText: '\$ ',
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                            RegExp(r'^\d*\.?\d{0,2}$'),
-                          ),
-                        ],
-                        onChanged: (value) => widget.onChange(
-                          widget.form.copyWith(amount: value),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      const _FieldLabel(label: 'Date'),
-                      const SizedBox(height: 8),
-                      GestureDetector(
-                        onTap: _pickDate,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            color: Colors.white.withValues(alpha: 0.06),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.12),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              HugeIcon(
-                                icon: HugeIcons.strokeRoundedCalendar03,
-                                size: 16,
-                                color: AppColors.textSecondary.withValues(
-                                  alpha: 0.7,
-                                ),
-                                strokeWidth: 1.8,
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                dateLabel,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const Spacer(),
-                              HugeIcon(
-                                icon: HugeIcons.strokeRoundedArrowDown01,
-                                size: 14,
-                                color: AppColors.textSecondary.withValues(
-                                  alpha: 0.5,
-                                ),
-                                strokeWidth: 1.8,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      const _FieldLabel(label: 'Note'),
-                      const SizedBox(height: 8),
-                      _GlassField(
-                        initialValue: widget.form.note,
-                        hint: 'Optional context for this saving entry',
-                        accent: _savingAccent,
-                        maxLines: 4,
-                        minLines: 3,
-                        onChanged: (value) =>
-                            widget.onChange(widget.form.copyWith(note: value)),
-                      ),
-                      const SizedBox(height: 28),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _DialogButton(
-                              label: 'Cancel',
-                              isPrimary: false,
-                              isDisabled: widget.isSaving,
-                              onTap: () async => widget.onClose(),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _DialogButton(
-                              label: isEditing ? 'Save changes' : 'Add saving',
-                              isPrimary: true,
-                              isLoading: widget.isSaving,
-                              onTap: widget.onSubmit,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: 18),
+                const _FieldLabel(label: 'Note'),
+                const SizedBox(height: 8),
+                _GlassField(
+                  initialValue: widget.form.note,
+                  hint: 'Optional context for this saving entry',
+                  accent: _savingAccent,
+                  maxLines: 4,
+                  minLines: 3,
+                  onChanged: (value) =>
+                      widget.onChange(widget.form.copyWith(note: value)),
                 ),
-              ),
+                const SizedBox(height: 28),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _DialogButton(
+                        label: 'Cancel',
+                        isPrimary: false,
+                        isDisabled: widget.isSaving,
+                        onTap: () async => widget.onClose(),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _DialogButton(
+                        label: isEditing ? 'Save changes' : 'Add saving',
+                        isPrimary: true,
+                        isLoading: widget.isSaving,
+                        onTap: widget.onSubmit,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
@@ -3091,240 +3086,193 @@ class _SavingExpenseDialogState extends State<_SavingExpenseDialog>
       opacity: _fadeAnim,
       child: ScaleTransition(
         scale: _scaleAnim,
-        child: Dialog(
-          backgroundColor: Colors.transparent,
+        child: AppModalDialog(
+          maxWidth: 470,
+          padding: const EdgeInsets.all(28),
           insetPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 24,
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 470),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.15),
-                      Colors.white.withValues(alpha: 0.08),
-                    ],
-                  ),
-                  border: Border.all(
-                    color: _savingSecondary.withValues(alpha: 0.28),
-                  ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _savingSecondary.withValues(alpha: 0.16),
+                      ),
+                      child: const Center(
+                        child: HugeIcon(
+                          icon: HugeIcons.strokeRoundedMoneySendSquare,
+                          size: 18,
+                          color: _savingSecondary,
+                          strokeWidth: 1.8,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Record expense',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            'Send this saving to the expenses ledger as a savings-category expense.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.7,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    AppModalCloseButton(
+                      onTap: widget.isSaving ? null : widget.onClose,
+                    ),
+                  ],
                 ),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(28),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _savingSecondary.withValues(alpha: 0.16),
-                            ),
-                            child: const Center(
-                              child: HugeIcon(
-                                icon: HugeIcons.strokeRoundedMoneySendSquare,
-                                size: 18,
-                                color: _savingSecondary,
-                                strokeWidth: 1.8,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Record expense',
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                Text(
-                                  'Send this saving to the expenses ledger as a savings-category expense.',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textSecondary.withValues(
-                                      alpha: 0.7,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: widget.isSaving ? null : widget.onClose,
-                            child: Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white.withValues(alpha: 0.07),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.12),
-                                ),
-                              ),
-                              child: Center(
-                                child: HugeIcon(
-                                  icon: HugeIcons.strokeRoundedCancel01,
-                                  size: 14,
-                                  color: AppColors.textSecondary,
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                const SizedBox(height: 24),
+                const _GradientDivider(color: _savingSecondary),
+                const SizedBox(height: 20),
+                _SummaryBlock(label: 'Saving', value: widget.entry.label),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _SummaryBlock(
+                        label: 'Amount in USD',
+                        value: _usd(widget.entry.amount),
                       ),
-                      const SizedBox(height: 24),
-                      const _GradientDivider(color: _savingSecondary),
-                      const SizedBox(height: 20),
-                      _SummaryBlock(label: 'Saving', value: widget.entry.label),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _SummaryBlock(
-                              label: 'Amount in USD',
-                              value: _usd(widget.entry.amount),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _SummaryBlock(
-                              label: 'Recorded date',
-                              value: _formatLongDate(widget.entry.date),
-                            ),
-                          ),
-                        ],
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _SummaryBlock(
+                        label: 'Recorded date',
+                        value: _formatLongDate(widget.entry.date),
                       ),
-                      const SizedBox(height: 18),
-                      const _FieldLabel(label: 'Expense date'),
-                      const SizedBox(height: 8),
-                      GestureDetector(
-                        onTap: _pickDate,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            color: Colors.white.withValues(alpha: 0.06),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.12),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              HugeIcon(
-                                icon: HugeIcons.strokeRoundedCalendar03,
-                                size: 16,
-                                color: AppColors.textSecondary.withValues(
-                                  alpha: 0.7,
-                                ),
-                                strokeWidth: 1.8,
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                dateLabel,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const Spacer(),
-                              HugeIcon(
-                                icon: HugeIcons.strokeRoundedArrowDown01,
-                                size: 14,
-                                color: AppColors.textSecondary.withValues(
-                                  alpha: 0.5,
-                                ),
-                                strokeWidth: 1.8,
-                              ),
-                            ],
-                          ),
-                        ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                const _FieldLabel(label: 'Expense date'),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: _pickDate,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      color: Colors.white.withValues(alpha: 0.06),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.12),
                       ),
-                      const SizedBox(height: 18),
-                      const _FieldLabel(label: 'Amount in RWF'),
-                      const SizedBox(height: 8),
-                      _GlassField(
-                        initialValue: widget.form.amountRwf,
-                        hint: '125000',
-                        accent: _savingSecondary,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                            RegExp(r'^\d*\.?\d{0,2}$'),
-                          ),
-                        ],
-                        onChanged: (value) => widget.onChange(
-                          widget.form.copyWith(amountRwf: value),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        amountPreview,
-                        style: TextStyle(
-                          fontSize: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        HugeIcon(
+                          icon: HugeIcons.strokeRoundedCalendar03,
+                          size: 16,
                           color: AppColors.textSecondary.withValues(alpha: 0.7),
+                          strokeWidth: 1.8,
                         ),
-                      ),
-                      const SizedBox(height: 18),
-                      const _FieldLabel(label: 'Expense note'),
-                      const SizedBox(height: 8),
-                      _GlassField(
-                        initialValue: widget.form.note,
-                        hint: 'Optional note for the recorded expense',
-                        accent: _savingSecondary,
-                        maxLines: 4,
-                        minLines: 3,
-                        onChanged: (value) =>
-                            widget.onChange(widget.form.copyWith(note: value)),
-                      ),
-                      const SizedBox(height: 28),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _DialogButton(
-                              label: 'Cancel',
-                              isPrimary: false,
-                              isDisabled: widget.isSaving,
-                              onTap: () async => widget.onClose(),
-                            ),
+                        const SizedBox(width: 10),
+                        Text(
+                          dateLabel,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w500,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _DialogButton(
-                              label: 'Record expense',
-                              isPrimary: true,
-                              isLoading: widget.isSaving,
-                              onTap: widget.onSubmit,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                        const Spacer(),
+                        HugeIcon(
+                          icon: HugeIcons.strokeRoundedArrowDown01,
+                          size: 14,
+                          color: AppColors.textSecondary.withValues(alpha: 0.5),
+                          strokeWidth: 1.8,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 18),
+                const _FieldLabel(label: 'Amount in RWF'),
+                const SizedBox(height: 8),
+                _GlassField(
+                  initialValue: widget.form.amountRwf,
+                  hint: '125000',
+                  accent: _savingSecondary,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'^\d*\.?\d{0,2}$'),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      widget.onChange(widget.form.copyWith(amountRwf: value)),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  amountPreview,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary.withValues(alpha: 0.7),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const _FieldLabel(label: 'Expense note'),
+                const SizedBox(height: 8),
+                _GlassField(
+                  initialValue: widget.form.note,
+                  hint: 'Optional note for the recorded expense',
+                  accent: _savingSecondary,
+                  maxLines: 4,
+                  minLines: 3,
+                  onChanged: (value) =>
+                      widget.onChange(widget.form.copyWith(note: value)),
+                ),
+                const SizedBox(height: 28),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _DialogButton(
+                        label: 'Cancel',
+                        isPrimary: false,
+                        isDisabled: widget.isSaving,
+                        onTap: () async => widget.onClose(),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _DialogButton(
+                        label: 'Record expense',
+                        isPrimary: true,
+                        isLoading: widget.isSaving,
+                        onTap: widget.onSubmit,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
@@ -3433,102 +3381,79 @@ class _DeleteConfirmDialogState extends State<_DeleteConfirmDialog>
       opacity: _fadeAnim,
       child: ScaleTransition(
         scale: _scaleAnim,
-        child: Dialog(
-          backgroundColor: Colors.transparent,
+        child: AppModalDialog(
+          maxWidth: 380,
+          padding: const EdgeInsets.all(28),
           insetPadding: const EdgeInsets.symmetric(
             horizontal: 40,
             vertical: 24,
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 380),
-                padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.14),
-                      Colors.white.withValues(alpha: 0.08),
-                    ],
-                  ),
+                  shape: BoxShape.circle,
+                  color: AppColors.danger.withValues(alpha: 0.14),
                   border: Border.all(
                     color: AppColors.danger.withValues(alpha: 0.3),
                   ),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.danger.withValues(alpha: 0.14),
-                        border: Border.all(
-                          color: AppColors.danger.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: const Center(
-                        child: HugeIcon(
-                          icon: HugeIcons.strokeRoundedDelete01,
-                          size: 24,
-                          color: AppColors.danger,
-                          strokeWidth: 1.8,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    const Text(
-                      'Remove saving entry?',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '"${widget.label}" will be permanently removed from your saving records.',
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.55,
-                        color: AppColors.textSecondary.withValues(alpha: 0.8),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _DialogButton(
-                            label: 'Keep it',
-                            isPrimary: false,
-                            isDisabled: _deleting,
-                            onTap: () async => widget.onClose(),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _DialogButton(
-                            label: 'Delete',
-                            isPrimary: true,
-                            isDanger: true,
-                            isLoading: _deleting,
-                            onTap: _confirm,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                child: const Center(
+                  child: HugeIcon(
+                    icon: HugeIcons.strokeRoundedDelete01,
+                    size: 24,
+                    color: AppColors.danger,
+                    strokeWidth: 1.8,
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(height: 18),
+              const Text(
+                'Remove saving entry?',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '"${widget.label}" will be permanently removed from your saving records.',
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.55,
+                  color: AppColors.textSecondary.withValues(alpha: 0.8),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: _DialogButton(
+                      label: 'Keep it',
+                      isPrimary: false,
+                      isDisabled: _deleting,
+                      onTap: () async => widget.onClose(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _DialogButton(
+                      label: 'Delete',
+                      isPrimary: true,
+                      isDanger: true,
+                      isLoading: _deleting,
+                      onTap: _confirm,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -3672,40 +3597,16 @@ class _DialogButtonState extends State<_DialogButton> {
       child: AnimatedScale(
         duration: const Duration(milliseconds: 120),
         scale: _pressed ? 0.97 : 1.0,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            color: widget.isPrimary
-                ? primaryColor.withValues(alpha: 0.18)
-                : Colors.white.withValues(alpha: 0.05),
-            border: Border.all(
-              color: widget.isPrimary
-                  ? primaryColor.withValues(alpha: 0.42)
-                  : Colors.white.withValues(alpha: 0.12),
-            ),
-          ),
-          child: widget.isLoading
-              ? SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
-                  ),
-                )
-              : Text(
-                  widget.label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: widget.isPrimary
-                        ? primaryColor
-                        : AppColors.textPrimary,
-                  ),
-                ),
+        child: AppModalActionButton(
+          label: widget.label,
+          isPrimary: widget.isPrimary,
+          isLoading: widget.isLoading,
+          onPressed: widget.isDisabled || widget.isLoading
+              ? null
+              : () => widget.onTap(),
+          primaryColor: primaryColor,
+          primaryForegroundColor: AppColors.background,
+          outlineForegroundColor: AppColors.textPrimary,
         ),
       ),
     );
