@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_modal_dialog.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/glass_panel.dart';
 import '../../../../core/widgets/skeleton_loader.dart';
@@ -696,90 +697,71 @@ class _DeleteAccountRequestDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
+    return AppModalDialog(
+      maxWidth: 460,
+      padding: const EdgeInsets.all(22),
       insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
-      child: GlassPanel(
-        padding: const EdgeInsets.all(22),
-        borderRadius: BorderRadius.circular(28),
-        blur: 24,
-        opacity: 0.14,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: AppColors.danger.withValues(alpha: 0.14),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: AppColors.danger.withValues(alpha: 0.14),
+            ),
+            child: const Center(
+              child: HugeIcon(
+                icon: HugeIcons.strokeRoundedDelete02,
+                size: 20,
+                color: AppColors.danger,
+                strokeWidth: 1.9,
               ),
-              child: const Center(
-                child: HugeIcon(
-                  icon: HugeIcons.strokeRoundedDelete02,
-                  size: 20,
-                  color: AppColors.danger,
-                  strokeWidth: 1.9,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Request account deletion?',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Budgetify will schedule the account for deletion in 30 days. Any sign-in or financial activity during that period cancels the request automatically.',
+            style: TextStyle(
+              fontSize: 12.5,
+              height: 1.65,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: AppModalActionButton(
+                  label: 'Keep account',
+                  onPressed: () => Navigator.of(context).pop(false),
+                  outlineForegroundColor: AppColors.textSecondary,
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Request account deletion?',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Budgetify will schedule the account for deletion in 30 days. Any sign-in or financial activity during that period cancels the request automatically.',
-              style: TextStyle(
-                fontSize: 12.5,
-                height: 1.65,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary,
-                      side: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.12),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    ),
-                    child: const Text('Keep account'),
-                  ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: AppModalActionButton(
+                  label: 'Request deletion',
+                  isPrimary: true,
+                  onPressed: () => Navigator.of(context).pop(true),
+                  primaryColor: AppColors.danger,
+                  primaryForegroundColor: Colors.white,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => Navigator.of(context).pop(true),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.danger,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    ),
-                    child: const Text('Request deletion'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
