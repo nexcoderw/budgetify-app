@@ -49,7 +49,11 @@ class AppLayout extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    AppNavbar(user: user),
+                    AppNavbar(
+                      user: user,
+                      onProfileTap: () =>
+                          onSectionSelected(AppLayoutSection.profile),
+                    ),
                     SizedBox(height: isCompact ? 18 : 24),
                     Expanded(
                       child: scrollChild
