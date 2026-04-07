@@ -8,6 +8,7 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/network/paginated_response.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_modal_dialog.dart';
 import '../../../../core/widgets/glass_panel.dart';
 import '../../../../core/widgets/skeleton_loader.dart';
 import '../../../income/application/income_service.dart';
@@ -3182,273 +3183,210 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
       opacity: _fadeAnim,
       child: ScaleTransition(
         scale: _scaleAnim,
-        child: Dialog(
-          backgroundColor: Colors.transparent,
+        child: AppModalDialog(
+          maxWidth: 460,
+          padding: const EdgeInsets.all(28),
           insetPadding: EdgeInsets.symmetric(
             horizontal: isCompact ? 16 : 40,
             vertical: 24,
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 460),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.15),
-                      Colors.white.withValues(alpha: 0.08),
-                    ],
-                  ),
-                  border: Border.all(
-                    color: AppColors.success.withValues(alpha: 0.28),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.success.withValues(alpha: 0.08),
-                      blurRadius: 48,
-                      offset: const Offset(0, 20),
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      blurRadius: 32,
-                      offset: const Offset(0, 12),
-                    ),
-                  ],
-                ),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(28),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Dialog header
-                        Row(
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppColors.success.withValues(
-                                  alpha: 0.16,
-                                ),
-                              ),
-                              child: Center(
-                                child: HugeIcon(
-                                  icon: _isEditing
-                                      ? HugeIcons.strokeRoundedPencil
-                                      : HugeIcons.strokeRoundedMoneyAdd01,
-                                  size: 18,
-                                  color: AppColors.success,
-                                  strokeWidth: 1.8,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    widget.title ??
-                                        (_isEditing
-                                            ? 'Edit income'
-                                            : 'Add income'),
-                                    style: const TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  Text(
-                                    widget.subtitle ??
-                                        (_isEditing
-                                            ? 'Update the details below'
-                                            : 'Fill in the details below'),
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.textSecondary.withValues(
-                                        alpha: 0.7,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: _isSubmitting
-                                  ? null
-                                  : () => Navigator.of(context).pop(),
-                              child: Container(
-                                width: 32,
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white.withValues(alpha: 0.07),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.12),
-                                  ),
-                                ),
-                                child: Center(
-                                  child: HugeIcon(
-                                    icon: HugeIcons.strokeRoundedCancel01,
-                                    size: 14,
-                                    color: AppColors.textSecondary,
-                                    strokeWidth: 2,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+          child: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Dialog header
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.success.withValues(alpha: 0.16),
                         ),
-                        const SizedBox(height: 24),
-                        _GradientDivider(color: AppColors.success),
-                        const SizedBox(height: 24),
-
-                        // Source label
-                        _FieldLabel(label: 'Source name'),
-                        const SizedBox(height: 8),
-                        _GlassField(
-                          controller: _labelCtrl,
-                          hint: 'e.g. Monthly Salary',
-                          validator: (v) => (v == null || v.trim().isEmpty)
-                              ? 'Please enter a source name'
-                              : null,
-                        ),
-                        const SizedBox(height: 18),
-
-                        // Amount
-                        _FieldLabel(label: 'Amount (RWF)'),
-                        const SizedBox(height: 8),
-                        _GlassField(
-                          controller: _amountCtrl,
-                          hint: 'e.g. 450000',
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          prefixText: 'RWF ',
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'Please enter an amount';
-                            }
-                            final n = double.tryParse(v.replaceAll(',', ''));
-                            if (n == null || n <= 0) {
-                              return 'Enter a valid amount';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 18),
-
-                        // Category
-                        _FieldLabel(label: 'Category'),
-                        const SizedBox(height: 8),
-                        _CategoryPicker(
-                          selected: _category,
-                          onChanged: (c) => setState(() => _category = c),
-                        ),
-                        const SizedBox(height: 18),
-
-                        _FieldLabel(label: 'Received state'),
-                        const SizedBox(height: 8),
-                        _ReceivedStatePicker(
-                          received: _received,
-                          onChanged: (value) =>
-                              setState(() => _received = value),
-                        ),
-                        const SizedBox(height: 18),
-
-                        // Date
-                        _FieldLabel(label: 'Date'),
-                        const SizedBox(height: 8),
-                        GestureDetector(
-                          onTap: _pickDate,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(14),
-                              color: Colors.white.withValues(alpha: 0.06),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.12),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                HugeIcon(
-                                  icon: HugeIcons.strokeRoundedCalendar03,
-                                  size: 16,
-                                  color: AppColors.textSecondary.withValues(
-                                    alpha: 0.7,
-                                  ),
-                                  strokeWidth: 1.8,
-                                ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  dateLabel,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.textPrimary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const Spacer(),
-                                HugeIcon(
-                                  icon: HugeIcons.strokeRoundedArrowDown01,
-                                  size: 14,
-                                  color: AppColors.textSecondary.withValues(
-                                    alpha: 0.5,
-                                  ),
-                                  strokeWidth: 1.8,
-                                ),
-                              ],
-                            ),
+                        child: Center(
+                          child: HugeIcon(
+                            icon: _isEditing
+                                ? HugeIcons.strokeRoundedPencil
+                                : HugeIcons.strokeRoundedMoneyAdd01,
+                            size: 18,
+                            color: AppColors.success,
+                            strokeWidth: 1.8,
                           ),
                         ),
-                        const SizedBox(height: 28),
-
-                        // Action buttons
-                        Row(
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: _DialogButton(
-                                label: 'Cancel',
-                                isPrimary: false,
-                                isDisabled: _isSubmitting,
-                                onTap: () async {
-                                  Navigator.of(context).pop();
-                                },
+                            Text(
+                              widget.title ??
+                                  (_isEditing ? 'Edit income' : 'Add income'),
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _DialogButton(
-                                label:
-                                    widget.submitLabel ??
-                                    (_isEditing
-                                        ? 'Save changes'
-                                        : 'Add income'),
-                                isPrimary: true,
-                                isLoading: _isSubmitting,
-                                onTap: _submit,
+                            Text(
+                              widget.subtitle ??
+                                  (_isEditing
+                                      ? 'Update the details below'
+                                      : 'Fill in the details below'),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary.withValues(
+                                  alpha: 0.7,
+                                ),
                               ),
                             ),
                           ],
                         ),
-                      ],
+                      ),
+                      AppModalCloseButton(
+                        onTap: _isSubmitting
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  _GradientDivider(color: AppColors.success),
+                  const SizedBox(height: 24),
+
+                  // Source label
+                  _FieldLabel(label: 'Source name'),
+                  const SizedBox(height: 8),
+                  _GlassField(
+                    controller: _labelCtrl,
+                    hint: 'e.g. Monthly Salary',
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Please enter a source name'
+                        : null,
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Amount
+                  _FieldLabel(label: 'Amount (RWF)'),
+                  const SizedBox(height: 8),
+                  _GlassField(
+                    controller: _amountCtrl,
+                    hint: 'e.g. 450000',
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    prefixText: 'RWF ',
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Please enter an amount';
+                      }
+                      final n = double.tryParse(v.replaceAll(',', ''));
+                      if (n == null || n <= 0) {
+                        return 'Enter a valid amount';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Category
+                  _FieldLabel(label: 'Category'),
+                  const SizedBox(height: 8),
+                  _CategoryPicker(
+                    selected: _category,
+                    onChanged: (c) => setState(() => _category = c),
+                  ),
+                  const SizedBox(height: 18),
+
+                  _FieldLabel(label: 'Received state'),
+                  const SizedBox(height: 8),
+                  _ReceivedStatePicker(
+                    received: _received,
+                    onChanged: (value) => setState(() => _received = value),
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Date
+                  _FieldLabel(label: 'Date'),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: _pickDate,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        color: Colors.white.withValues(alpha: 0.06),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.12),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          HugeIcon(
+                            icon: HugeIcons.strokeRoundedCalendar03,
+                            size: 16,
+                            color: AppColors.textSecondary.withValues(
+                              alpha: 0.7,
+                            ),
+                            strokeWidth: 1.8,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            dateLabel,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const Spacer(),
+                          HugeIcon(
+                            icon: HugeIcons.strokeRoundedArrowDown01,
+                            size: 14,
+                            color: AppColors.textSecondary.withValues(
+                              alpha: 0.5,
+                            ),
+                            strokeWidth: 1.8,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 28),
+
+                  // Action buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _DialogButton(
+                          label: 'Cancel',
+                          isPrimary: false,
+                          isDisabled: _isSubmitting,
+                          onTap: () async {
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _DialogButton(
+                          label:
+                              widget.submitLabel ??
+                              (_isEditing ? 'Save changes' : 'Add income'),
+                          isPrimary: true,
+                          isLoading: _isSubmitting,
+                          onTap: _submit,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
@@ -3633,116 +3571,81 @@ class _DeleteConfirmDialogState extends State<_DeleteConfirmDialog>
       opacity: _fadeAnim,
       child: ScaleTransition(
         scale: _scaleAnim,
-        child: Dialog(
-          backgroundColor: Colors.transparent,
+        child: AppModalDialog(
+          maxWidth: 380,
+          padding: const EdgeInsets.all(28),
           insetPadding: const EdgeInsets.symmetric(
             horizontal: 40,
             vertical: 24,
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 380),
-                padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.14),
-                      Colors.white.withValues(alpha: 0.08),
-                    ],
-                  ),
+                  shape: BoxShape.circle,
+                  color: AppColors.danger.withValues(alpha: 0.14),
                   border: Border.all(
                     color: AppColors.danger.withValues(alpha: 0.3),
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.danger.withValues(alpha: 0.08),
-                      blurRadius: 40,
-                      offset: const Offset(0, 16),
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      blurRadius: 28,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.danger.withValues(alpha: 0.14),
-                        border: Border.all(
-                          color: AppColors.danger.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: const Center(
-                        child: HugeIcon(
-                          icon: HugeIcons.strokeRoundedDelete01,
-                          size: 24,
-                          color: AppColors.danger,
-                          strokeWidth: 1.8,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    const Text(
-                      'Remove income entry?',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '"${widget.label}" will be permanently removed from your records.',
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.55,
-                        color: AppColors.textSecondary.withValues(alpha: 0.8),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _DialogButton(
-                            label: 'Keep it',
-                            isPrimary: false,
-                            onTap: () async {
-                              Navigator.of(context).pop(false);
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _DialogButton(
-                            label: 'Delete',
-                            isPrimary: true,
-                            isDanger: true,
-                            onTap: () async {
-                              Navigator.of(context).pop(true);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                child: const Center(
+                  child: HugeIcon(
+                    icon: HugeIcons.strokeRoundedDelete01,
+                    size: 24,
+                    color: AppColors.danger,
+                    strokeWidth: 1.8,
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(height: 18),
+              const Text(
+                'Remove income entry?',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '"${widget.label}" will be permanently removed from your records.',
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.55,
+                  color: AppColors.textSecondary.withValues(alpha: 0.8),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: _DialogButton(
+                      label: 'Keep it',
+                      isPrimary: false,
+                      onTap: () async {
+                        Navigator.of(context).pop(false);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _DialogButton(
+                      label: 'Delete',
+                      isPrimary: true,
+                      isDanger: true,
+                      onTap: () async {
+                        Navigator.of(context).pop(true);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -3892,57 +3795,15 @@ class _DialogButtonState extends State<_DialogButton> {
       child: AnimatedScale(
         scale: _pressed && isInteractive ? 0.96 : 1.0,
         duration: const Duration(milliseconds: 110),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(999),
-            color: widget.isPrimary
-                ? accent.withValues(alpha: isInteractive ? 0.18 : 0.10)
-                : Colors.white.withValues(alpha: 0.06),
-            border: Border.all(
-              color: widget.isPrimary
-                  ? accent.withValues(alpha: isInteractive ? 0.4 : 0.2)
-                  : Colors.white.withValues(alpha: 0.1),
-            ),
-            boxShadow: widget.isPrimary && isInteractive
-                ? [
-                    BoxShadow(
-                      color: accent.withValues(alpha: 0.14),
-                      blurRadius: 14,
-                      offset: const Offset(0, 5),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Center(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              child: widget.isLoading
-                  ? SizedBox(
-                      key: const ValueKey('dialog-button-loading'),
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 1.8,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          widget.isPrimary ? accent : AppColors.textSecondary,
-                        ),
-                      ),
-                    )
-                  : Text(
-                      widget.label,
-                      key: ValueKey<String>(widget.label),
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: widget.isPrimary
-                            ? accent
-                            : AppColors.textSecondary.withValues(
-                                alpha: isInteractive ? 1 : 0.55,
-                              ),
-                      ),
-                    ),
-            ),
+        child: AppModalActionButton(
+          label: widget.label,
+          isPrimary: widget.isPrimary,
+          isLoading: widget.isLoading,
+          onPressed: isInteractive ? () => widget.onTap() : null,
+          primaryColor: accent,
+          primaryForegroundColor: AppColors.background,
+          outlineForegroundColor: AppColors.textSecondary.withValues(
+            alpha: isInteractive ? 1 : 0.55,
           ),
         ),
       ),
