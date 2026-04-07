@@ -6,9 +6,11 @@ import '../../auth/data/routes/auth_api_routes.dart';
 import '../../auth/data/services/auth_api_service.dart';
 import '../../auth/data/services/auth_session_storage.dart';
 import '../data/models/todo_item.dart';
+import '../data/models/todo_list_query.dart';
 import '../data/models/todo_upload_image.dart';
 import '../data/routes/todo_api_routes.dart';
 import '../data/services/todo_api_service.dart';
+import '../../../core/network/paginated_response.dart';
 
 class TodoService {
   TodoService({
@@ -41,10 +43,29 @@ class TodoService {
   final AuthApiService _authApiService;
   final AuthSessionStorage _sessionStorage;
 
-  Future<List<TodoItem>> listTodos() async {
+  Future<List<TodoItem>> listTodos({
+    TodoListQuery query = const TodoListQuery(),
+  }) async {
     final session = await _resolveActiveSession();
 
-    return _todoApiService.fetchTodos(session.accessToken);
+    return _todoApiService.fetchTodos(session.accessToken, query: query);
+  }
+
+  Future<PaginatedResponse<TodoItem>> listTodosPage({
+    TodoListQuery query = const TodoListQuery(),
+  }) async {
+    final session = await _resolveActiveSession();
+
+    return _todoApiService.fetchTodosPage(session.accessToken, query: query);
+  }
+
+  Future<TodoItem> getTodo(String todoId) async {
+    final session = await _resolveActiveSession();
+
+    return _todoApiService.fetchTodo(
+      accessToken: session.accessToken,
+      todoId: todoId,
+    );
   }
 
   Future<TodoItem> createTodo({
