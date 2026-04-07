@@ -43,6 +43,7 @@ class _LandingPageState extends State<LandingPage> {
   final TodoService _todoService = TodoService.createDefault();
   final PartnershipService _partnershipService =
       PartnershipService.createDefault();
+  late AuthUser _currentUser;
   bool _isLoggingOut = false;
   bool _isInviteAcceptanceOpen = false;
   AppLayoutSection _currentSection = AppLayoutSection.dashboard;
@@ -50,6 +51,7 @@ class _LandingPageState extends State<LandingPage> {
   @override
   void initState() {
     super.initState();
+    _currentUser = widget.user;
     _inviteLinkStore.pendingInviteToken.addListener(_onPendingInviteChanged);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -64,9 +66,18 @@ class _LandingPageState extends State<LandingPage> {
   }
 
   @override
+  void didUpdateWidget(covariant LandingPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user.updatedAt != widget.user.updatedAt ||
+        oldWidget.user.id != widget.user.id) {
+      _currentUser = widget.user;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AppLayout(
-      user: widget.user,
+      user: _currentUser,
       currentSection: _currentSection,
       scrollChild: _currentSection != AppLayoutSection.todos,
       isLoggingOut: _isLoggingOut,
@@ -88,7 +99,7 @@ class _LandingPageState extends State<LandingPage> {
     switch (_currentSection) {
       case AppLayoutSection.dashboard:
         return DashboardPage(
-          user: widget.user,
+          user: _currentUser,
           incomeService: _incomeService,
           expenseService: _expenseService,
           savingService: _savingService,
@@ -115,10 +126,12 @@ class _LandingPageState extends State<LandingPage> {
         return LoanPage(loanService: _loanService);
       case AppLayoutSection.profile:
         return ProfilePage(
-          user: widget.user,
+          user: _currentUser,
+          authService: widget.authService,
           partnershipService: _partnershipService,
           isLoggingOut: _isLoggingOut,
           onLogout: _isLoggingOut ? null : _logout,
+          onUserChanged: _handleUserChanged,
         );
     }
   }
@@ -153,7 +166,7 @@ class _LandingPageState extends State<LandingPage> {
       await Navigator.of(context).push<bool>(
         MaterialPageRoute<bool>(
           builder: (_) => AcceptPartnershipInvitePage(
-            currentUser: widget.user,
+            currentUser: _currentUser,
             partnershipService: _partnershipService,
             initialInviteValue: token,
           ),
@@ -165,6 +178,16 @@ class _LandingPageState extends State<LandingPage> {
         unawaited(_openPendingInviteIfNeeded());
       }
     }
+  }
+
+  void _handleUserChanged(AuthUser nextUser) {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _currentUser = nextUser;
+    });
   }
 
   Future<void> _logout() async {
