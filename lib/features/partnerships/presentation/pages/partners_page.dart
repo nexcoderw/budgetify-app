@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -9,6 +8,8 @@ import '../../../../core/widgets/skeleton_loader.dart';
 import '../../../auth/data/models/auth_user.dart';
 import '../../application/partnership_service.dart';
 import '../../data/models/partnership_models.dart';
+import '../partnership_view_utils.dart';
+import 'accept_partnership_invite_page.dart';
 
 class PartnersPage extends StatefulWidget {
   const PartnersPage({
@@ -26,31 +27,24 @@ class PartnersPage extends StatefulWidget {
 
 class _PartnersPageState extends State<PartnersPage> {
   late final TextEditingController _inviteEmailCtrl;
-  late final TextEditingController _inviteTokenCtrl;
 
   Partnership? _partnership;
-  InviteInfo? _inviteInfo;
   bool _isLoading = true;
   bool _isSubmittingInvite = false;
-  bool _isLoadingInviteInfo = false;
-  bool _isAcceptingInvite = false;
   bool _isCancellingInvite = false;
   bool _isRemovingPartner = false;
   String? _loadError;
-  String? _inviteInfoError;
 
   @override
   void initState() {
     super.initState();
     _inviteEmailCtrl = TextEditingController();
-    _inviteTokenCtrl = TextEditingController();
     _loadPartnership();
   }
 
   @override
   void dispose() {
     _inviteEmailCtrl.dispose();
-    _inviteTokenCtrl.dispose();
     super.dispose();
   }
 
@@ -77,15 +71,6 @@ class _PartnersPageState extends State<PartnersPage> {
     }
 
     return partnership.owner;
-  }
-
-  bool get _inviteEmailMismatch {
-    if (_inviteInfo == null) {
-      return false;
-    }
-
-    return widget.user.email.trim().toLowerCase() !=
-        _inviteInfo!.inviteeEmail.trim().toLowerCase();
   }
 
   Future<void> _loadPartnership() async {
@@ -165,92 +150,6 @@ class _PartnersPageState extends State<PartnersPage> {
     }
   }
 
-  Future<void> _previewInvite() async {
-    final token = _extractInviteToken(_inviteTokenCtrl.text);
-    if (token == null) {
-      setState(() {
-        _inviteInfo = null;
-        _inviteInfoError = 'Paste a full invitation link or a valid token.';
-      });
-      return;
-    }
-
-    setState(() {
-      _isLoadingInviteInfo = true;
-      _inviteInfoError = null;
-    });
-
-    try {
-      final info = await widget.partnershipService.getInviteInfo(token);
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _inviteInfo = info;
-      });
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _inviteInfo = null;
-        _inviteInfoError = _readableError(error);
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _isLoadingInviteInfo = false);
-      }
-    }
-  }
-
-  Future<void> _acceptInvite() async {
-    final token = _extractInviteToken(_inviteTokenCtrl.text);
-    if (token == null) {
-      return;
-    }
-
-    setState(() => _isAcceptingInvite = true);
-
-    try {
-      final partnership = await widget.partnershipService.acceptInvite(
-        inviteToken: token,
-      );
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _partnership = partnership;
-        _inviteInfo = null;
-        _inviteInfoError = null;
-        _inviteTokenCtrl.clear();
-      });
-
-      AppToast.success(
-        context,
-        title: 'Partners connected',
-        description:
-            'You are now working inside the same finance space together.',
-      );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      AppToast.error(
-        context,
-        title: 'Unable to accept invitation',
-        description: _readableError(error),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isAcceptingInvite = false);
-      }
-    }
-  }
-
   Future<void> _cancelPendingInvite() async {
     setState(() => _isCancellingInvite = true);
 
@@ -315,24 +214,19 @@ class _PartnersPageState extends State<PartnersPage> {
     }
   }
 
-  Future<void> _pasteInviteLink() async {
-    final data = await Clipboard.getData('text/plain');
-    if (!mounted) {
-      return;
-    }
+  Future<void> _openAcceptInvitePage() async {
+    final accepted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => AcceptPartnershipInvitePage(
+          currentUser: widget.user,
+          partnershipService: widget.partnershipService,
+        ),
+      ),
+    );
 
-    final value = data?.text?.trim();
-    if (value == null || value.isEmpty) {
-      AppToast.info(
-        context,
-        title: 'Nothing to paste',
-        description: 'Copy the invitation link first, then try again.',
-      );
-      return;
+    if (accepted == true && mounted) {
+      await _loadPartnership();
     }
-
-    _inviteTokenCtrl.text = value;
-    await _previewInvite();
   }
 
   @override
@@ -387,17 +281,9 @@ class _PartnersPageState extends State<PartnersPage> {
                     onSubmit: _submitInvite,
                   ),
                   const SizedBox(height: 14),
-                  _AcceptInvitePanel(
+                  _AcceptInviteEntryPanel(
                     currentUser: widget.user,
-                    controller: _inviteTokenCtrl,
-                    inviteInfo: _inviteInfo,
-                    inviteInfoError: _inviteInfoError,
-                    isLoadingPreview: _isLoadingInviteInfo,
-                    isAcceptingInvite: _isAcceptingInvite,
-                    emailMismatch: _inviteEmailMismatch,
-                    onPreviewInvite: _previewInvite,
-                    onAcceptInvite: _acceptInvite,
-                    onPasteInvite: _pasteInviteLink,
+                    onOpenAcceptInvite: _openAcceptInvitePage,
                   ),
                 ],
               ],
@@ -417,23 +303,6 @@ class _PartnersPageState extends State<PartnersPage> {
       return message.replaceFirst('StateError: ', '');
     }
     return message;
-  }
-
-  String? _extractInviteToken(String input) {
-    final normalized = input.trim();
-    if (normalized.isEmpty) {
-      return null;
-    }
-
-    final uri = Uri.tryParse(normalized);
-    final token = uri?.queryParameters['token'];
-    if (token != null && token.isNotEmpty) {
-      return token;
-    }
-
-    return normalized.contains(' ')
-        ? null
-        : normalized.replaceAll(RegExp(r'^.*token='), '');
   }
 }
 
@@ -552,7 +421,7 @@ class _HeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final counterpartLabel = counterpart == null
         ? (inviteeEmail ?? 'Your future partner')
-        : _displayPartnerName(counterpart!);
+        : displayPartnerName(counterpart!);
 
     return GlassPanel(
       padding: const EdgeInsets.all(24),
@@ -566,7 +435,7 @@ class _HeroCard extends StatelessWidget {
             children: [
               _PartnerAvatar(
                 avatarUrl: currentUser.avatarUrl,
-                fallbackLabel: _displayAuthUserName(currentUser),
+                fallbackLabel: displayAuthUserName(currentUser),
               ),
               const SizedBox(width: 12),
               Container(
@@ -750,7 +619,7 @@ class _PartnershipStatusPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final counterpartLabel = counterpart == null
         ? partnership.inviteeEmail
-        : _displayPartnerName(counterpart!);
+        : displayPartnerName(counterpart!);
 
     return GlassPanel(
       padding: const EdgeInsets.all(24),
@@ -780,7 +649,7 @@ class _PartnershipStatusPanel extends StatelessWidget {
                     Text(
                       partnership.status == PartnershipStatus.pending
                           ? 'We are waiting for $counterpartLabel to accept the invitation.'
-                          : '${_displayAuthUserName(currentUser)} and $counterpartLabel are now partners inside the same finance workspace.',
+                          : '${displayAuthUserName(currentUser)} and $counterpartLabel are now partners inside the same finance workspace.',
                       style: TextStyle(
                         fontSize: 12,
                         height: 1.6,
@@ -797,7 +666,7 @@ class _PartnershipStatusPanel extends StatelessWidget {
           const SizedBox(height: 18),
           _PartnerLine(
             title: 'Invited by',
-            name: _displayPartnerName(partnership.owner),
+            name: displayPartnerName(partnership.owner),
             subtitle: partnership.owner.email,
             avatarUrl: partnership.owner.avatarUrl,
           ),
@@ -822,12 +691,12 @@ class _PartnershipStatusPanel extends StatelessWidget {
               children: [
                 _MetaRow(
                   label: 'Created',
-                  value: _formatDate(partnership.createdAt),
+                  value: formatPartnershipDate(partnership.createdAt),
                 ),
                 const SizedBox(height: 6),
                 _MetaRow(
                   label: 'Invite expires',
-                  value: _formatDate(partnership.expiresAt),
+                  value: formatPartnershipDate(partnership.expiresAt),
                 ),
               ],
             ),
@@ -914,42 +783,17 @@ class _InvitePartnerPanel extends StatelessWidget {
   }
 }
 
-class _AcceptInvitePanel extends StatelessWidget {
-  const _AcceptInvitePanel({
+class _AcceptInviteEntryPanel extends StatelessWidget {
+  const _AcceptInviteEntryPanel({
     required this.currentUser,
-    required this.controller,
-    required this.inviteInfo,
-    required this.inviteInfoError,
-    required this.isLoadingPreview,
-    required this.isAcceptingInvite,
-    required this.emailMismatch,
-    required this.onPreviewInvite,
-    required this.onAcceptInvite,
-    required this.onPasteInvite,
+    required this.onOpenAcceptInvite,
   });
 
   final AuthUser currentUser;
-  final TextEditingController controller;
-  final InviteInfo? inviteInfo;
-  final String? inviteInfoError;
-  final bool isLoadingPreview;
-  final bool isAcceptingInvite;
-  final bool emailMismatch;
-  final Future<void> Function() onPreviewInvite;
-  final Future<void> Function() onAcceptInvite;
-  final Future<void> Function() onPasteInvite;
+  final Future<void> Function() onOpenAcceptInvite;
 
   @override
   Widget build(BuildContext context) {
-    final ownerLabel = inviteInfo == null
-        ? 'Your partner'
-        : _displayLooseName(
-            firstName: inviteInfo!.ownerFirstName,
-            lastName: inviteInfo!.ownerLastName,
-            fullName: inviteInfo!.ownerFullName,
-            email: inviteInfo!.inviteeEmail,
-          );
-
     return GlassPanel(
       padding: const EdgeInsets.all(24),
       borderRadius: BorderRadius.circular(28),
@@ -959,7 +803,7 @@ class _AcceptInvitePanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Accept an invitation',
+            'Already have an invitation?',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
@@ -968,7 +812,7 @@ class _AcceptInvitePanel extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Paste the invitation link from your email and preview it before joining. You must be signed in with the invited email to continue.',
+            'Open the dedicated invite page to paste the link from your email, preview the partnership, and accept it while signed in as ${displayAuthUserName(currentUser)}.',
             style: TextStyle(
               fontSize: 12,
               height: 1.6,
@@ -976,121 +820,11 @@ class _AcceptInvitePanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          _GlassTextField(
-            controller: controller,
-            hint: 'Paste the invite link or token',
-            prefixIcon: HugeIcons.strokeRoundedLinkSquare02,
+          _ActionButton(
+            label: 'Open invite acceptance',
+            icon: HugeIcons.strokeRoundedLinkSquare02,
+            onTap: onOpenAcceptInvite,
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _ActionButton(
-                  label: isLoadingPreview
-                      ? 'Checking invite...'
-                      : 'Preview invite',
-                  icon: HugeIcons.strokeRoundedSearch01,
-                  isBusy: isLoadingPreview,
-                  onTap: onPreviewInvite,
-                ),
-              ),
-              const SizedBox(width: 10),
-              _IconActionButton(
-                icon: HugeIcons.strokeRoundedCopy01,
-                onTap: onPasteInvite,
-              ),
-            ],
-          ),
-          if (inviteInfoError != null) ...[
-            const SizedBox(height: 14),
-            Text(
-              inviteInfoError!,
-              style: const TextStyle(fontSize: 11, color: AppColors.danger),
-            ),
-          ],
-          if (inviteInfo != null) ...[
-            const SizedBox(height: 18),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                color: Colors.white.withValues(alpha: 0.04),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      _PartnerAvatar(
-                        avatarUrl: inviteInfo!.ownerAvatarUrl,
-                        fallbackLabel: ownerLabel,
-                        radius: 22,
-                      ),
-                      const SizedBox(width: 10),
-                      Container(
-                        width: 28,
-                        height: 1,
-                        color: AppColors.primary.withValues(alpha: 0.36),
-                      ),
-                      const SizedBox(width: 10),
-                      _PartnerAvatar(
-                        avatarUrl: currentUser.avatarUrl,
-                        fallbackLabel: _displayAuthUserName(currentUser),
-                        radius: 22,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    '$ownerLabel is ready to welcome you as a Budgetify partner.',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'You will both manage the same finances together, and Budgetify will still keep every movement traceable.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.55,
-                      color: AppColors.textSecondary.withValues(alpha: 0.8),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _MetaRow(
-                    label: 'Invitation prepared for',
-                    value: inviteInfo!.inviteeEmail,
-                  ),
-                  const SizedBox(height: 6),
-                  _MetaRow(
-                    label: 'Expires',
-                    value: _formatDate(inviteInfo!.expiresAt),
-                  ),
-                ],
-              ),
-            ),
-            if (emailMismatch) ...[
-              const SizedBox(height: 14),
-              Text(
-                'You are signed in as ${currentUser.email}, but this invitation was created for ${inviteInfo!.inviteeEmail}.',
-                style: const TextStyle(fontSize: 11, color: AppColors.danger),
-              ),
-            ] else ...[
-              const SizedBox(height: 16),
-              _ActionButton(
-                label: isAcceptingInvite
-                    ? 'Joining partnership...'
-                    : 'Accept and start sharing',
-                icon: HugeIcons.strokeRoundedUserMultiple,
-                isBusy: isAcceptingInvite,
-                onTap: onAcceptInvite,
-              ),
-            ],
-          ],
         ],
       ),
     );
@@ -1396,105 +1130,4 @@ class _ActionButton extends StatelessWidget {
       ),
     );
   }
-}
-
-class _IconActionButton extends StatelessWidget {
-  const _IconActionButton({required this.icon, required this.onTap});
-
-  final dynamic icon;
-  final Future<void> Function() onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => onTap(),
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: Colors.white.withValues(alpha: 0.05),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-        ),
-        child: Center(
-          child: HugeIcon(
-            icon: icon,
-            size: 16,
-            color: AppColors.textPrimary,
-            strokeWidth: 1.8,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-String _formatDate(DateTime value) {
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-
-  return '${months[value.month - 1]} ${value.day}, ${value.year}';
-}
-
-String _displayAuthUserName(AuthUser user) {
-  final fullName = user.fullName?.trim();
-  if (fullName != null && fullName.isNotEmpty) {
-    return fullName;
-  }
-
-  final firstName = user.firstName?.trim();
-  final lastName = user.lastName?.trim();
-  final composed = [
-    firstName,
-    lastName,
-  ].whereType<String>().where((value) => value.isNotEmpty).join(' ');
-
-  return composed.isEmpty ? user.email.split('@').first : composed;
-}
-
-String _displayPartnerName(PartnerUser user) {
-  final fullName = user.fullName?.trim();
-  if (fullName != null && fullName.isNotEmpty) {
-    return fullName;
-  }
-
-  final firstName = user.firstName?.trim();
-  final lastName = user.lastName?.trim();
-  final composed = [
-    firstName,
-    lastName,
-  ].whereType<String>().where((value) => value.isNotEmpty).join(' ');
-
-  return composed.isEmpty ? user.email.split('@').first : composed;
-}
-
-String _displayLooseName({
-  String? firstName,
-  String? lastName,
-  String? fullName,
-  required String email,
-}) {
-  final normalizedFullName = fullName?.trim();
-  if (normalizedFullName != null && normalizedFullName.isNotEmpty) {
-    return normalizedFullName;
-  }
-
-  final composed = [
-    firstName?.trim(),
-    lastName?.trim(),
-  ].whereType<String>().where((value) => value.isNotEmpty).join(' ');
-
-  return composed.isEmpty ? email.split('@').first : composed;
 }
