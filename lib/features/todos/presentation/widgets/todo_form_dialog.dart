@@ -1,11 +1,10 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_modal_dialog.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../data/models/todo_item.dart';
 import '../../data/models/todo_upload_image.dart';
@@ -116,414 +115,353 @@ class _TodoFormDialogState extends State<TodoFormDialog>
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
+    return AppModalDialog(
+      maxWidth: 620,
+      padding: const EdgeInsets.all(28),
       insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
       child: FadeTransition(
         opacity: _fade,
         child: ScaleTransition(
           scale: _scale,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 620),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.15),
-                      Colors.white.withValues(alpha: 0.08),
-                    ],
-                  ),
-                  border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.28),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.08),
-                      blurRadius: 48,
-                      offset: const Offset(0, 20),
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      blurRadius: 32,
-                      offset: const Offset(0, 12),
-                    ),
-                  ],
-                ),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(28),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+          child: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.primary.withValues(alpha: 0.16),
+                        ),
+                        child: Center(
+                          child: HugeIcon(
+                            icon: _isEditing
+                                ? HugeIcons.strokeRoundedPencil
+                                : HugeIcons.strokeRoundedTaskAdd01,
+                            size: 18,
+                            color: AppColors.primary,
+                            strokeWidth: 1.8,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppColors.primary.withValues(
-                                  alpha: 0.16,
-                                ),
-                              ),
-                              child: Center(
-                                child: HugeIcon(
-                                  icon: _isEditing
-                                      ? HugeIcons.strokeRoundedPencil
-                                      : HugeIcons.strokeRoundedTaskAdd01,
-                                  size: 18,
-                                  color: AppColors.primary,
-                                  strokeWidth: 1.8,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _isEditing
-                                        ? 'Edit todo item'
-                                        : 'Add todo item',
-                                    style: const TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Plan the budget, choose the schedule, and keep the item visually grounded with images.',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.textSecondary.withValues(
-                                        alpha: 0.7,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: _isSubmitting
-                                  ? null
-                                  : () => Navigator.of(context).pop(),
-                              child: Container(
-                                width: 32,
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white.withValues(alpha: 0.07),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.12),
-                                  ),
-                                ),
-                                child: Center(
-                                  child: HugeIcon(
-                                    icon: HugeIcons.strokeRoundedCancel01,
-                                    size: 14,
-                                    color: AppColors.textSecondary,
-                                    strokeWidth: 2,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        const _GradientDivider(color: AppColors.primary),
-                        const SizedBox(height: 24),
-                        _FieldLabel(label: 'Todo name'),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _nameCtrl,
-                          textCapitalization: TextCapitalization.sentences,
-                          validator: (value) {
-                            final normalized = value?.trim() ?? '';
-                            if (normalized.isEmpty) {
-                              return 'Enter a todo name.';
-                            }
-                            if (normalized.length > 120) {
-                              return 'Keep the name under 120 characters.';
-                            }
-                            return null;
-                          },
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textPrimary,
-                          ),
-                          decoration: _inputDecoration(
-                            hint: 'Renew annual car insurance',
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _FieldLabel(label: 'Planned budget (RWF)'),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _priceCtrl,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          inputFormatters: <TextInputFormatter>[
-                            FilteringTextInputFormatter.allow(
-                              RegExp(r'^\d*\.?\d{0,2}$'),
-                            ),
-                          ],
-                          validator: (value) {
-                            final amount = double.tryParse(value?.trim() ?? '');
-                            if (amount == null || amount <= 0) {
-                              return 'Enter an amount greater than zero.';
-                            }
-                            return null;
-                          },
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textPrimary,
-                          ),
-                          decoration: _inputDecoration(hint: '85000'),
-                        ),
-                        const SizedBox(height: 16),
-                        _FieldLabel(label: 'Priority'),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: TodoPriority.values
-                              .map(
-                                (priority) => _ChoiceChipButton(
-                                  label: priority.label,
-                                  selected: _priority == priority,
-                                  color: _priorityColor(priority),
-                                  onTap: () =>
-                                      setState(() => _priority = priority),
-                                ),
-                              )
-                              .toList(growable: false),
-                        ),
-                        const SizedBox(height: 16),
-                        _FieldLabel(label: 'Status'),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _ChoiceChipButton(
-                              label: 'Open',
-                              selected: !_done,
-                              color: const Color(0xFFFFB86C),
-                              onTap: () => setState(() => _done = false),
-                            ),
-                            _ChoiceChipButton(
-                              label: 'Done',
-                              selected: _done,
-                              color: AppColors.success,
-                              onTap: () => setState(() => _done = true),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        _FieldLabel(label: 'How often will this happen?'),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: TodoFrequency.values
-                              .map(
-                                (frequency) => _ChoiceChipButton(
-                                  label: frequency.label,
-                                  selected: _frequency == frequency,
-                                  color: AppColors.primary,
-                                  onTap: () =>
-                                      _applySchedulePatch(frequency: frequency),
-                                ),
-                              )
-                              .toList(growable: false),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _DateTile(
-                                label: 'Start date',
-                                value: formatTodoDate(
-                                  parseDateOnly(_startDate),
-                                ),
-                                onTap: _pickStartDate,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _DateTile(
-                                label: 'End date',
-                                value: formatTodoDate(parseDateOnly(_endDate)),
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (_frequency == TodoFrequency.weekly) ...[
-                          const SizedBox(height: 16),
-                          _FieldLabel(label: 'Select the weekdays'),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: todoWeekdayValues
-                                .map(
-                                  (day) => _ChoiceChipButton(
-                                    label: todoWeekdayLabels[day],
-                                    selected: _frequencyDays.contains(day),
-                                    color: AppColors.primary,
-                                    onTap: () {
-                                      final next = <int>[..._frequencyDays];
-                                      if (next.contains(day)) {
-                                        next.remove(day);
-                                      } else {
-                                        next.add(day);
-                                      }
-                                      _applySchedulePatch(frequencyDays: next);
-                                    },
-                                  ),
-                                )
-                                .toList(growable: false),
-                          ),
-                        ],
-                        if (_frequency == TodoFrequency.monthly ||
-                            _frequency == TodoFrequency.yearly) ...[
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              const Expanded(
-                                child: _FieldLabel(
-                                  label: 'Select occurrence dates',
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: _pickOccurrenceDate,
-                                child: const Text('Add date'),
-                              ),
-                            ],
-                          ),
-                          if (_occurrenceDates.isEmpty)
                             Text(
-                              'Pick at least one occurrence date inside the schedule window.',
+                              _isEditing ? 'Edit todo item' : 'Add todo item',
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              'Plan the budget, choose the schedule, and keep the item visually grounded with images.',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: AppColors.textSecondary.withValues(
-                                  alpha: 0.72,
+                                  alpha: 0.7,
                                 ),
-                              ),
-                            )
-                          else
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: _occurrenceDates
-                                  .map(
-                                    (date) => _OccurrenceChip(
-                                      label: formatTodoDate(
-                                        parseDateOnly(date),
-                                      ),
-                                      onRemove: () {
-                                        final next = <String>[
-                                          ..._occurrenceDates,
-                                        ]..remove(date);
-                                        _applySchedulePatch(
-                                          occurrenceDates: next,
-                                        );
-                                      },
-                                    ),
-                                  )
-                                  .toList(growable: false),
-                            ),
-                        ],
-                        const SizedBox(height: 16),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(18),
-                            color: Colors.white.withValues(alpha: 0.04),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.08),
-                            ),
-                          ),
-                          child: Text(
-                            _frequency == TodoFrequency.once
-                                ? 'One occurrence planned.'
-                                : '${_occurrenceDates.length} occurrence${_occurrenceDates.length == 1 ? '' : 's'} planned between ${formatTodoDate(parseDateOnly(_startDate))} and ${formatTodoDate(parseDateOnly(_endDate))}.',
-                            style: TextStyle(
-                              fontSize: 11,
-                              height: 1.45,
-                              color: AppColors.textSecondary.withValues(
-                                alpha: 0.74,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        _PhotosSection(
-                          existingImages: _existingImages,
-                          newImages: _newImages,
-                          selectedPrimaryImageId: _selectedPrimaryImageId,
-                          isSubmitting: _isSubmitting,
-                          isLoadingImages: _isLoadingImages,
-                          onAddTap: _pickImages,
-                          onRemoveNew: (index) {
-                            setState(() {
-                              _newImages = <TodoUploadImage>[..._newImages]
-                                ..removeAt(index);
-                            });
-                          },
-                          onSelectPrimary: (imageId) =>
-                              setState(() => _selectedPrimaryImageId = imageId),
-                        ),
-                        if (_errorText != null) ...[
-                          const SizedBox(height: 16),
-                          Text(
-                            _errorText!,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.danger,
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 22),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _DialogButton(
-                                label: 'Cancel',
-                                isPrimary: false,
-                                isDisabled: _isSubmitting,
-                                onTap: () async {
-                                  Navigator.of(context).pop();
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _DialogButton(
-                                label: _isEditing
-                                    ? 'Save changes'
-                                    : 'Create todo',
-                                isPrimary: true,
-                                isLoading: _isSubmitting,
-                                onTap: _submit,
                               ),
                             ),
                           ],
                         ),
-                      ],
+                      ),
+                      AppModalCloseButton(
+                        onTap: _isSubmitting
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const _GradientDivider(color: AppColors.primary),
+                  const SizedBox(height: 24),
+                  _FieldLabel(label: 'Todo name'),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _nameCtrl,
+                    textCapitalization: TextCapitalization.sentences,
+                    validator: (value) {
+                      final normalized = value?.trim() ?? '';
+                      if (normalized.isEmpty) {
+                        return 'Enter a todo name.';
+                      }
+                      if (normalized.length > 120) {
+                        return 'Keep the name under 120 characters.';
+                      }
+                      return null;
+                    },
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textPrimary,
+                    ),
+                    decoration: _inputDecoration(
+                      hint: 'Renew annual car insurance',
                     ),
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  _FieldLabel(label: 'Planned budget (RWF)'),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _priceCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: <TextInputFormatter>[
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d*\.?\d{0,2}$'),
+                      ),
+                    ],
+                    validator: (value) {
+                      final amount = double.tryParse(value?.trim() ?? '');
+                      if (amount == null || amount <= 0) {
+                        return 'Enter an amount greater than zero.';
+                      }
+                      return null;
+                    },
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textPrimary,
+                    ),
+                    decoration: _inputDecoration(hint: '85000'),
+                  ),
+                  const SizedBox(height: 16),
+                  _FieldLabel(label: 'Priority'),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: TodoPriority.values
+                        .map(
+                          (priority) => _ChoiceChipButton(
+                            label: priority.label,
+                            selected: _priority == priority,
+                            color: _priorityColor(priority),
+                            onTap: () => setState(() => _priority = priority),
+                          ),
+                        )
+                        .toList(growable: false),
+                  ),
+                  const SizedBox(height: 16),
+                  _FieldLabel(label: 'Status'),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _ChoiceChipButton(
+                        label: 'Open',
+                        selected: !_done,
+                        color: const Color(0xFFFFB86C),
+                        onTap: () => setState(() => _done = false),
+                      ),
+                      _ChoiceChipButton(
+                        label: 'Done',
+                        selected: _done,
+                        color: AppColors.success,
+                        onTap: () => setState(() => _done = true),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  _FieldLabel(label: 'How often will this happen?'),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: TodoFrequency.values
+                        .map(
+                          (frequency) => _ChoiceChipButton(
+                            label: frequency.label,
+                            selected: _frequency == frequency,
+                            color: AppColors.primary,
+                            onTap: () =>
+                                _applySchedulePatch(frequency: frequency),
+                          ),
+                        )
+                        .toList(growable: false),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _DateTile(
+                          label: 'Start date',
+                          value: formatTodoDate(parseDateOnly(_startDate)),
+                          onTap: _pickStartDate,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _DateTile(
+                          label: 'End date',
+                          value: formatTodoDate(parseDateOnly(_endDate)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_frequency == TodoFrequency.weekly) ...[
+                    const SizedBox(height: 16),
+                    _FieldLabel(label: 'Select the weekdays'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: todoWeekdayValues
+                          .map(
+                            (day) => _ChoiceChipButton(
+                              label: todoWeekdayLabels[day],
+                              selected: _frequencyDays.contains(day),
+                              color: AppColors.primary,
+                              onTap: () {
+                                final next = <int>[..._frequencyDays];
+                                if (next.contains(day)) {
+                                  next.remove(day);
+                                } else {
+                                  next.add(day);
+                                }
+                                _applySchedulePatch(frequencyDays: next);
+                              },
+                            ),
+                          )
+                          .toList(growable: false),
+                    ),
+                  ],
+                  if (_frequency == TodoFrequency.monthly ||
+                      _frequency == TodoFrequency.yearly) ...[
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: _FieldLabel(label: 'Select occurrence dates'),
+                        ),
+                        TextButton(
+                          onPressed: _pickOccurrenceDate,
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.textPrimary,
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.06,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                            shape: const StadiumBorder(),
+                          ),
+                          child: const Text('Add date'),
+                        ),
+                      ],
+                    ),
+                    if (_occurrenceDates.isEmpty)
+                      Text(
+                        'Pick at least one occurrence date inside the schedule window.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary.withValues(
+                            alpha: 0.72,
+                          ),
+                        ),
+                      )
+                    else
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _occurrenceDates
+                            .map(
+                              (date) => _OccurrenceChip(
+                                label: formatTodoDate(parseDateOnly(date)),
+                                onRemove: () {
+                                  final next = <String>[..._occurrenceDates]
+                                    ..remove(date);
+                                  _applySchedulePatch(occurrenceDates: next);
+                                },
+                              ),
+                            )
+                            .toList(growable: false),
+                      ),
+                  ],
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      color: Colors.white.withValues(alpha: 0.04),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: Text(
+                      _frequency == TodoFrequency.once
+                          ? 'One occurrence planned.'
+                          : '${_occurrenceDates.length} occurrence${_occurrenceDates.length == 1 ? '' : 's'} planned between ${formatTodoDate(parseDateOnly(_startDate))} and ${formatTodoDate(parseDateOnly(_endDate))}.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        height: 1.45,
+                        color: AppColors.textSecondary.withValues(alpha: 0.74),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _PhotosSection(
+                    existingImages: _existingImages,
+                    newImages: _newImages,
+                    selectedPrimaryImageId: _selectedPrimaryImageId,
+                    isSubmitting: _isSubmitting,
+                    isLoadingImages: _isLoadingImages,
+                    onAddTap: _pickImages,
+                    onRemoveNew: (index) {
+                      setState(() {
+                        _newImages = <TodoUploadImage>[..._newImages]
+                          ..removeAt(index);
+                      });
+                    },
+                    onSelectPrimary: (imageId) =>
+                        setState(() => _selectedPrimaryImageId = imageId),
+                  ),
+                  if (_errorText != null) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      _errorText!,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.danger,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 22),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _DialogButton(
+                          label: 'Cancel',
+                          isPrimary: false,
+                          isDisabled: _isSubmitting,
+                          onTap: () async {
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _DialogButton(
+                          label: _isEditing ? 'Save changes' : 'Create todo',
+                          isPrimary: true,
+                          isLoading: _isSubmitting,
+                          onTap: _submit,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
@@ -996,6 +934,15 @@ class _PhotosSection extends StatelessWidget {
                     onPressed: isSubmitting || totalCount >= _maxTodoImages
                         ? null
                         : onAddTap,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.textPrimary,
+                      backgroundColor: Colors.white.withValues(alpha: 0.06),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      shape: const StadiumBorder(),
+                    ),
                     child: Text(isLoadingImages ? 'Loading…' : 'Add photos'),
                   ),
                 ],
@@ -1142,12 +1089,6 @@ class _DialogButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final backgroundColor = isPrimary
-        ? AppColors.primary.withValues(alpha: isDisabled ? 0.12 : 0.16)
-        : Colors.white.withValues(alpha: 0.05);
-    final borderColor = isPrimary
-        ? AppColors.primary.withValues(alpha: isDisabled ? 0.16 : 0.24)
-        : Colors.white.withValues(alpha: 0.12);
     final foregroundColor = isPrimary
         ? (isDisabled
               ? AppColors.primary.withValues(alpha: 0.55)
@@ -1158,34 +1099,14 @@ class _DialogButton extends StatelessWidget {
 
     return GestureDetector(
       onTap: isDisabled || isLoading ? null : () => onTap(),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: backgroundColor,
-          border: Border.all(color: borderColor),
-        ),
-        child: Center(
-          child: isLoading
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.8,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      AppColors.primary,
-                    ),
-                  ),
-                )
-              : Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: foregroundColor,
-                  ),
-                ),
-        ),
+      child: AppModalActionButton(
+        label: label,
+        isPrimary: isPrimary,
+        isLoading: isLoading,
+        onPressed: isDisabled || isLoading ? null : () => onTap(),
+        primaryColor: AppColors.primary,
+        primaryForegroundColor: AppColors.background,
+        outlineForegroundColor: foregroundColor,
       ),
     );
   }
