@@ -36,8 +36,12 @@ Future<void> openPostAuthDestination({
   required AuthUser user,
   bool clearStack = false,
 }) async {
-  final pendingInviteToken = PartnershipInviteLinkStore.instance
+  final pendingInviteToken = await PartnershipInviteLinkStore.instance
       .takePendingInviteToken();
+
+  if (!context.mounted) {
+    return;
+  }
 
   final destination = pendingInviteToken == null
       ? LandingPage(authService: authService, user: user)
@@ -52,7 +56,15 @@ Future<void> openPostAuthDestination({
   final route = buildPostAuthRoute(destination);
 
   if (clearStack) {
+    if (!context.mounted) {
+      return;
+    }
+
     Navigator.of(context).pushAndRemoveUntil(route, (route) => false);
+    return;
+  }
+
+  if (!context.mounted) {
     return;
   }
 
