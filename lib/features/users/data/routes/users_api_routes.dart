@@ -6,4 +6,5 @@ class UsersApiRoutes {
   static const String base = '/api/v1/users';
 
   String get me => '$base/me';
+  String get deletionRequest => '$base/me/deletion-request';
 }
