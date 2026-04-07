@@ -47,6 +47,8 @@ class _BudgetifyAppState extends State<BudgetifyApp> {
       return;
     }
 
+    await PartnershipInviteLinkStore.instance.hydrate();
+
     final appLinks = AppLinks();
     final initialUri = await appLinks.getInitialLink();
     _handleIncomingInviteUri(initialUri);
@@ -67,7 +69,7 @@ class _BudgetifyAppState extends State<BudgetifyApp> {
       return;
     }
 
-    PartnershipInviteLinkStore.instance.stageInviteToken(token);
+    unawaited(PartnershipInviteLinkStore.instance.stageInviteToken(token));
   }
 
   @override
