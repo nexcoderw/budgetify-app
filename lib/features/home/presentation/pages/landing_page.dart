@@ -116,8 +116,6 @@ class _LandingPageState extends State<LandingPage> {
       case AppLayoutSection.profile:
         return ProfilePage(
           user: widget.user,
-          todoService: _todoService,
-          expenseService: _expenseService,
           partnershipService: _partnershipService,
           isLoggingOut: _isLoggingOut,
           onLogout: _isLoggingOut ? null : _logout,
