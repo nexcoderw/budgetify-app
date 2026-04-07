@@ -35,10 +35,12 @@ class TodoPage extends StatefulWidget {
     super.key,
     required this.todoService,
     required this.expenseService,
+    this.embedded = false,
   });
 
   final TodoService todoService;
   final ExpenseService expenseService;
+  final bool embedded;
 
   @override
   State<TodoPage> createState() => _TodoPageState();
@@ -636,115 +638,126 @@ class _TodoPageState extends State<TodoPage>
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return _TodoPageLoading(fade: _fade, slide: _slide);
+      return _TodoPageLoading(
+        fade: _fade,
+        slide: _slide,
+        embedded: widget.embedded,
+      );
+    }
+
+    final content = RefreshIndicator(
+      color: AppColors.primary,
+      backgroundColor: AppColors.surfaceElevated,
+      onRefresh: _loadTodoDependencies,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        padding: const EdgeInsets.fromLTRB(18, 20, 18, 28),
+        children: [
+          _Staggered(
+            fade: _fade(0.0, 0.42),
+            slide: _slide(0.0, 0.42),
+            child: _TodoHeader(
+              onAdd: _openCreateDialog,
+              showBackButton: !widget.embedded,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _Staggered(
+            fade: _fade(0.12, 0.56),
+            slide: _slide(0.12, 0.56),
+            child: _TodoHero(
+              plannedTotal: _plannedTotal,
+              openCount: _openCount,
+              recurringCount: _recurringCount,
+              topPriorityCount: _topPriorityCount,
+              totalCount: _entries.length,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _Staggered(
+            fade: _fade(0.24, 0.68),
+            slide: _slide(0.24, 0.68),
+            child: _TodoStatsRow(
+              completionShare: _completionShare,
+              doneCount: _doneCount,
+              latestEntry: _latestEntry,
+              withImagesCount: _withImagesCount,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _Staggered(
+            fade: _fade(0.32, 0.76),
+            slide: _slide(0.32, 0.76),
+            child: _TodoFiltersPanel(
+              dateFrom: _selectedDateFrom,
+              dateTo: _selectedDateTo,
+              done: _selectedDone,
+              frequency: _selectedFrequency,
+              hasActiveFilters: _hasActiveFilters,
+              priority: _selectedPriority,
+              searchController: _searchCtrl,
+              searchInput: _searchInput,
+              onClearAll: _clearAllFilters,
+              onClearDate: _clearDateFilter,
+              onDatePicked: _pickFilterDate,
+              onDoneChanged: (value) async {
+                setState(() {
+                  _selectedDone = value;
+                  _currentPage = 1;
+                });
+                await _loadTodos();
+              },
+              onFrequencyChanged: (value) async {
+                setState(() {
+                  _selectedFrequency = value;
+                  _currentPage = 1;
+                });
+                await _loadTodos();
+              },
+              onPriorityChanged: (value) async {
+                setState(() {
+                  _selectedPriority = value;
+                  _currentPage = 1;
+                });
+                await _loadTodos();
+              },
+              onSearchChanged: _onSearchChanged,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _Staggered(
+            fade: _fade(0.44, 0.92),
+            slide: _slide(0.44, 0.92),
+            child: _TodoEntriesPanel(
+              currentPage: _currentPage,
+              entries: _pageEntries,
+              totalItems: _totalItems,
+              totalPages: _totalPages,
+              loadError: _loadError,
+              doneBusyId: _doneBusyId,
+              recordExpenseBusyId: _recordExpenseBusyId,
+              onDelete: _confirmDelete,
+              onEdit: _openEditDialog,
+              onNextPage: () => _goToPage(_currentPage + 1),
+              onPreviousPage: () => _goToPage(_currentPage - 1),
+              onRecordExpense: _openExpenseDialog,
+              onRetry: _loadTodos,
+              onToggleDone: _toggleDone,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (widget.embedded) {
+      return content;
     }
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: AppColors.primary,
-          backgroundColor: AppColors.surfaceElevated,
-          onRefresh: _loadTodoDependencies,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
-            ),
-            padding: const EdgeInsets.fromLTRB(18, 20, 18, 28),
-            children: [
-              _Staggered(
-                fade: _fade(0.0, 0.42),
-                slide: _slide(0.0, 0.42),
-                child: _TodoHeader(onAdd: _openCreateDialog),
-              ),
-              const SizedBox(height: 14),
-              _Staggered(
-                fade: _fade(0.12, 0.56),
-                slide: _slide(0.12, 0.56),
-                child: _TodoHero(
-                  plannedTotal: _plannedTotal,
-                  openCount: _openCount,
-                  recurringCount: _recurringCount,
-                  topPriorityCount: _topPriorityCount,
-                  totalCount: _entries.length,
-                ),
-              ),
-              const SizedBox(height: 14),
-              _Staggered(
-                fade: _fade(0.24, 0.68),
-                slide: _slide(0.24, 0.68),
-                child: _TodoStatsRow(
-                  completionShare: _completionShare,
-                  doneCount: _doneCount,
-                  latestEntry: _latestEntry,
-                  withImagesCount: _withImagesCount,
-                ),
-              ),
-              const SizedBox(height: 14),
-              _Staggered(
-                fade: _fade(0.32, 0.76),
-                slide: _slide(0.32, 0.76),
-                child: _TodoFiltersPanel(
-                  dateFrom: _selectedDateFrom,
-                  dateTo: _selectedDateTo,
-                  done: _selectedDone,
-                  frequency: _selectedFrequency,
-                  hasActiveFilters: _hasActiveFilters,
-                  priority: _selectedPriority,
-                  searchController: _searchCtrl,
-                  searchInput: _searchInput,
-                  onClearAll: _clearAllFilters,
-                  onClearDate: _clearDateFilter,
-                  onDatePicked: _pickFilterDate,
-                  onDoneChanged: (value) async {
-                    setState(() {
-                      _selectedDone = value;
-                      _currentPage = 1;
-                    });
-                    await _loadTodos();
-                  },
-                  onFrequencyChanged: (value) async {
-                    setState(() {
-                      _selectedFrequency = value;
-                      _currentPage = 1;
-                    });
-                    await _loadTodos();
-                  },
-                  onPriorityChanged: (value) async {
-                    setState(() {
-                      _selectedPriority = value;
-                      _currentPage = 1;
-                    });
-                    await _loadTodos();
-                  },
-                  onSearchChanged: _onSearchChanged,
-                ),
-              ),
-              const SizedBox(height: 14),
-              _Staggered(
-                fade: _fade(0.44, 0.92),
-                slide: _slide(0.44, 0.92),
-                child: _TodoEntriesPanel(
-                  currentPage: _currentPage,
-                  entries: _pageEntries,
-                  totalItems: _totalItems,
-                  totalPages: _totalPages,
-                  loadError: _loadError,
-                  doneBusyId: _doneBusyId,
-                  recordExpenseBusyId: _recordExpenseBusyId,
-                  onDelete: _confirmDelete,
-                  onEdit: _openEditDialog,
-                  onNextPage: () => _goToPage(_currentPage + 1),
-                  onPreviousPage: () => _goToPage(_currentPage - 1),
-                  onRecordExpense: _openExpenseDialog,
-                  onRetry: _loadTodos,
-                  onToggleDone: _toggleDone,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      body: SafeArea(child: content),
     );
   }
 }
@@ -770,41 +783,50 @@ class _Staggered extends StatelessWidget {
 }
 
 class _TodoPageLoading extends StatelessWidget {
-  const _TodoPageLoading({required this.fade, required this.slide});
+  const _TodoPageLoading({
+    required this.fade,
+    required this.slide,
+    required this.embedded,
+  });
 
   final Animation<double> Function(double, double) fade;
   final Animation<Offset> Function(double, double) slide;
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
+    final content = SkeletonLoader(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(18, 20, 18, 28),
+        children: [
+          _Staggered(
+            fade: fade(0.0, 0.42),
+            slide: slide(0.0, 0.42),
+            child: const _LoadingPanel(height: 120),
+          ),
+          const SizedBox(height: 14),
+          _Staggered(
+            fade: fade(0.14, 0.58),
+            slide: slide(0.14, 0.58),
+            child: const _LoadingPanel(height: 160),
+          ),
+          const SizedBox(height: 14),
+          _Staggered(
+            fade: fade(0.28, 0.72),
+            slide: slide(0.28, 0.72),
+            child: const _LoadingPanel(height: 180),
+          ),
+        ],
+      ),
+    );
+
+    if (embedded) {
+      return content;
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SkeletonLoader(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 20, 18, 28),
-            children: [
-              _Staggered(
-                fade: fade(0.0, 0.42),
-                slide: slide(0.0, 0.42),
-                child: const _LoadingPanel(height: 120),
-              ),
-              const SizedBox(height: 14),
-              _Staggered(
-                fade: fade(0.14, 0.58),
-                slide: slide(0.14, 0.58),
-                child: const _LoadingPanel(height: 160),
-              ),
-              const SizedBox(height: 14),
-              _Staggered(
-                fade: fade(0.28, 0.72),
-                slide: slide(0.28, 0.72),
-                child: const _LoadingPanel(height: 180),
-              ),
-            ],
-          ),
-        ),
-      ),
+      body: SafeArea(child: content),
     );
   }
 }
@@ -827,9 +849,10 @@ class _LoadingPanel extends StatelessWidget {
 }
 
 class _TodoHeader extends StatelessWidget {
-  const _TodoHeader({required this.onAdd});
+  const _TodoHeader({required this.onAdd, required this.showBackButton});
 
   final Future<void> Function() onAdd;
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
@@ -843,42 +866,43 @@ class _TodoHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 11,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    color: Colors.white.withValues(alpha: 0.05),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.12),
+              if (showBackButton)
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 11,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(999),
+                      color: Colors.white.withValues(alpha: 0.05),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.12),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        HugeIcon(
+                          icon: HugeIcons.strokeRoundedArrowLeft01,
+                          size: 14,
+                          color: AppColors.textPrimary,
+                          strokeWidth: 1.8,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Back',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      HugeIcon(
-                        icon: HugeIcons.strokeRoundedArrowLeft01,
-                        size: 14,
-                        color: AppColors.textPrimary,
-                        strokeWidth: 1.8,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'Back',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
-              ),
               const Spacer(),
               GestureDetector(
                 onTap: () => onAdd(),
