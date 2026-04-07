@@ -1,10 +1,9 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_modal_dialog.dart';
 import '../../../expenses/data/models/expense_entry.dart';
 import '../../data/models/todo_item.dart';
 import '../todo_utils.dart';
@@ -77,270 +76,211 @@ class _TodoExpenseDialogState extends State<TodoExpenseDialog>
     final recurring = isRecurringTodo(widget.entry);
     final remainingDates = getRemainingOccurrenceDates(widget.entry);
 
-    return Dialog(
-      backgroundColor: Colors.transparent,
+    return AppModalDialog(
+      maxWidth: 520,
+      padding: const EdgeInsets.all(28),
       insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
       child: FadeTransition(
         opacity: _fade,
         child: ScaleTransition(
           scale: _scale,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 520),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.15),
-                      Colors.white.withValues(alpha: 0.08),
-                    ],
-                  ),
-                  border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.28),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.08),
-                      blurRadius: 48,
-                      offset: const Offset(0, 20),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.primary.withValues(alpha: 0.16),
+                      ),
+                      child: const Center(
+                        child: HugeIcon(
+                          icon: HugeIcons.strokeRoundedMoneySendSquare,
+                          size: 18,
+                          color: AppColors.primary,
+                          strokeWidth: 1.8,
+                        ),
+                      ),
                     ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      blurRadius: 32,
-                      offset: const Offset(0, 12),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Record expense',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            recurring
+                                ? 'This records the expense and deducts it from the recurring todo budget.'
+                                : 'This records the expense and marks the todo as done.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.7,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    AppModalCloseButton(
+                      onTap: _isSubmitting
+                          ? null
+                          : () => Navigator.of(context).pop(),
                     ),
                   ],
                 ),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(28),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.primary.withValues(alpha: 0.16),
-                            ),
-                            child: const Center(
-                              child: HugeIcon(
-                                icon: HugeIcons.strokeRoundedMoneySendSquare,
-                                size: 18,
-                                color: AppColors.primary,
-                                strokeWidth: 1.8,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Record expense',
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                Text(
-                                  recurring
-                                      ? 'This records the expense and deducts it from the recurring todo budget.'
-                                      : 'This records the expense and marks the todo as done.',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textSecondary.withValues(
-                                      alpha: 0.7,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: _isSubmitting
-                                ? null
-                                : () => Navigator.of(context).pop(),
-                            child: Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white.withValues(alpha: 0.07),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.12),
-                                ),
-                              ),
-                              child: const Center(
-                                child: HugeIcon(
-                                  icon: HugeIcons.strokeRoundedCancel01,
-                                  size: 14,
-                                  color: AppColors.textSecondary,
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      const _GradientDivider(color: AppColors.primary),
-                      const SizedBox(height: 18),
-                      _SummaryCard(
-                        title: widget.entry.name,
-                        frequencyLabel: formatTodoFrequencyLabel(
-                          widget.entry.frequency,
+                const SizedBox(height: 24),
+                const _GradientDivider(color: AppColors.primary),
+                const SizedBox(height: 18),
+                _SummaryCard(
+                  title: widget.entry.name,
+                  frequencyLabel: formatTodoFrequencyLabel(
+                    widget.entry.frequency,
+                  ),
+                  value: _rwf(widget.entry.price),
+                  detail: recurring
+                      ? 'Remaining ${_rwf(widget.entry.remainingAmount ?? 0)}'
+                      : 'One-time item',
+                ),
+                const SizedBox(height: 18),
+                _FieldLabel(label: 'Expense category'),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<ExpenseCategory>(
+                  initialValue: _selectedCategory,
+                  items: widget.categories
+                      .map(
+                        (option) => DropdownMenuItem<ExpenseCategory>(
+                          value: option.value,
+                          child: Text(option.label),
                         ),
-                        value: _rwf(widget.entry.price),
-                        detail: recurring
-                            ? 'Remaining ${_rwf(widget.entry.remainingAmount ?? 0)}'
-                            : 'One-time item',
-                      ),
-                      const SizedBox(height: 18),
-                      _FieldLabel(label: 'Expense category'),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<ExpenseCategory>(
-                        initialValue: _selectedCategory,
-                        items: widget.categories
-                            .map(
-                              (option) => DropdownMenuItem<ExpenseCategory>(
-                                value: option.value,
-                                child: Text(option.label),
-                              ),
-                            )
-                            .toList(growable: false),
-                        onChanged: _isSubmitting
-                            ? null
-                            : (value) =>
-                                  setState(() => _selectedCategory = value),
-                        decoration: _inputDecoration(),
-                        dropdownColor: AppColors.surfaceElevated,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      if (recurring) ...[
-                        _FieldLabel(label: 'Occurrence date'),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          initialValue: remainingDates.contains(_selectedDate)
-                              ? _selectedDate
-                              : (remainingDates.isEmpty
-                                    ? null
-                                    : remainingDates.first),
-                          items: remainingDates
-                              .map(
-                                (date) => DropdownMenuItem<String>(
-                                  value: date,
-                                  child: Text(
-                                    formatTodoDate(parseDateOnly(date)),
-                                  ),
-                                ),
-                              )
-                              .toList(growable: false),
-                          onChanged: _isSubmitting
-                              ? null
-                              : (value) {
-                                  if (value != null) {
-                                    setState(() => _selectedDate = value);
-                                  }
-                                },
-                          decoration: _inputDecoration(),
-                          dropdownColor: AppColors.surfaceElevated,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ] else ...[
-                        _FieldLabel(label: 'Expense date'),
-                        const SizedBox(height: 8),
-                        _DateButton(
-                          value: _selectedDate,
-                          onTap: _isSubmitting ? null : _pickDate,
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-                      _FieldLabel(label: 'Amount in RWF'),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _amountCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        inputFormatters: <TextInputFormatter>[
-                          FilteringTextInputFormatter.allow(
-                            RegExp(r'^\d*\.?\d{0,2}$'),
-                          ),
-                        ],
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textPrimary,
-                        ),
-                        decoration: _inputDecoration(hint: '125000'),
-                      ),
-                      if (recurring) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'Default amount is split from the remaining budget across the remaining occurrences. You can change it before saving.',
-                          style: TextStyle(
-                            fontSize: 11,
-                            height: 1.45,
-                            color: AppColors.textSecondary.withValues(
-                              alpha: 0.7,
-                            ),
-                          ),
-                        ),
-                      ],
-                      if (_errorText != null) ...[
-                        const SizedBox(height: 14),
-                        Text(
-                          _errorText!,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.danger,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _DialogButton(
-                              label: 'Cancel',
-                              isPrimary: false,
-                              isDisabled: _isSubmitting,
-                              onTap: () async {
-                                Navigator.of(context).pop();
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _DialogButton(
-                              label: 'Record expense',
-                              isPrimary: true,
-                              isLoading: _isSubmitting,
-                              onTap: _submit,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                      )
+                      .toList(growable: false),
+                  onChanged: _isSubmitting
+                      ? null
+                      : (value) => setState(() => _selectedCategory = value),
+                  decoration: _inputDecoration(),
+                  dropdownColor: AppColors.surfaceElevated,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-              ),
+                const SizedBox(height: 16),
+                if (recurring) ...[
+                  _FieldLabel(label: 'Occurrence date'),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: remainingDates.contains(_selectedDate)
+                        ? _selectedDate
+                        : (remainingDates.isEmpty
+                              ? null
+                              : remainingDates.first),
+                    items: remainingDates
+                        .map(
+                          (date) => DropdownMenuItem<String>(
+                            value: date,
+                            child: Text(formatTodoDate(parseDateOnly(date))),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: _isSubmitting
+                        ? null
+                        : (value) {
+                            if (value != null) {
+                              setState(() => _selectedDate = value);
+                            }
+                          },
+                    decoration: _inputDecoration(),
+                    dropdownColor: AppColors.surfaceElevated,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ] else ...[
+                  _FieldLabel(label: 'Expense date'),
+                  const SizedBox(height: 8),
+                  _DateButton(
+                    value: _selectedDate,
+                    onTap: _isSubmitting ? null : _pickDate,
+                  ),
+                ],
+                const SizedBox(height: 16),
+                _FieldLabel(label: 'Amount in RWF'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _amountCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: <TextInputFormatter>[
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'^\d*\.?\d{0,2}$'),
+                    ),
+                  ],
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                  ),
+                  decoration: _inputDecoration(hint: '125000'),
+                ),
+                if (recurring) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Default amount is split from the remaining budget across the remaining occurrences. You can change it before saving.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.45,
+                      color: AppColors.textSecondary.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ],
+                if (_errorText != null) ...[
+                  const SizedBox(height: 14),
+                  Text(
+                    _errorText!,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.danger,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _DialogButton(
+                        label: 'Cancel',
+                        isPrimary: false,
+                        isDisabled: _isSubmitting,
+                        onTap: () async {
+                          Navigator.of(context).pop();
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _DialogButton(
+                        label: 'Record expense',
+                        isPrimary: true,
+                        isLoading: _isSubmitting,
+                        onTap: _submit,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
@@ -628,12 +568,6 @@ class _DialogButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final backgroundColor = isPrimary
-        ? AppColors.primary.withValues(alpha: isDisabled ? 0.12 : 0.16)
-        : Colors.white.withValues(alpha: 0.05);
-    final borderColor = isPrimary
-        ? AppColors.primary.withValues(alpha: isDisabled ? 0.16 : 0.24)
-        : Colors.white.withValues(alpha: 0.12);
     final foregroundColor = isPrimary
         ? (isDisabled
               ? AppColors.primary.withValues(alpha: 0.55)
@@ -644,34 +578,14 @@ class _DialogButton extends StatelessWidget {
 
     return GestureDetector(
       onTap: isDisabled || isLoading ? null : () => onTap(),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: backgroundColor,
-          border: Border.all(color: borderColor),
-        ),
-        child: Center(
-          child: isLoading
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.8,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      AppColors.primary,
-                    ),
-                  ),
-                )
-              : Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: foregroundColor,
-                  ),
-                ),
-        ),
+      child: AppModalActionButton(
+        label: label,
+        isPrimary: isPrimary,
+        isLoading: isLoading,
+        onPressed: isDisabled || isLoading ? null : () => onTap(),
+        primaryColor: AppColors.primary,
+        primaryForegroundColor: AppColors.background,
+        outlineForegroundColor: foregroundColor,
       ),
     );
   }
