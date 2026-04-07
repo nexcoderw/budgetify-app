@@ -38,6 +38,13 @@ enum TodoFrequency {
     TodoFrequency.yearly => 'YEARLY',
   };
 
+  String get label => switch (this) {
+    TodoFrequency.once => 'Once',
+    TodoFrequency.weekly => 'Weekly',
+    TodoFrequency.monthly => 'Monthly',
+    TodoFrequency.yearly => 'Yearly',
+  };
+
   static TodoFrequency fromApiValue(String? value) => switch (value) {
     'WEEKLY' => TodoFrequency.weekly,
     'MONTHLY' => TodoFrequency.monthly,
@@ -70,8 +77,8 @@ class TodoImageItem {
       bytes: (json['bytes'] as num).toInt(),
       format: json['format'] as String,
       isPrimary: json['isPrimary'] as bool,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
+      updatedAt: DateTime.parse(json['updatedAt'] as String).toLocal(),
     );
   }
 
@@ -144,8 +151,8 @@ class TodoItem {
       createdBy: (json['createdBy'] as Map<String, dynamic>?) != null
           ? CreatedBySummary.fromJson(json['createdBy'] as Map<String, dynamic>)
           : null,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
+      updatedAt: DateTime.parse(json['updatedAt'] as String).toLocal(),
     );
   }
 
