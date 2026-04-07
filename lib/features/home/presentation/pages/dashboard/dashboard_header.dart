@@ -10,6 +10,7 @@ class DashboardHeader extends StatelessWidget {
     required this.user,
     required this.month,
     required this.year,
+    required this.canGoNextMonth,
     required this.onPrevMonth,
     required this.onNextMonth,
   });
@@ -17,12 +18,23 @@ class DashboardHeader extends StatelessWidget {
   final AuthUser user;
   final int month;
   final int year;
+  final bool canGoNextMonth;
   final VoidCallback onPrevMonth;
   final VoidCallback onNextMonth;
 
   static const _months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
 
   String get _greeting {
@@ -44,44 +56,62 @@ class DashboardHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final greetingContent = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '$_greeting, $_firstName.',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _isCurrentMonth
-                    ? 'Here\'s your overview for this month.'
-                    : 'Reviewing ${_months[month - 1]} $year.',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ],
+        Text(
+          '$_greeting, $_firstName.',
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+            letterSpacing: -0.5,
           ),
         ),
-        const SizedBox(width: 12),
-        _MonthNavigator(
-          label: '${_months[month - 1].substring(0, 3)} $year',
-          isCurrentMonth: _isCurrentMonth,
-          onPrev: onPrevMonth,
-          onNext: _isCurrentMonth ? null : onNextMonth,
+        const SizedBox(height: 4),
+        Text(
+          _isCurrentMonth
+              ? 'Here\'s your overview for this month.'
+              : 'Reviewing ${_months[month - 1]} $year.',
+          style: const TextStyle(
+            fontSize: 13,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w400,
+          ),
         ),
       ],
+    );
+
+    final monthNavigator = _MonthNavigator(
+      label: '${_months[month - 1].substring(0, 3)} $year',
+      onPrev: onPrevMonth,
+      onNext: canGoNextMonth ? onNextMonth : null,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isStacked = constraints.maxWidth < 560;
+
+        if (isStacked) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              greetingContent,
+              const SizedBox(height: 12),
+              monthNavigator,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: greetingContent),
+            const SizedBox(width: 12),
+            monthNavigator,
+          ],
+        );
+      },
     );
   }
 }
@@ -89,13 +119,11 @@ class DashboardHeader extends StatelessWidget {
 class _MonthNavigator extends StatelessWidget {
   const _MonthNavigator({
     required this.label,
-    required this.isCurrentMonth,
     required this.onPrev,
     required this.onNext,
   });
 
   final String label;
-  final bool isCurrentMonth;
   final VoidCallback onPrev;
   final VoidCallback? onNext;
 
@@ -111,10 +139,7 @@ class _MonthNavigator extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _NavArrow(
-            icon: HugeIcons.strokeRoundedArrowLeft01,
-            onTap: onPrev,
-          ),
+          _NavArrow(icon: HugeIcons.strokeRoundedArrowLeft01, onTap: onPrev),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Text(
@@ -127,10 +152,7 @@ class _MonthNavigator extends StatelessWidget {
               ),
             ),
           ),
-          _NavArrow(
-            icon: HugeIcons.strokeRoundedArrowRight01,
-            onTap: onNext,
-          ),
+          _NavArrow(icon: HugeIcons.strokeRoundedArrowRight01, onTap: onNext),
         ],
       ),
     );
