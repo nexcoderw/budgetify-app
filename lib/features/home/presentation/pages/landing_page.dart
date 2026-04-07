@@ -64,7 +64,15 @@ class _LandingPageState extends State<LandingPage> {
   Widget _sectionContent() {
     switch (_currentSection) {
       case AppLayoutSection.dashboard:
-        return DashboardPage(user: widget.user);
+        return DashboardPage(
+          user: widget.user,
+          incomeService: _incomeService,
+          expenseService: _expenseService,
+          savingService: _savingService,
+          loanService: _loanService,
+          todoService: _todoService,
+          partnershipService: _partnershipService,
+        );
       case AppLayoutSection.income:
         return IncomePage(incomeService: _incomeService);
       case AppLayoutSection.expense:
