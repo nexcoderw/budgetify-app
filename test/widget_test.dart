@@ -30,6 +30,30 @@ class _FakeAuthService implements AuthServiceContract {
   Future<void> logout() async {}
 
   @override
+  Future<AuthUser> requestCurrentUserDeletion() async {
+    final user = restoredUser;
+    if (user == null) {
+      throw StateError('No restored user is available for this test.');
+    }
+
+    return AuthUser(
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      fullName: user.fullName,
+      avatarUrl: user.avatarUrl,
+      isEmailVerified: user.isEmailVerified,
+      status: user.status,
+      lastLoginAt: user.lastLoginAt,
+      accountDeletionRequestedAt: DateTime.utc(2026, 4, 7),
+      accountDeletionScheduledFor: DateTime.utc(2026, 5, 7),
+      createdAt: user.createdAt,
+      updatedAt: DateTime.utc(2026, 4, 7),
+    );
+  }
+
+  @override
   Future<AuthSession> refreshSession() {
     throw UnimplementedError();
   }
@@ -76,6 +100,8 @@ class _FakeAuthService implements AuthServiceContract {
       isEmailVerified: user.isEmailVerified,
       status: user.status,
       lastLoginAt: user.lastLoginAt,
+      accountDeletionRequestedAt: user.accountDeletionRequestedAt,
+      accountDeletionScheduledFor: user.accountDeletionScheduledFor,
       createdAt: user.createdAt,
       updatedAt: DateTime.utc(2026, 3, 29),
     );
@@ -105,6 +131,8 @@ void main() {
       isEmailVerified: true,
       status: 'ACTIVE',
       lastLoginAt: DateTime.utc(2026, 3, 6),
+      accountDeletionRequestedAt: null,
+      accountDeletionScheduledFor: null,
       createdAt: DateTime.utc(2026, 3, 6),
       updatedAt: DateTime.utc(2026, 3, 6),
     );
@@ -137,6 +165,8 @@ void main() {
         isEmailVerified: true,
         status: 'ACTIVE',
         lastLoginAt: DateTime.utc(2026, 3, 29),
+        accountDeletionRequestedAt: null,
+        accountDeletionScheduledFor: null,
         createdAt: DateTime.utc(2026, 3, 29),
         updatedAt: DateTime.utc(2026, 3, 29),
       );
