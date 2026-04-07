@@ -75,6 +75,7 @@ class _LandingPageState extends State<LandingPage> {
         return ProfilePage(
           user: widget.user,
           todoService: _todoService,
+          expenseService: _expenseService,
           isLoggingOut: _isLoggingOut,
           onLogout: _isLoggingOut ? null : _logout,
         );
