@@ -1,3 +1,5 @@
+import '../../../../core/models/created_by_summary.dart';
+
 class IncomeEntry {
   const IncomeEntry({
     required this.id,
@@ -5,6 +7,8 @@ class IncomeEntry {
     required this.amount,
     required this.category,
     required this.date,
+    required this.received,
+    required this.createdBy,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -16,6 +20,10 @@ class IncomeEntry {
       amount: (json['amount'] as num).toDouble(),
       category: IncomeCategory.fromApi(json['category'] as String),
       date: DateTime.parse(json['date'] as String).toLocal(),
+      received: json['received'] as bool? ?? false,
+      createdBy: (json['createdBy'] as Map<String, dynamic>?) != null
+          ? CreatedBySummary.fromJson(json['createdBy'] as Map<String, dynamic>)
+          : null,
       createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
       updatedAt: DateTime.parse(json['updatedAt'] as String).toLocal(),
     );
@@ -26,6 +34,8 @@ class IncomeEntry {
   final double amount;
   final IncomeCategory category;
   final DateTime date;
+  final bool received;
+  final CreatedBySummary? createdBy;
   final DateTime createdAt;
   final DateTime updatedAt;
 }
