@@ -816,7 +816,7 @@ class _DeletionRequestCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: SizedBox(
-                height: 48,
+                height: 52,
                 child: AppModalActionButton(
                   label: requesting
                       ? 'Scheduling deletion...'
@@ -989,7 +989,7 @@ class _DeleteAccountRequestDialog extends StatelessWidget {
             children: [
               Expanded(
                 child: SizedBox(
-                  height: 48,
+                  height: 52,
                   child: AppModalActionButton(
                     label: 'Keep account',
                     onPressed: () => Navigator.of(context).pop(false),
@@ -1000,7 +1000,7 @@ class _DeleteAccountRequestDialog extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: SizedBox(
-                  height: 48,
+                  height: 52,
                   child: AppModalActionButton(
                     label: 'Request deletion',
                     isPrimary: true,
