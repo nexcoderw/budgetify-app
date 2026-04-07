@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/widgets/app_modal_dialog.dart';
 import '../../../../../core/widgets/app_toast.dart';
 
 Future<void> showAddIncomeDialog(BuildContext context) async {
@@ -163,31 +164,17 @@ Future<void> showAddIncomeDialog(BuildContext context) async {
                           Row(
                             children: [
                               Expanded(
-                                child: OutlinedButton(
+                                child: AppModalActionButton(
+                                  label: 'Cancel',
                                   onPressed: () => Navigator.pop(context),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                    ),
-                                    side: BorderSide(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.18,
-                                      ),
-                                    ),
-                                    shape: const StadiumBorder(),
-                                  ),
-                                  child: const Text(
-                                    'Cancel',
-                                    style: TextStyle(
-                                      color: AppColors.textPrimary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
+                                  outlineForegroundColor: AppColors.textPrimary,
                                 ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: ElevatedButton(
+                                child: AppModalActionButton(
+                                  label: 'Save income',
+                                  isPrimary: true,
                                   onPressed: () {
                                     if (!formKey.currentState!.validate()) {
                                       return;
@@ -200,21 +187,8 @@ Future<void> showAddIncomeDialog(BuildContext context) async {
                                           'We will sync this entry into your analytics soon.',
                                     );
                                   },
-                                  style: ElevatedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                    ),
-                                    backgroundColor: AppColors.success,
-                                    foregroundColor: AppColors.background,
-                                    shape: const StadiumBorder(),
-                                  ),
-                                  child: const Text(
-                                    'Save income',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13,
-                                    ),
-                                  ),
+                                  primaryColor: AppColors.success,
+                                  primaryForegroundColor: AppColors.background,
                                 ),
                               ),
                             ],
