@@ -96,6 +96,8 @@ class AppModalActionButton extends StatelessWidget {
     this.primaryColor = AppColors.primary,
     this.primaryForegroundColor = AppColors.background,
     this.outlineForegroundColor = AppColors.textPrimary,
+    this.leading,
+    this.height = 48,
   });
 
   final String label;
@@ -105,6 +107,8 @@ class AppModalActionButton extends StatelessWidget {
   final Color primaryColor;
   final Color primaryForegroundColor;
   final Color outlineForegroundColor;
+  final Widget? leading;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
@@ -119,38 +123,59 @@ class AppModalActionButton extends StatelessWidget {
               ),
             ),
           )
-        : Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (leading != null) ...[leading!, const SizedBox(width: 8)],
+              Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+            ],
           );
 
-    if (isPrimary) {
-      return ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          backgroundColor: primaryColor,
-          foregroundColor: primaryForegroundColor,
-          disabledBackgroundColor: primaryColor.withValues(alpha: 0.45),
-          disabledForegroundColor: primaryForegroundColor.withValues(
-            alpha: 0.75,
-          ),
-          elevation: 0,
-          shape: const StadiumBorder(),
-        ),
-        child: child,
-      );
-    }
+    final button = isPrimary
+        ? ElevatedButton(
+            onPressed: isLoading ? null : onPressed,
+            style: ElevatedButton.styleFrom(
+              minimumSize: Size(0, height),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 0),
+              backgroundColor: primaryColor.withValues(alpha: 0.16),
+              foregroundColor: primaryForegroundColor,
+              disabledBackgroundColor: primaryColor.withValues(alpha: 0.08),
+              disabledForegroundColor: primaryForegroundColor.withValues(
+                alpha: 0.55,
+              ),
+              elevation: 0,
+              shadowColor: primaryColor.withValues(alpha: 0.18),
+              side: BorderSide(color: primaryColor.withValues(alpha: 0.24)),
+              shape: const StadiumBorder(),
+            ),
+            child: child,
+          )
+        : OutlinedButton(
+            onPressed: isLoading ? null : onPressed,
+            style: OutlinedButton.styleFrom(
+              minimumSize: Size(0, height),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 0),
+              foregroundColor: outlineForegroundColor,
+              backgroundColor: Colors.white.withValues(alpha: 0.045),
+              side: BorderSide(color: Colors.white.withValues(alpha: 0.16)),
+              shape: const StadiumBorder(),
+            ),
+            child: child,
+          );
 
-    return OutlinedButton(
-      onPressed: isLoading ? null : onPressed,
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        foregroundColor: outlineForegroundColor,
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
-        shape: const StadiumBorder(),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        child: button,
       ),
-      child: child,
     );
   }
 }
