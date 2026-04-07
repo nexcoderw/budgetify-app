@@ -1,7 +1,10 @@
 import 'package:http_parser/http_parser.dart';
 
 import '../../../../core/network/api_client.dart';
+import '../../../../core/network/paginated_response.dart';
+import '../../../../core/network/pagination_helpers.dart';
 import '../models/todo_item.dart';
+import '../models/todo_list_query.dart';
 import '../models/todo_upload_image.dart';
 import '../routes/todo_api_routes.dart';
 
@@ -13,16 +16,41 @@ class TodoApiService {
   final ApiClient _apiClient;
   final TodoApiRoutes _routes;
 
-  Future<List<TodoItem>> fetchTodos(String accessToken) async {
-    final json = await _apiClient.getJsonList(
+  Future<PaginatedResponse<TodoItem>> fetchTodosPage(
+    String accessToken, {
+    TodoListQuery query = const TodoListQuery(),
+  }) async {
+    final json = await _apiClient.getJson(
       _routes.list,
+      headers: <String, String>{'Authorization': 'Bearer $accessToken'},
+      queryParameters: query.toQueryParameters(),
+    );
+
+    return PaginatedResponse<TodoItem>.fromJson(json, TodoItem.fromJson);
+  }
+
+  Future<List<TodoItem>> fetchTodos(
+    String accessToken, {
+    TodoListQuery query = const TodoListQuery(),
+  }) {
+    return collectPaginatedItems<TodoItem>(
+      ({required int page, required int limit}) => fetchTodosPage(
+        accessToken,
+        query: query.copyWith(page: page, limit: limit),
+      ),
+    );
+  }
+
+  Future<TodoItem> fetchTodo({
+    required String accessToken,
+    required String todoId,
+  }) async {
+    final json = await _apiClient.getJson(
+      _routes.byId(todoId),
       headers: <String, String>{'Authorization': 'Bearer $accessToken'},
     );
 
-    return json
-        .cast<Map<String, dynamic>>()
-        .map(TodoItem.fromJson)
-        .toList(growable: false);
+    return TodoItem.fromJson(json);
   }
 
   Future<TodoItem> createTodo({
