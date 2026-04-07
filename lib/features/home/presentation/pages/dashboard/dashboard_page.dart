@@ -495,30 +495,424 @@ class _DashboardLoadingState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SkeletonLoader(
-      child: Column(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 1080;
+
+          final mainColumn = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Staggered(
+                fade: fade(0.00, 0.42),
+                slide: slide(0.00, 0.42),
+                child: const _LoadingDashboardHeader(),
+              ),
+              const SizedBox(height: 14),
+              _Staggered(
+                fade: fade(0.08, 0.50),
+                slide: slide(0.08, 0.50),
+                child: const _LoadingSummaryGrid(),
+              ),
+              const SizedBox(height: 14),
+              _Staggered(
+                fade: fade(0.16, 0.60),
+                slide: slide(0.16, 0.60),
+                child: const _LoadingDailyMovementSection(),
+              ),
+              const SizedBox(height: 14),
+              _Staggered(
+                fade: fade(0.24, 0.68),
+                slide: slide(0.24, 0.68),
+                child: const _LoadingTopCategoriesSection(),
+              ),
+              const SizedBox(height: 14),
+              _Staggered(
+                fade: fade(0.32, 0.76),
+                slide: slide(0.32, 0.76),
+                child: const _LoadingUpcomingTodoScheduleSection(),
+              ),
+              const SizedBox(height: 14),
+              _Staggered(
+                fade: fade(0.40, 0.84),
+                slide: slide(0.40, 0.84),
+                child: const _LoadingPartnerActivitySection(),
+              ),
+            ],
+          );
+
+          final sideColumn = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Staggered(
+                fade: fade(0.18, 0.62),
+                slide: slide(0.18, 0.62),
+                child: const _LoadingSavingsRateSection(),
+              ),
+              const SizedBox(height: 14),
+              _Staggered(
+                fade: fade(0.26, 0.70),
+                slide: slide(0.26, 0.70),
+                child: const _LoadingPendingIncomeSection(),
+              ),
+              const SizedBox(height: 14),
+              _Staggered(
+                fade: fade(0.34, 0.78),
+                slide: slide(0.34, 0.78),
+                child: const _LoadingMonthComparisonSection(),
+              ),
+              const SizedBox(height: 14),
+              _Staggered(
+                fade: fade(0.42, 0.86),
+                slide: slide(0.42, 0.86),
+                child: const _LoadingTodoReserveSection(),
+              ),
+              const SizedBox(height: 14),
+              _Staggered(
+                fade: fade(0.50, 0.94),
+                slide: slide(0.50, 0.94),
+                child: const _LoadingLoanOverviewSection(),
+              ),
+            ],
+          );
+
+          if (isWide) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 12, child: mainColumn),
+                const SizedBox(width: 14),
+                Expanded(flex: 8, child: sideColumn),
+              ],
+            );
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [mainColumn, const SizedBox(height: 14), sideColumn],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _LoadingDashboardHeader extends StatelessWidget {
+  const _LoadingDashboardHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked = constraints.maxWidth < 560;
+        final greeting = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            SkeletonBox(width: 220, height: 28, radius: 16),
+            SizedBox(height: 8),
+            SkeletonBox(width: 198, height: 13, radius: 12),
+          ],
+        );
+
+        final navigator = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: Colors.white.withValues(alpha: 0.05),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SkeletonBox(width: 30, height: 30, radius: 10),
+              SizedBox(width: 8),
+              SkeletonBox(width: 74, height: 14, radius: 12),
+              SizedBox(width: 8),
+              SkeletonBox(width: 30, height: 30, radius: 10),
+            ],
+          ),
+        );
+
+        if (stacked) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [greeting, const SizedBox(height: 12), navigator],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: greeting),
+            const SizedBox(width: 12),
+            navigator,
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _LoadingSummaryGrid extends StatelessWidget {
+  const _LoadingSummaryGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1080
+            ? 3
+            : (constraints.maxWidth >= 680 ? 2 : 1);
+        final spacing = 12.0;
+        final width = columns == 1
+            ? constraints.maxWidth
+            : (constraints.maxWidth - (spacing * (columns - 1))) / columns;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: List.generate(
+            6,
+            (_) => SizedBox(width: width, child: const _LoadingSummaryCard()),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _LoadingSummaryCard extends StatelessWidget {
+  const _LoadingSummaryCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPanel(
+      padding: const EdgeInsets.all(18),
+      borderRadius: BorderRadius.circular(24),
+      blur: 22,
+      opacity: 0.12,
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Staggered(
-            fade: fade(0.0, 0.42),
-            slide: slide(0.0, 0.42),
-            child: const _LoadingPanel(height: 120),
+          Row(
+            children: [
+              SkeletonBox(width: 30, height: 30, radius: 999),
+              Spacer(),
+              SkeletonBox(width: 72, height: 10, radius: 999),
+            ],
           ),
-          const SizedBox(height: 14),
-          _Staggered(
-            fade: fade(0.14, 0.56),
-            slide: slide(0.14, 0.56),
-            child: const _LoadingPanel(height: 200),
+          SizedBox(height: 14),
+          SkeletonBox(width: 92, height: 11, radius: 10),
+          SizedBox(height: 8),
+          SkeletonBox(width: 138, height: 24, radius: 14),
+          SizedBox(height: 12),
+          SkeletonBox(height: 11, radius: 10),
+          SizedBox(height: 6),
+          SkeletonBox(width: 170, height: 11, radius: 10),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingSectionShell extends StatelessWidget {
+  const _LoadingSectionShell({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPanel(
+      padding: const EdgeInsets.all(22),
+      borderRadius: BorderRadius.circular(28),
+      blur: 24,
+      opacity: 0.12,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              SkeletonBox(width: 34, height: 34, radius: 999),
+              SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SkeletonBox(width: 132, height: 15, radius: 10),
+                    SizedBox(height: 6),
+                    SkeletonBox(height: 11, radius: 10),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 14),
-          _Staggered(
-            fade: fade(0.28, 0.70),
-            slide: slide(0.28, 0.70),
-            child: const _LoadingPanel(height: 240),
+          const SizedBox(height: 18),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingMetricPill extends StatelessWidget {
+  const _LoadingMetricPill({required this.width});
+
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: Colors.white.withValues(alpha: 0.05),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SkeletonBox(width: 58, height: 10, radius: 10),
+          const SizedBox(height: 8),
+          SkeletonBox(width: width, height: 13, radius: 12),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingDetailPair extends StatelessWidget {
+  const _LoadingDetailPair();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SkeletonBox(width: 50, height: 10, radius: 10),
+        SizedBox(height: 5),
+        SkeletonBox(width: 86, height: 12, radius: 10),
+      ],
+    );
+  }
+}
+
+class _LoadingLedgerRow extends StatelessWidget {
+  const _LoadingLedgerRow({this.leadingCircle = false});
+
+  final bool leadingCircle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.white.withValues(alpha: 0.04),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        children: [
+          if (leadingCircle) ...[
+            const SkeletonBox(width: 30, height: 30, radius: 999),
+            const SizedBox(width: 10),
+          ],
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonBox(width: 126, height: 12, radius: 10),
+                SizedBox(height: 6),
+                SkeletonBox(width: 94, height: 10, radius: 10),
+              ],
+            ),
           ),
-          const SizedBox(height: 14),
-          _Staggered(
-            fade: fade(0.42, 0.84),
-            slide: slide(0.42, 0.84),
-            child: const _LoadingPanel(height: 260),
+          const SizedBox(width: 10),
+          const SkeletonBox(width: 68, height: 12, radius: 10),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingDailyMovementSection extends StatelessWidget {
+  const _LoadingDailyMovementSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return _LoadingSectionShell(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: const [
+              _LoadingMetricPill(width: 90),
+              _LoadingMetricPill(width: 84),
+              _LoadingMetricPill(width: 92),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              color: Colors.white.withValues(alpha: 0.04),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: const Row(
+              children: [
+                Expanded(child: _LoadingDetailPair()),
+                SizedBox(width: 12),
+                Expanded(child: _LoadingDetailPair()),
+                SizedBox(width: 12),
+                Expanded(child: _LoadingDetailPair()),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            height: 150,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: List.generate(14, (index) {
+                final incomeHeight = 40.0 + ((index % 5) * 10);
+                final expenseHeight = 32.0 + (((index + 2) % 5) * 11);
+
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(right: index == 13 ? 0 : 8),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        SizedBox(
+                          height: 96,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              SkeletonBox(
+                                width: 5,
+                                height: incomeHeight,
+                                radius: 999,
+                              ),
+                              const SizedBox(width: 3),
+                              SkeletonBox(
+                                width: 5,
+                                height: expenseHeight,
+                                radius: 999,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const SkeletonBox(width: 12, height: 10, radius: 10),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
           ),
         ],
       ),
@@ -526,19 +920,392 @@ class _DashboardLoadingState extends StatelessWidget {
   }
 }
 
-class _LoadingPanel extends StatelessWidget {
-  const _LoadingPanel({required this.height});
-
-  final double height;
+class _LoadingTopCategoriesSection extends StatelessWidget {
+  const _LoadingTopCategoriesSection();
 
   @override
   Widget build(BuildContext context) {
-    return GlassPanel(
-      padding: const EdgeInsets.all(22),
-      borderRadius: BorderRadius.circular(26),
-      blur: 22,
-      opacity: 0.12,
-      child: SizedBox(height: height),
+    return _LoadingSectionShell(
+      child: Column(
+        children: List.generate(
+          4,
+          (index) => Padding(
+            padding: EdgeInsets.only(bottom: index == 3 ? 0 : 12),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                color: Colors.white.withValues(alpha: 0.04),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      SkeletonBox(width: 30, height: 30, radius: 999),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: SkeletonBox(width: 120, height: 12, radius: 10),
+                      ),
+                      SizedBox(width: 10),
+                      SkeletonBox(width: 56, height: 12, radius: 10),
+                    ],
+                  ),
+                  SizedBox(height: 10),
+                  SkeletonBox(height: 6, radius: 999),
+                  SizedBox(height: 8),
+                  SkeletonBox(width: 118, height: 11, radius: 10),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingUpcomingTodoScheduleSection extends StatelessWidget {
+  const _LoadingUpcomingTodoScheduleSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return _LoadingSectionShell(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = constraints.maxWidth >= 980
+              ? 4
+              : (constraints.maxWidth >= 640 ? 2 : 1);
+          final spacing = 10.0;
+          final width = columns == 1
+              ? constraints.maxWidth
+              : (constraints.maxWidth - (spacing * (columns - 1))) / columns;
+
+          return Wrap(
+            spacing: spacing,
+            runSpacing: spacing,
+            children: List.generate(
+              7,
+              (_) => SizedBox(
+                width: width,
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    color: Colors.white.withValues(alpha: 0.04),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          SkeletonBox(width: 58, height: 12, radius: 10),
+                          Spacer(),
+                          SkeletonBox(width: 46, height: 11, radius: 10),
+                        ],
+                      ),
+                      SizedBox(height: 10),
+                      SkeletonBox(height: 11, radius: 10),
+                      SizedBox(height: 8),
+                      SkeletonBox(width: 110, height: 11, radius: 10),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _LoadingSavingsRateSection extends StatelessWidget {
+  const _LoadingSavingsRateSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return _LoadingSectionShell(
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: _LoadingMetricPill(width: 72)),
+              SizedBox(width: 10),
+              Expanded(child: _LoadingMetricPill(width: 84)),
+            ],
+          ),
+          SizedBox(height: 16),
+          SkeletonBox(height: 8, radius: 999),
+          SizedBox(height: 12),
+          SkeletonBox(height: 11, radius: 10),
+          SizedBox(height: 6),
+          SkeletonBox(width: 210, height: 11, radius: 10),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingPendingIncomeSection extends StatelessWidget {
+  const _LoadingPendingIncomeSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return _LoadingSectionShell(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _LoadingMetricPill(width: 96),
+          const SizedBox(height: 14),
+          ...List.generate(
+            4,
+            (index) => Padding(
+              padding: EdgeInsets.only(bottom: index == 3 ? 0 : 10),
+              child: const _LoadingLedgerRow(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingMonthComparisonSection extends StatelessWidget {
+  const _LoadingMonthComparisonSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return _LoadingSectionShell(
+      child: Column(
+        children: List.generate(
+          3,
+          (index) => Padding(
+            padding: EdgeInsets.only(bottom: index == 2 ? 0 : 12),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                color: Colors.white.withValues(alpha: 0.04),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      SkeletonBox(width: 88, height: 13, radius: 10),
+                      Spacer(),
+                      SkeletonBox(width: 62, height: 11, radius: 10),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  SkeletonBox(width: 108, height: 13, radius: 10),
+                  SizedBox(height: 5),
+                  SkeletonBox(width: 128, height: 11, radius: 10),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingTodoReserveSection extends StatelessWidget {
+  const _LoadingTodoReserveSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return _LoadingSectionShell(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: const [
+              _LoadingMetricPill(width: 86),
+              _LoadingMetricPill(width: 64),
+              _LoadingMetricPill(width: 82),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ...List.generate(
+            3,
+            (index) => Padding(
+              padding: EdgeInsets.only(bottom: index == 2 ? 0 : 10),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  color: Colors.white.withValues(alpha: 0.04),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SkeletonBox(
+                            width: 118,
+                            height: 12,
+                            radius: 10,
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        SkeletonBox(width: 64, height: 24, radius: 999),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    SkeletonBox(width: 132, height: 11, radius: 10),
+                    SizedBox(height: 10),
+                    SkeletonBox(height: 6, radius: 999),
+                    SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(child: _LoadingDetailPair()),
+                        SizedBox(width: 12),
+                        Expanded(child: _LoadingDetailPair()),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingLoanOverviewSection extends StatelessWidget {
+  const _LoadingLoanOverviewSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return _LoadingSectionShell(
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _LoadingMetricPill(width: 40),
+              _LoadingMetricPill(width: 40),
+              _LoadingMetricPill(width: 40),
+            ],
+          ),
+          SizedBox(height: 14),
+          _LoadingDetailPair(),
+          SizedBox(height: 8),
+          _LoadingDetailPair(),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingPartnerActivitySection extends StatelessWidget {
+  const _LoadingPartnerActivitySection();
+
+  @override
+  Widget build(BuildContext context) {
+    return _LoadingSectionShell(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 620) {
+                return const Column(
+                  children: [
+                    _LoadingPartnerPersonCard(),
+                    SizedBox(height: 10),
+                    _LoadingPartnerPersonCard(),
+                  ],
+                );
+              }
+
+              return const Row(
+                children: [
+                  Expanded(child: _LoadingPartnerPersonCard()),
+                  SizedBox(width: 10),
+                  Expanded(child: _LoadingPartnerPersonCard()),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          const SkeletonBox(width: 116, height: 12, radius: 10),
+          const SizedBox(height: 10),
+          ...List.generate(
+            3,
+            (index) => Padding(
+              padding: EdgeInsets.only(bottom: index == 2 ? 0 : 10),
+              child: const _LoadingLedgerRow(leadingCircle: true),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingPartnerPersonCard extends StatelessWidget {
+  const _LoadingPartnerPersonCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: Colors.white.withValues(alpha: 0.04),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              SkeletonBox(width: 36, height: 36, radius: 999),
+              SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SkeletonBox(width: 108, height: 12, radius: 10),
+                    SizedBox(height: 5),
+                    SkeletonBox(width: 54, height: 10, radius: 10),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _LoadingDetailPair()),
+              SizedBox(width: 10),
+              Expanded(child: _LoadingDetailPair()),
+            ],
+          ),
+          SizedBox(height: 8),
+          _LoadingDetailPair(),
+        ],
+      ),
     );
   }
 }
