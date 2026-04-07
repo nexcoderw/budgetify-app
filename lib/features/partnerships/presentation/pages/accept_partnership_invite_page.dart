@@ -16,11 +16,13 @@ class AcceptPartnershipInvitePage extends StatefulWidget {
     required this.currentUser,
     required this.partnershipService,
     this.initialInviteValue,
+    this.workspaceBuilder,
   });
 
   final AuthUser currentUser;
   final PartnershipService partnershipService;
   final String? initialInviteValue;
+  final WidgetBuilder? workspaceBuilder;
 
   @override
   State<AcceptPartnershipInvitePage> createState() =>
@@ -76,6 +78,37 @@ class _AcceptPartnershipInvitePageState
       lastName: info.ownerLastName,
       fullName: info.ownerFullName,
       email: info.inviteeEmail,
+    );
+  }
+
+  Future<void> _leavePage({required bool accepted}) async {
+    if (widget.workspaceBuilder == null) {
+      Navigator.of(context).pop(accepted);
+      return;
+    }
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder<void>(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            widget.workspaceBuilder!(context),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+
+          return FadeTransition(
+            opacity: curved,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.03),
+                end: Offset.zero,
+              ).animate(curved),
+              child: child,
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -139,7 +172,7 @@ class _AcceptPartnershipInvitePageState
         description:
             'You are now inside the same shared finance space together.',
       );
-      Navigator.of(context).pop(true);
+      await _leavePage(accepted: true);
     } catch (error) {
       if (!mounted) {
         return;
@@ -187,7 +220,7 @@ class _AcceptPartnershipInvitePageState
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 20, 18, 28),
           children: [
-            _AcceptHeader(onBack: () => Navigator.of(context).pop()),
+            _AcceptHeader(onBack: () => _leavePage(accepted: false)),
             const SizedBox(height: 14),
             _InviteHeroCard(
               currentUser: widget.currentUser,
