@@ -17,6 +17,7 @@ class AppLayout extends StatelessWidget {
     required this.onSectionSelected,
     required this.onLogout,
     this.isLoggingOut = false,
+    this.scrollChild = true,
   });
 
   final AuthUser user;
@@ -25,6 +26,7 @@ class AppLayout extends StatelessWidget {
   final ValueChanged<AppLayoutSection> onSectionSelected;
   final VoidCallback? onLogout;
   final bool isLoggingOut;
+  final bool scrollChild;
 
   @override
   Widget build(BuildContext context) {
@@ -50,15 +52,26 @@ class AppLayout extends StatelessWidget {
                     AppNavbar(user: user),
                     SizedBox(height: isCompact ? 18 : 24),
                     Expanded(
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: SingleChildScrollView(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 1040),
-                            child: child,
-                          ),
-                        ),
-                      ),
+                      child: scrollChild
+                          ? Align(
+                              alignment: Alignment.topCenter,
+                              child: SingleChildScrollView(
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 1040,
+                                  ),
+                                  child: child,
+                                ),
+                              ),
+                            )
+                          : Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 1040,
+                                ),
+                                child: child,
+                              ),
+                            ),
                     ),
                     SizedBox(height: isCompact ? 22 : 28),
                     AppBottomNavBar(
