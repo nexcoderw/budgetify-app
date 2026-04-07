@@ -563,56 +563,162 @@ class _DeletionRequestCard extends StatelessWidget {
     final requestedAtText = requestedAt == null
         ? 'Unknown date'
         : _formatDate(requestedAt);
+    final accentSoft = AppColors.danger.withValues(alpha: 0.12);
+    final accentStrong = AppColors.danger.withValues(alpha: 0.2);
+    final statusText = isPending ? 'Scheduled' : '30-day hold';
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        color: AppColors.danger.withValues(alpha: 0.08),
-        border: Border.all(color: AppColors.danger.withValues(alpha: 0.2)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            accentSoft,
+            Colors.white.withValues(alpha: 0.045),
+            Colors.white.withValues(alpha: 0.025),
+          ],
+          stops: const [0, 0.48, 1],
+        ),
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.18)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.danger.withValues(alpha: 0.08),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              color: AppColors.danger.withValues(alpha: 0.12),
-            ),
-            child: const Text(
-              'Account deletion',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.danger,
-                letterSpacing: 0.1,
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(999),
+                  color: accentStrong,
+                  border: Border.all(
+                    color: AppColors.danger.withValues(alpha: 0.24),
+                  ),
+                ),
+                child: const Text(
+                  'Legal',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.danger,
+                    letterSpacing: 0.1,
+                  ),
+                ),
               ),
-            ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(999),
+                  color: Colors.white.withValues(alpha: 0.06),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: Text(
+                  statusText,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: isPending
+                        ? AppColors.danger
+                        : AppColors.textSecondary.withValues(alpha: 0.9),
+                    letterSpacing: 0.1,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
-          Text(
-            isPending
-                ? 'Deletion scheduled for $scheduledForText'
-                : 'Close this account permanently',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-              letterSpacing: -0.2,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: AppColors.danger.withValues(alpha: 0.14),
+                  border: Border.all(
+                    color: AppColors.danger.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: const Center(
+                  child: HugeIcon(
+                    icon: HugeIcons.strokeRoundedDelete02,
+                    size: 16,
+                    color: AppColors.danger,
+                    strokeWidth: 1.8,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isPending
+                          ? 'Deletion scheduled for $scheduledForText'
+                          : 'Close this account permanently',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.1,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      isPending
+                          ? 'Your request is active. Avoid sign-in or any new financial activity if you want it to continue.'
+                          : 'Budgetify waits 30 days before deletion, and any login or new record cancels the request automatically.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        height: 1.5,
+                        color: AppColors.textSecondary.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            isPending
-                ? 'Your request is now waiting out the 30-day window. Do not sign in or record anything if you want it to continue.'
-                : 'Budgetify will wait 30 days before deleting the account. Any sign-in or recorded activity during that time cancels the request automatically.',
-            style: const TextStyle(
-              fontSize: 12.5,
-              height: 1.6,
-              color: AppColors.textSecondary,
-            ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _DeletionMetricChip(
+                  label: 'Requested',
+                  value: requestedAtText,
+                  accent: AppColors.danger,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _DeletionMetricChip(
+                  label: isPending ? 'Deletes on' : 'Window',
+                  value: isPending ? scheduledForText! : '30 days',
+                  accent: AppColors.danger,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           Container(
@@ -622,16 +728,67 @@ class _DeletionRequestCard extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.04),
               border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
             ),
-            child: Text(
-              isPending
-                  ? 'Requested on $requestedAtText. If you log in again or add income, expenses, savings, loans, todos, or any other activity before $scheduledForText, the deletion request is denied automatically.'
-                  : 'You will receive a confirmation email immediately after you submit the request. The safest way to let the deletion finish is to stop using this account until the scheduled date.',
-              style: const TextStyle(
-                fontSize: 12,
-                height: 1.65,
-                color: AppColors.textSecondary,
-              ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    color: AppColors.danger.withValues(alpha: 0.12),
+                  ),
+                  child: const Center(
+                    child: HugeIcon(
+                      icon: HugeIcons.strokeRoundedAlert02,
+                      size: 14,
+                      color: AppColors.danger,
+                      strokeWidth: 1.8,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    isPending
+                        ? 'If you log in again or add income, expenses, savings, loans, todos, or any other activity before $scheduledForText, the deletion request is denied automatically.'
+                        : 'You will receive a confirmation email immediately after you submit the request. The safest way to let the deletion finish is to stop using this account until the scheduled date.',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 1.65,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
             ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 3,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(999),
+                  color: AppColors.danger.withValues(alpha: 0.9),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  isPending
+                      ? 'Waiting for the inactivity window to finish'
+                      : 'Request permanent account closure',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.danger.withValues(alpha: 0.92),
+                    letterSpacing: 0.15,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           if (isPending)
@@ -658,27 +815,17 @@ class _DeletionRequestCard extends StatelessWidget {
           else
             SizedBox(
               width: double.infinity,
-              child: FilledButton(
-                onPressed: requesting ? null : () => onRequestDeletion(),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.danger,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: AppColors.danger.withValues(
-                    alpha: 0.55,
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                ),
-                child: Text(
-                  requesting
+              child: SizedBox(
+                height: 48,
+                child: AppModalActionButton(
+                  label: requesting
                       ? 'Scheduling deletion...'
                       : 'Request account deletion',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  onPressed: requesting ? null : () => onRequestDeletion(),
+                  isPrimary: true,
+                  isLoading: requesting,
+                  primaryColor: AppColors.danger,
+                  primaryForegroundColor: Colors.white,
                 ),
               ),
             ),
@@ -705,21 +852,64 @@ class _DeleteAccountRequestDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: AppColors.danger.withValues(alpha: 0.14),
-            ),
-            child: const Center(
-              child: HugeIcon(
-                icon: HugeIcons.strokeRoundedDelete02,
-                size: 20,
-                color: AppColors.danger,
-                strokeWidth: 1.9,
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.danger.withValues(alpha: 0.22),
+                      AppColors.danger.withValues(alpha: 0.08),
+                    ],
+                  ),
+                  border: Border.all(
+                    color: AppColors.danger.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: const Center(
+                  child: HugeIcon(
+                    icon: HugeIcons.strokeRoundedDelete02,
+                    size: 20,
+                    color: AppColors.danger,
+                    strokeWidth: 1.9,
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    color: AppColors.danger.withValues(alpha: 0.12),
+                    border: Border.all(
+                      color: AppColors.danger.withValues(alpha: 0.18),
+                    ),
+                  ),
+                  child: const Text(
+                    'Permanent action',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.danger,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              AppModalCloseButton(
+                onTap: () => Navigator.of(context).pop(false),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           const Text(
@@ -739,27 +929,135 @@ class _DeleteAccountRequestDialog extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
+          const SizedBox(height: 18),
+          Container(
+            height: 1,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.danger.withValues(alpha: 0),
+                  AppColors.danger.withValues(alpha: 0.78),
+                  AppColors.danger.withValues(alpha: 0),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              color: Colors.white.withValues(alpha: 0.04),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    color: AppColors.danger.withValues(alpha: 0.12),
+                  ),
+                  child: const Center(
+                    child: HugeIcon(
+                      icon: HugeIcons.strokeRoundedClock01,
+                      size: 14,
+                      color: AppColors.danger,
+                      strokeWidth: 1.8,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'You will receive an email confirmation immediately, and the deletion only completes after 30 days of inactivity.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.6,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
           Row(
             children: [
               Expanded(
-                child: AppModalActionButton(
-                  label: 'Keep account',
-                  onPressed: () => Navigator.of(context).pop(false),
-                  outlineForegroundColor: AppColors.textSecondary,
+                child: SizedBox(
+                  height: 48,
+                  child: AppModalActionButton(
+                    label: 'Keep account',
+                    onPressed: () => Navigator.of(context).pop(false),
+                    outlineForegroundColor: AppColors.textSecondary,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: AppModalActionButton(
-                  label: 'Request deletion',
-                  isPrimary: true,
-                  onPressed: () => Navigator.of(context).pop(true),
-                  primaryColor: AppColors.danger,
-                  primaryForegroundColor: Colors.white,
+                child: SizedBox(
+                  height: 48,
+                  child: AppModalActionButton(
+                    label: 'Request deletion',
+                    isPrimary: true,
+                    onPressed: () => Navigator.of(context).pop(true),
+                    primaryColor: AppColors.danger,
+                    primaryForegroundColor: Colors.white,
+                  ),
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeletionMetricChip extends StatelessWidget {
+  const _DeletionMetricChip({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  final String label;
+  final String value;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: Colors.white.withValues(alpha: 0.04),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: accent.withValues(alpha: 0.92),
+              letterSpacing: 0.15,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
           ),
         ],
       ),
@@ -985,17 +1283,47 @@ class _ProfileSkeletonDeleteCard extends StatelessWidget {
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SkeletonBox(width: 116, height: 24, radius: 999),
+          Row(
+            children: [
+              SkeletonBox(width: 58, height: 24, radius: 999),
+              Spacer(),
+              SkeletonBox(width: 74, height: 24, radius: 999),
+            ],
+          ),
           SizedBox(height: 14),
-          SkeletonBox(width: 194, height: 18, radius: 12),
-          SizedBox(height: 10),
-          SkeletonBox(height: 10, radius: 10),
-          SizedBox(height: 6),
-          SkeletonBox(width: 220, height: 10, radius: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SkeletonBox(width: 36, height: 36, radius: 12),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SkeletonBox(width: 194, height: 16, radius: 12),
+                    SizedBox(height: 8),
+                    SkeletonBox(height: 10, radius: 10),
+                    SizedBox(height: 6),
+                    SkeletonBox(width: 220, height: 10, radius: 10),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: SkeletonBox(height: 56, radius: 18)),
+              SizedBox(width: 10),
+              Expanded(child: SkeletonBox(height: 56, radius: 18)),
+            ],
+          ),
           SizedBox(height: 16),
           SkeletonBox(height: 70, radius: 18),
+          SizedBox(height: 14),
+          SkeletonBox(width: 172, height: 10, radius: 10),
           SizedBox(height: 16),
-          SkeletonBox(height: 48, radius: 18),
+          SkeletonBox(height: 48, radius: 999),
         ],
       ),
     );
