@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/glass_panel.dart';
+import '../../../../core/widgets/skeleton_loader.dart';
 import '../../../auth/data/models/auth_user.dart';
 import '../../../expenses/application/expense_service.dart';
 import '../../../partnerships/application/partnership_service.dart';
@@ -37,6 +40,8 @@ class _ProfilePageState extends State<ProfilePage>
     with TickerProviderStateMixin {
   late final AnimationController _entranceCtrl;
   late final AnimationController _pulseCtrl;
+  Timer? _initialSkeletonTimer;
+  bool _showInitialSkeleton = true;
 
   late final Animation<double> _badgeFade;
   late final Animation<Offset> _badgeSlide;
@@ -112,11 +117,18 @@ class _ProfilePageState extends State<ProfilePage>
       end: 1.0,
     ).animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
 
-    _entranceCtrl.forward();
+    _initialSkeletonTimer = Timer(const Duration(milliseconds: 220), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _showInitialSkeleton = false);
+      _entranceCtrl.forward();
+    });
   }
 
   @override
   void dispose() {
+    _initialSkeletonTimer?.cancel();
     _entranceCtrl.dispose();
     _pulseCtrl.dispose();
     super.dispose();
@@ -126,6 +138,16 @@ class _ProfilePageState extends State<ProfilePage>
   Widget build(BuildContext context) {
     final isCompact = MediaQuery.sizeOf(context).width < 760;
     final pad = isCompact ? 22.0 : 30.0;
+
+    if (_showInitialSkeleton) {
+      return GlassPanel(
+        padding: EdgeInsets.all(pad),
+        borderRadius: BorderRadius.circular(34),
+        blur: 28,
+        opacity: 0.14,
+        child: _ProfilePageLoading(isCompact: isCompact),
+      );
+    }
 
     return GlassPanel(
       padding: EdgeInsets.all(pad),
@@ -389,6 +411,185 @@ class _ProfilePageState extends State<ProfilePage>
           partnershipService: widget.partnershipService,
           user: widget.user,
         ),
+      ),
+    );
+  }
+}
+
+class _ProfilePageLoading extends StatelessWidget {
+  const _ProfilePageLoading({required this.isCompact});
+
+  final bool isCompact;
+
+  @override
+  Widget build(BuildContext context) {
+    return SkeletonLoader(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SkeletonBox(width: 126, height: 30, radius: 999),
+          const SizedBox(height: 28),
+          Center(
+            child: Column(
+              children: [
+                SkeletonBox(
+                  width: isCompact ? 108 : 124,
+                  height: isCompact ? 108 : 124,
+                  radius: 999,
+                ),
+                const SizedBox(height: 18),
+                const SkeletonBox(width: 168, height: 24, radius: 16),
+                const SizedBox(height: 8),
+                const SkeletonBox(width: 220, height: 12, radius: 12),
+                const SizedBox(height: 10),
+                const SkeletonBox(width: 118, height: 28, radius: 999),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+          const SkeletonBox(height: 1, radius: 999),
+          const SizedBox(height: 24),
+          Row(
+            children: const [
+              Expanded(child: _ProfileSkeletonStatCard()),
+              SizedBox(width: 10),
+              Expanded(child: _ProfileSkeletonStatCard()),
+              SizedBox(width: 10),
+              Expanded(child: _ProfileSkeletonStatCard()),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              color: Colors.white.withValues(alpha: 0.04),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: Column(
+              children: const [
+                _ProfileSkeletonInfoRow(),
+                _ProfileSkeletonDivider(),
+                _ProfileSkeletonInfoRow(),
+                _ProfileSkeletonDivider(),
+                _ProfileSkeletonInfoRow(),
+                _ProfileSkeletonDivider(),
+                _ProfileSkeletonInfoRow(),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          const _ProfileSkeletonShortcutCard(),
+          const SizedBox(height: 14),
+          const _ProfileSkeletonShortcutCard(),
+          const SizedBox(height: 24),
+          const SkeletonBox(height: 1, radius: 999),
+          const SizedBox(height: 20),
+          const SkeletonBox(height: 52, radius: 18),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileSkeletonStatCard extends StatelessWidget {
+  const _ProfileSkeletonStatCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: Colors.white.withValues(alpha: 0.05),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SkeletonBox(width: 32, height: 32, radius: 999),
+          SizedBox(height: 10),
+          SkeletonBox(width: 56, height: 10, radius: 10),
+          SizedBox(height: 6),
+          SkeletonBox(width: 74, height: 12, radius: 10),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileSkeletonInfoRow extends StatelessWidget {
+  const _ProfileSkeletonInfoRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      child: Row(
+        children: [
+          SkeletonBox(width: 26, height: 26, radius: 999),
+          SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonBox(width: 92, height: 10, radius: 10),
+                SizedBox(height: 6),
+                SkeletonBox(width: 180, height: 12, radius: 10),
+              ],
+            ),
+          ),
+          SizedBox(width: 10),
+          SkeletonBox(width: 18, height: 18, radius: 999),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileSkeletonDivider extends StatelessWidget {
+  const _ProfileSkeletonDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Divider(
+      height: 1,
+      color: Colors.white.withValues(alpha: 0.06),
+      indent: 56,
+    );
+  }
+}
+
+class _ProfileSkeletonShortcutCard extends StatelessWidget {
+  const _ProfileSkeletonShortcutCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        color: Colors.white.withValues(alpha: 0.04),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: const Row(
+        children: [
+          SkeletonBox(width: 40, height: 40, radius: 999),
+          SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonBox(width: 110, height: 12, radius: 10),
+                SizedBox(height: 8),
+                SkeletonBox(height: 10, radius: 10),
+                SizedBox(height: 6),
+                SkeletonBox(width: 150, height: 10, radius: 10),
+              ],
+            ),
+          ),
+          SizedBox(width: 12),
+          SkeletonBox(width: 18, height: 18, radius: 999),
+        ],
       ),
     );
   }
