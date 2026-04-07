@@ -59,14 +59,15 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxWidth = constraints.maxWidth;
-        final isPhoneNav = maxWidth < 560;
+        final isPhoneNav = maxWidth < 640;
+        final isTinyPhone = maxWidth < 390;
         final isComfortable = maxWidth >= 900;
 
         Widget buildAnimatedItem(
           AppNavDestination destination, {
           bool expand = false,
-          bool compact = false,
-          bool showSelectedLabel = true,
+          bool stacked = false,
+          bool dense = false,
         }) {
           final isSelected = destination.section == widget.currentSection;
           final pressCtrl = _pressControllers[destination.section]!;
@@ -80,8 +81,8 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
             child: _NavItem(
               destination: destination,
               isSelected: isSelected,
-              compact: compact,
-              showSelectedLabel: showSelectedLabel,
+              stacked: stacked,
+              dense: dense,
               onTap: () => _handleTap(destination.section),
             ),
           );
@@ -110,8 +111,8 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
                         (destination) => buildAnimatedItem(
                           destination,
                           expand: true,
-                          compact: true,
-                          showSelectedLabel: false,
+                          stacked: true,
+                          dense: isTinyPhone,
                         ),
                       )
                       .toList(growable: false),
@@ -123,8 +124,8 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
                     .map(
                       (destination) => buildAnimatedItem(
                         destination,
-                        compact: false,
-                        showSelectedLabel: true,
+                        stacked: false,
+                        dense: false,
                       ),
                     )
                     .toList(growable: false),
@@ -149,26 +150,33 @@ class _NavItem extends StatelessWidget {
   const _NavItem({
     required this.destination,
     required this.isSelected,
-    required this.compact,
-    required this.showSelectedLabel,
+    required this.stacked,
+    required this.dense,
     required this.onTap,
   });
 
   final AppNavDestination destination;
   final bool isSelected;
-  final bool compact;
-  final bool showSelectedLabel;
+  final bool stacked;
+  final bool dense;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final iconSize = stacked
+        ? (dense ? 17.0 : 18.0)
+        : (isSelected ? 19.0 : 18.0);
+    final labelColor = isSelected
+        ? AppColors.textPrimary
+        : AppColors.textSecondary.withValues(alpha: stacked ? 0.88 : 0.8);
+
     final icon = AnimatedScale(
       scale: isSelected ? 1.12 : 1.0,
       duration: const Duration(milliseconds: 320),
       curve: Curves.easeOutBack,
       child: HugeIcon(
         icon: destination.icon,
-        size: compact ? 18 : 19,
+        size: iconSize,
         color: isSelected
             ? AppColors.primary
             : AppColors.textSecondary.withValues(alpha: 0.8),
@@ -183,15 +191,15 @@ class _NavItem extends StatelessWidget {
         duration: const Duration(milliseconds: 320),
         curve: Curves.easeOutCubic,
         constraints: BoxConstraints(
-          minHeight: compact ? 54 : 50,
-          minWidth: compact ? 0 : 48,
+          minHeight: stacked ? (dense ? 58 : 62) : 50,
+          minWidth: stacked ? 0 : 52,
         ),
         padding: EdgeInsets.symmetric(
-          horizontal: compact ? 0 : (isSelected ? 16 : 13),
-          vertical: compact ? 10 : 13,
+          horizontal: stacked ? (dense ? 4 : 6) : (isSelected ? 16 : 13),
+          vertical: stacked ? (dense ? 8 : 9) : 13,
         ),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(compact ? 20 : 26),
+          borderRadius: BorderRadius.circular(stacked ? 20 : 26),
           color: isSelected
               ? AppColors.primary.withValues(alpha: 0.17)
               : Colors.transparent,
@@ -212,23 +220,26 @@ class _NavItem extends StatelessWidget {
                 ]
               : null,
         ),
-        child: compact
+        child: stacked
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   icon,
-                  const SizedBox(height: 7),
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 260),
-                    curve: Curves.easeOutCubic,
-                    width: isSelected ? 18 : 6,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(999),
-                      color: isSelected
-                          ? AppColors.primary
-                          : Colors.white.withValues(alpha: 0.14),
+                  SizedBox(height: dense ? 5 : 6),
+                  Text(
+                    destination.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: dense ? 9 : 10,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w600,
+                      color: labelColor,
+                      height: 1.1,
+                      letterSpacing: dense ? -0.1 : 0,
                     ),
                   ),
                 ],
@@ -237,27 +248,19 @@ class _NavItem extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   icon,
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 300),
+                  const SizedBox(width: 8),
+                  AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 220),
                     curve: Curves.easeOutCubic,
-                    child: isSelected && showSelectedLabel
-                        ? Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: AnimatedOpacity(
-                              opacity: 1.0,
-                              duration: const Duration(milliseconds: 200),
-                              child: Text(
-                                destination.label,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
-                                  letterSpacing: 0.1,
-                                ),
-                              ),
-                            ),
-                          )
-                        : const SizedBox.shrink(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w600,
+                      color: labelColor,
+                      letterSpacing: 0.1,
+                    ),
+                    child: Text(destination.label),
                   ),
                 ],
               ),
