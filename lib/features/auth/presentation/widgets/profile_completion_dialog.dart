@@ -329,7 +329,7 @@ class _ProfileCompletionDialogState extends State<ProfileCompletionDialog>
                       leading: HugeIcon(
                         icon: HugeIcons.strokeRoundedCheckmarkCircle02,
                         size: 18,
-                        color: AppColors.background,
+                        color: AppColors.primary,
                         strokeWidth: 1.8,
                       ),
                     ),
