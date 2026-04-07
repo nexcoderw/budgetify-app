@@ -5,8 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/glass_panel.dart';
 import '../../../../core/widgets/skeleton_loader.dart';
+import '../../../auth/application/auth_service_contract.dart';
 import '../../../auth/data/models/auth_user.dart';
 import '../../../partnerships/application/partnership_service.dart';
 import '../../../partnerships/presentation/pages/partners_page.dart';
@@ -17,15 +19,19 @@ class ProfilePage extends StatefulWidget {
   const ProfilePage({
     super.key,
     required this.user,
+    required this.authService,
     required this.partnershipService,
     required this.isLoggingOut,
     required this.onLogout,
+    required this.onUserChanged,
   });
 
   final AuthUser user;
+  final AuthServiceContract authService;
   final PartnershipService partnershipService;
   final bool isLoggingOut;
   final VoidCallback? onLogout;
+  final ValueChanged<AuthUser> onUserChanged;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -37,6 +43,8 @@ class _ProfilePageState extends State<ProfilePage>
   late final AnimationController _pulseCtrl;
   Timer? _initialSkeletonTimer;
   bool _showInitialSkeleton = true;
+  bool _isRequestingDeletion = false;
+  late AuthUser _profileUser;
 
   late final Animation<double> _badgeFade;
   late final Animation<Offset> _badgeSlide;
@@ -59,6 +67,7 @@ class _ProfilePageState extends State<ProfilePage>
   @override
   void initState() {
     super.initState();
+    _profileUser = widget.user;
 
     _entranceCtrl = AnimationController(
       vsync: this,
@@ -119,6 +128,16 @@ class _ProfilePageState extends State<ProfilePage>
       setState(() => _showInitialSkeleton = false);
       _entranceCtrl.forward();
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant ProfilePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user.updatedAt != widget.user.updatedAt ||
+        oldWidget.user.accountDeletionScheduledFor !=
+            widget.user.accountDeletionScheduledFor) {
+      _profileUser = widget.user;
+    }
   }
 
   @override
@@ -186,7 +205,7 @@ class _ProfilePageState extends State<ProfilePage>
                 scale: _avatarScale,
                 child: Center(
                   child: _AvatarHero(
-                    user: widget.user,
+                    user: _profileUser,
                     pulse: _pulse,
                     isCompact: isCompact,
                   ),
@@ -206,7 +225,7 @@ class _ProfilePageState extends State<ProfilePage>
                 child: Column(
                   children: [
                     Text(
-                      widget.user.fullName ?? 'Budgetify user',
+                      _profileUser.fullName ?? 'Budgetify user',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: isCompact ? 22 : 26,
@@ -217,7 +236,7 @@ class _ProfilePageState extends State<ProfilePage>
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      widget.user.email,
+                      _profileUser.email,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 12,
@@ -225,7 +244,7 @@ class _ProfilePageState extends State<ProfilePage>
                         letterSpacing: 0.1,
                       ),
                     ),
-                    if (widget.user.isEmailVerified) ...[
+                    if (_profileUser.isEmailVerified) ...[
                       const SizedBox(height: 10),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -290,7 +309,7 @@ class _ProfilePageState extends State<ProfilePage>
                     child: _StatCard(
                       icon: HugeIcons.strokeRoundedCheckmarkBadge02,
                       label: 'Status',
-                      value: _capitalize(widget.user.status),
+                      value: _capitalize(_profileUser.status),
                       valueColor: AppColors.success,
                     ),
                   ),
@@ -299,10 +318,10 @@ class _ProfilePageState extends State<ProfilePage>
                     child: _StatCard(
                       icon: HugeIcons.strokeRoundedShield01,
                       label: 'Verification',
-                      value: widget.user.isEmailVerified
+                      value: _profileUser.isEmailVerified
                           ? 'Verified'
                           : 'Pending',
-                      valueColor: widget.user.isEmailVerified
+                      valueColor: _profileUser.isEmailVerified
                           ? AppColors.success
                           : AppColors.textSecondary,
                     ),
@@ -312,7 +331,7 @@ class _ProfilePageState extends State<ProfilePage>
                     child: _StatCard(
                       icon: HugeIcons.strokeRoundedCalendar01,
                       label: 'Joined',
-                      value: _shortDate(widget.user.createdAt),
+                      value: _shortDate(_profileUser.createdAt),
                     ),
                   ),
                 ],
@@ -329,7 +348,7 @@ class _ProfilePageState extends State<ProfilePage>
               position: _detailsSlide,
               child: Column(
                 children: [
-                  _AccountDetails(user: widget.user),
+                  _AccountDetails(user: _profileUser),
                   const SizedBox(height: 18),
                   _ProfileShortcutCard(
                     icon: HugeIcons.strokeRoundedUserMultiple,
@@ -356,6 +375,12 @@ class _ProfilePageState extends State<ProfilePage>
                         'Understand what data Budgetify collects, why it is needed, and how your financial information is protected.',
                     accent: AppColors.primary,
                     onTap: _openPrivacyPolicy,
+                  ),
+                  const SizedBox(height: 18),
+                  _DeletionRequestCard(
+                    user: _profileUser,
+                    requesting: _isRequestingDeletion,
+                    onRequestDeletion: _requestAccountDeletion,
                   ),
                 ],
               ),
@@ -416,7 +441,7 @@ class _ProfilePageState extends State<ProfilePage>
       MaterialPageRoute<void>(
         builder: (_) => PartnersPage(
           partnershipService: widget.partnershipService,
-          user: widget.user,
+          user: _profileUser,
         ),
       ),
     );
@@ -432,6 +457,331 @@ class _ProfilePageState extends State<ProfilePage>
     await Navigator.of(
       context,
     ).push(MaterialPageRoute<void>(builder: (_) => const PrivacyPolicyPage()));
+  }
+
+  Future<void> _requestAccountDeletion() async {
+    if (_isRequestingDeletion ||
+        _profileUser.accountDeletionScheduledFor != null) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.7),
+      builder: (_) => const _DeleteAccountRequestDialog(),
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    setState(() => _isRequestingDeletion = true);
+
+    try {
+      final updatedUser = await widget.authService.requestCurrentUserDeletion();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _profileUser = updatedUser;
+      });
+      widget.onUserChanged(updatedUser);
+
+      AppToast.success(
+        context,
+        title: 'Deletion request received',
+        description:
+            'Stay inactive if you want the request to complete in 30 days.',
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      AppToast.error(
+        context,
+        title: 'Unable to schedule deletion',
+        description: _readableError(error),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isRequestingDeletion = false);
+      }
+    }
+  }
+
+  String _readableError(Object error) {
+    final message = error.toString().trim();
+    if (message.startsWith('Exception: ')) {
+      return message.replaceFirst('Exception: ', '');
+    }
+
+    if (message.startsWith('StateError: ')) {
+      return message.replaceFirst('StateError: ', '');
+    }
+
+    return message;
+  }
+}
+
+class _DeletionRequestCard extends StatelessWidget {
+  const _DeletionRequestCard({
+    required this.user,
+    required this.requesting,
+    required this.onRequestDeletion,
+  });
+
+  final AuthUser user;
+  final bool requesting;
+  final Future<void> Function() onRequestDeletion;
+
+  static const _months = <String>[
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final scheduledFor = user.accountDeletionScheduledFor;
+    final requestedAt = user.accountDeletionRequestedAt;
+    final isPending = scheduledFor != null;
+    final scheduledForText = scheduledFor == null
+        ? null
+        : _formatDate(scheduledFor);
+    final requestedAtText = requestedAt == null
+        ? 'Unknown date'
+        : _formatDate(requestedAt);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        color: AppColors.danger.withValues(alpha: 0.08),
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              color: AppColors.danger.withValues(alpha: 0.12),
+            ),
+            child: const Text(
+              'Account deletion',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.danger,
+                letterSpacing: 0.1,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            isPending
+                ? 'Deletion scheduled for $scheduledForText'
+                : 'Close this account permanently',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+              letterSpacing: -0.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isPending
+                ? 'Your request is now waiting out the 30-day window. Do not sign in or record anything if you want it to continue.'
+                : 'Budgetify will wait 30 days before deleting the account. Any sign-in or recorded activity during that time cancels the request automatically.',
+            style: const TextStyle(
+              fontSize: 12.5,
+              height: 1.6,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              color: Colors.white.withValues(alpha: 0.04),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: Text(
+              isPending
+                  ? 'Requested on $requestedAtText. If you log in again or add income, expenses, savings, loans, todos, or any other activity before $scheduledForText, the deletion request is denied automatically.'
+                  : 'You will receive a confirmation email immediately after you submit the request. The safest way to let the deletion finish is to stop using this account until the scheduled date.',
+              style: const TextStyle(
+                fontSize: 12,
+                height: 1.65,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (isPending)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                color: AppColors.danger.withValues(alpha: 0.14),
+                border: Border.all(
+                  color: AppColors.danger.withValues(alpha: 0.22),
+                ),
+              ),
+              child: const Text(
+                'Deletion request scheduled',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.danger,
+                ),
+              ),
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: requesting ? null : () => onRequestDeletion(),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.danger,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: AppColors.danger.withValues(
+                    alpha: 0.55,
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                child: Text(
+                  requesting
+                      ? 'Scheduling deletion...'
+                      : 'Request account deletion',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  static String _formatDate(DateTime value) {
+    return '${_months[value.month - 1]} ${value.day}, ${value.year}';
+  }
+}
+
+class _DeleteAccountRequestDialog extends StatelessWidget {
+  const _DeleteAccountRequestDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+      child: GlassPanel(
+        padding: const EdgeInsets.all(22),
+        borderRadius: BorderRadius.circular(28),
+        blur: 24,
+        opacity: 0.14,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: AppColors.danger.withValues(alpha: 0.14),
+              ),
+              child: const Center(
+                child: HugeIcon(
+                  icon: HugeIcons.strokeRoundedDelete02,
+                  size: 20,
+                  color: AppColors.danger,
+                  strokeWidth: 1.9,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Request account deletion?',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Budgetify will schedule the account for deletion in 30 days. Any sign-in or financial activity during that period cancels the request automatically.',
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.65,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                      side: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                    child: const Text('Keep account'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.danger,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                    child: const Text('Request deletion'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -502,6 +852,8 @@ class _ProfilePageLoading extends StatelessWidget {
           const _ProfileSkeletonShortcutCard(),
           const SizedBox(height: 14),
           const _ProfileSkeletonShortcutCard(),
+          const SizedBox(height: 18),
+          const _ProfileSkeletonDeleteCard(),
           const SizedBox(height: 24),
           const SkeletonBox(height: 1, radius: 999),
           const SizedBox(height: 20),
@@ -630,6 +982,38 @@ class _ProfileSkeletonShortcutCard extends StatelessWidget {
               SkeletonBox(width: 58, height: 10, radius: 10),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileSkeletonDeleteCard extends StatelessWidget {
+  const _ProfileSkeletonDeleteCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        color: Colors.white.withValues(alpha: 0.04),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SkeletonBox(width: 116, height: 24, radius: 999),
+          SizedBox(height: 14),
+          SkeletonBox(width: 194, height: 18, radius: 12),
+          SizedBox(height: 10),
+          SkeletonBox(height: 10, radius: 10),
+          SizedBox(height: 6),
+          SkeletonBox(width: 220, height: 10, radius: 10),
+          SizedBox(height: 16),
+          SkeletonBox(height: 70, radius: 18),
+          SizedBox(height: 16),
+          SkeletonBox(height: 48, radius: 18),
         ],
       ),
     );
