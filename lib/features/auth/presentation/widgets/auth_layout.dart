@@ -66,7 +66,7 @@ class _AuthHeader extends StatelessWidget {
           opacity: 0.12,
           borderRadius: BorderRadius.circular(18),
           child: Image.asset(
-            'assets/branding/logo_color.png',
+            'assets/branding/appstore.png',
             width: logoSize,
             height: logoSize,
             fit: BoxFit.contain,

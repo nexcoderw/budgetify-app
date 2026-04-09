@@ -35,7 +35,7 @@ class AppNavbar extends StatelessWidget {
                   opacity: 0.1,
                   borderRadius: BorderRadius.circular(18),
                   child: Image.asset(
-                    'assets/branding/logo_color.png',
+                    'assets/branding/appstore.png',
                     width: 26,
                     height: 26,
                     fit: BoxFit.contain,
