@@ -120,7 +120,7 @@ class _LandingPageState extends State<LandingPage> {
       case AppLayoutSection.saving:
         return SavingPage(
           savingService: _savingService,
-          expenseService: _expenseService,
+          incomeService: _incomeService,
         );
       case AppLayoutSection.loans:
         return LoanPage(loanService: _loanService);
