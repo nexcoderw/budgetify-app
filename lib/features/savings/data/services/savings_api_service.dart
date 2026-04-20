@@ -44,6 +44,7 @@ class SavingsApiService {
     required String accessToken,
     required String label,
     required double amount,
+    SavingCurrencyCode currency = SavingCurrencyCode.rwf,
     required DateTime date,
     String? note,
     bool stillHave = true,
@@ -54,6 +55,7 @@ class SavingsApiService {
       body: <String, dynamic>{
         'label': label,
         'amount': amount,
+        'currency': currency.apiValue,
         'date': date.toUtc().toIso8601String(),
         if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
         'stillHave': stillHave,
@@ -68,6 +70,7 @@ class SavingsApiService {
     required String savingId,
     String? label,
     double? amount,
+    SavingCurrencyCode? currency,
     DateTime? date,
     String? note,
     bool? stillHave,
@@ -80,6 +83,10 @@ class SavingsApiService {
 
     if (amount != null) {
       body['amount'] = amount;
+    }
+
+    if (currency != null) {
+      body['currency'] = currency.apiValue;
     }
 
     if (date != null) {
