@@ -153,6 +153,28 @@ class SavingsApiService {
     return SavingEntry.fromJson(json);
   }
 
+  Future<SavingEntry> createSavingWithdrawal({
+    required String accessToken,
+    required String savingId,
+    required double amount,
+    SavingCurrencyCode currency = SavingCurrencyCode.rwf,
+    required DateTime date,
+    String? note,
+  }) async {
+    final json = await _apiClient.postJson(
+      _routes.withdrawals(savingId),
+      headers: <String, String>{'Authorization': 'Bearer $accessToken'},
+      body: <String, dynamic>{
+        'amount': amount,
+        'currency': currency.apiValue,
+        'date': date.toUtc().toIso8601String(),
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      },
+    );
+
+    return SavingEntry.fromJson(json);
+  }
+
   Future<void> deleteSaving({
     required String accessToken,
     required String savingId,
