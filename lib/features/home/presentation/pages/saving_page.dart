@@ -549,6 +549,36 @@ class _SavingPageState extends State<SavingPage>
       return;
     }
 
+    final targetAmount = double.tryParse(_form.targetAmount.trim());
+    if (targetAmount == null || targetAmount <= 0) {
+      AppToast.error(
+        context,
+        title: 'Invalid target amount',
+        description: 'Enter a target amount in RWF greater than zero.',
+      );
+      return;
+    }
+
+    final parsedStartDate = DateTime.tryParse(_form.startDate);
+    final parsedEndDate = DateTime.tryParse(_form.endDate);
+    if (parsedStartDate == null || parsedEndDate == null) {
+      AppToast.error(
+        context,
+        title: 'Invalid timeframe',
+        description: 'Pick valid start and end dates.',
+      );
+      return;
+    }
+
+    if (parsedEndDate.isBefore(parsedStartDate)) {
+      AppToast.error(
+        context,
+        title: 'Invalid timeframe',
+        description: 'End date must be the same as or later than start date.',
+      );
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     try {
@@ -557,6 +587,10 @@ class _SavingPageState extends State<SavingPage>
         await widget.savingService.updateSaving(
           savingId: _formDialog!.entry!.id,
           label: _form.label.trim(),
+          targetAmount: targetAmount,
+          targetCurrency: SavingCurrencyCode.rwf,
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
           date: parsedDate,
           note: _form.note.trim(),
         );
@@ -564,6 +598,10 @@ class _SavingPageState extends State<SavingPage>
         await widget.savingService.createSaving(
           label: _form.label.trim(),
           amount: 0,
+          targetAmount: targetAmount,
+          targetCurrency: SavingCurrencyCode.rwf,
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
           date: parsedDate,
           note: _form.note.trim(),
         );
@@ -912,6 +950,9 @@ class _SavingPageState extends State<SavingPage>
     return _SavingFormValues(
       label: '',
       date: _formatDateOnly(defaultDate),
+      targetAmount: '',
+      startDate: _formatDateOnly(defaultDate),
+      endDate: _formatDateOnly(defaultDate),
       note: '',
     );
   }
@@ -920,6 +961,9 @@ class _SavingPageState extends State<SavingPage>
     return _SavingFormValues(
       label: entry.label,
       date: _formatDateOnly(entry.date),
+      targetAmount: entry.targetAmount?.toStringAsFixed(2) ?? '',
+      startDate: _formatDateOnly(entry.startDate ?? entry.date),
+      endDate: _formatDateOnly(entry.endDate ?? entry.date),
       note: entry.note ?? '',
     );
   }
@@ -2860,17 +2904,33 @@ class _SavingFormValues {
   const _SavingFormValues({
     required this.label,
     required this.date,
+    required this.targetAmount,
+    required this.startDate,
+    required this.endDate,
     required this.note,
   });
 
   final String label;
   final String date;
+  final String targetAmount;
+  final String startDate;
+  final String endDate;
   final String note;
 
-  _SavingFormValues copyWith({String? label, String? date, String? note}) {
+  _SavingFormValues copyWith({
+    String? label,
+    String? date,
+    String? targetAmount,
+    String? startDate,
+    String? endDate,
+    String? note,
+  }) {
     return _SavingFormValues(
       label: label ?? this.label,
       date: date ?? this.date,
+      targetAmount: targetAmount ?? this.targetAmount,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
       note: note ?? this.note,
     );
   }
@@ -3031,11 +3091,86 @@ class _SavingFormDialogState extends State<_SavingFormDialog>
     }
   }
 
+  Future<void> _pickStartDate() async {
+    if (widget.isSaving) {
+      return;
+    }
+
+    final initialDate =
+        DateTime.tryParse(widget.form.startDate) ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: _savingAccent,
+            onPrimary: AppColors.background,
+            surface: AppColors.surfaceElevated,
+            onSurface: AppColors.textPrimary,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (picked != null) {
+      widget.onChange(
+        widget.form.copyWith(
+          startDate:
+              '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}',
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickEndDate() async {
+    if (widget.isSaving) {
+      return;
+    }
+
+    final initialDate = DateTime.tryParse(widget.form.endDate) ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: _savingAccent,
+            onPrimary: AppColors.background,
+            surface: AppColors.surfaceElevated,
+            onSurface: AppColors.textPrimary,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (picked != null) {
+      widget.onChange(
+        widget.form.copyWith(
+          endDate:
+              '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}',
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.data.mode == _SavingFormMode.edit;
     final dateLabel = _formatLongDate(
       DateTime.tryParse(widget.form.date) ?? DateTime.now(),
+    );
+    final startDateLabel = _formatLongDate(
+      DateTime.tryParse(widget.form.startDate) ?? DateTime.now(),
+    );
+    final endDateLabel = _formatLongDate(
+      DateTime.tryParse(widget.form.endDate) ?? DateTime.now(),
     );
 
     return FadeTransition(
@@ -3118,6 +3253,25 @@ class _SavingFormDialogState extends State<_SavingFormDialog>
                       widget.onChange(widget.form.copyWith(label: value)),
                 ),
                 const SizedBox(height: 18),
+                const _FieldLabel(label: 'Target amount (RWF)'),
+                const SizedBox(height: 8),
+                _GlassField(
+                  initialValue: widget.form.targetAmount,
+                  hint: '1000000',
+                  accent: _savingAccent,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'^\d*\.?\d{0,2}$'),
+                    ),
+                  ],
+                  onChanged: (value) => widget.onChange(
+                    widget.form.copyWith(targetAmount: value),
+                  ),
+                ),
+                const SizedBox(height: 18),
                 const _FieldLabel(label: 'Date'),
                 const SizedBox(height: 8),
                 GestureDetector(
@@ -3145,6 +3299,96 @@ class _SavingFormDialogState extends State<_SavingFormDialog>
                         const SizedBox(width: 10),
                         Text(
                           dateLabel,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Spacer(),
+                        HugeIcon(
+                          icon: HugeIcons.strokeRoundedArrowDown01,
+                          size: 14,
+                          color: AppColors.textSecondary.withValues(alpha: 0.5),
+                          strokeWidth: 1.8,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const _FieldLabel(label: 'Start date'),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: _pickStartDate,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      color: Colors.white.withValues(alpha: 0.06),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.12),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        HugeIcon(
+                          icon: HugeIcons.strokeRoundedCalendar03,
+                          size: 16,
+                          color: AppColors.textSecondary.withValues(alpha: 0.7),
+                          strokeWidth: 1.8,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          startDateLabel,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Spacer(),
+                        HugeIcon(
+                          icon: HugeIcons.strokeRoundedArrowDown01,
+                          size: 14,
+                          color: AppColors.textSecondary.withValues(alpha: 0.5),
+                          strokeWidth: 1.8,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const _FieldLabel(label: 'End date'),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: _pickEndDate,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      color: Colors.white.withValues(alpha: 0.06),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.12),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        HugeIcon(
+                          icon: HugeIcons.strokeRoundedCalendar03,
+                          size: 16,
+                          color: AppColors.textSecondary.withValues(alpha: 0.7),
+                          strokeWidth: 1.8,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          endDateLabel,
                           style: const TextStyle(
                             fontSize: 13,
                             color: AppColors.textPrimary,
