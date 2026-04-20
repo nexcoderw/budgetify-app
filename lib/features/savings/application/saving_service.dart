@@ -103,6 +103,38 @@ class SavingService {
     );
   }
 
+  Future<List<SavingTransactionEntry>> listSavingTransactions(
+    String savingId,
+  ) async {
+    final session = await _resolveActiveSession();
+
+    return _savingsApiService.fetchSavingTransactions(
+      accessToken: session.accessToken,
+      savingId: savingId,
+    );
+  }
+
+  Future<SavingEntry> createSavingDeposit({
+    required String savingId,
+    required double amount,
+    SavingCurrencyCode currency = SavingCurrencyCode.rwf,
+    required DateTime date,
+    String? note,
+    required List<SavingDepositIncomeSource> incomeSources,
+  }) async {
+    final session = await _resolveActiveSession();
+
+    return _savingsApiService.createSavingDeposit(
+      accessToken: session.accessToken,
+      savingId: savingId,
+      amount: amount,
+      currency: currency,
+      date: date,
+      note: note,
+      incomeSources: incomeSources,
+    );
+  }
+
   Future<void> deleteSaving(String savingId) async {
     final session = await _resolveActiveSession();
 
