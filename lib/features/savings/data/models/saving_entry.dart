@@ -66,6 +66,88 @@ class SavingEntry {
   final DateTime updatedAt;
 }
 
+class SavingTransactionEntry {
+  const SavingTransactionEntry({
+    required this.id,
+    required this.type,
+    required this.amount,
+    required this.currency,
+    required this.amountRwf,
+    required this.date,
+    required this.note,
+    required this.incomeSources,
+    required this.createdAt,
+  });
+
+  factory SavingTransactionEntry.fromJson(Map<String, dynamic> json) {
+    return SavingTransactionEntry(
+      id: json['id'] as String,
+      type: SavingTransactionTypeCode.fromApi(json['type'] as String),
+      amount: (json['amount'] as num).toDouble(),
+      currency: SavingCurrencyCode.fromApi(
+        json['currency'] as String? ?? 'RWF',
+      ),
+      amountRwf: (json['amountRwf'] as num).toDouble(),
+      date: DateTime.parse(json['date'] as String).toLocal(),
+      note: json['note'] as String?,
+      incomeSources: ((json['incomeSources'] as List<dynamic>?) ?? const [])
+          .map(
+            (item) => SavingTransactionIncomeSourceEntry.fromJson(
+              item as Map<String, dynamic>,
+            ),
+          )
+          .toList(growable: false),
+      createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
+    );
+  }
+
+  final String id;
+  final SavingTransactionTypeCode type;
+  final double amount;
+  final SavingCurrencyCode currency;
+  final double amountRwf;
+  final DateTime date;
+  final String? note;
+  final List<SavingTransactionIncomeSourceEntry> incomeSources;
+  final DateTime createdAt;
+}
+
+class SavingTransactionIncomeSourceEntry {
+  const SavingTransactionIncomeSourceEntry({
+    required this.id,
+    required this.incomeId,
+    required this.incomeLabel,
+    required this.incomeCategory,
+    required this.amount,
+    required this.currency,
+    required this.amountRwf,
+  });
+
+  factory SavingTransactionIncomeSourceEntry.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return SavingTransactionIncomeSourceEntry(
+      id: json['id'] as String,
+      incomeId: json['incomeId'] as String,
+      incomeLabel: json['incomeLabel'] as String,
+      incomeCategory: json['incomeCategory'] as String,
+      amount: (json['amount'] as num).toDouble(),
+      currency: SavingCurrencyCode.fromApi(
+        json['currency'] as String? ?? 'RWF',
+      ),
+      amountRwf: (json['amountRwf'] as num).toDouble(),
+    );
+  }
+
+  final String id;
+  final String incomeId;
+  final String incomeLabel;
+  final String incomeCategory;
+  final double amount;
+  final SavingCurrencyCode currency;
+  final double amountRwf;
+}
+
 enum SavingCurrencyCode {
   rwf,
   usd;
@@ -85,6 +167,27 @@ enum SavingCurrencyCode {
       'RWF' => SavingCurrencyCode.rwf,
       'USD' => SavingCurrencyCode.usd,
       _ => throw StateError('Unsupported saving currency: $value'),
+    };
+  }
+}
+
+enum SavingTransactionTypeCode {
+  deposit,
+  withdrawal,
+  adjustment;
+
+  String get apiValue => switch (this) {
+    deposit => 'DEPOSIT',
+    withdrawal => 'WITHDRAWAL',
+    adjustment => 'ADJUSTMENT',
+  };
+
+  static SavingTransactionTypeCode fromApi(String value) {
+    return switch (value) {
+      'DEPOSIT' => SavingTransactionTypeCode.deposit,
+      'WITHDRAWAL' => SavingTransactionTypeCode.withdrawal,
+      'ADJUSTMENT' => SavingTransactionTypeCode.adjustment,
+      _ => throw StateError('Unsupported saving transaction type: $value'),
     };
   }
 }
