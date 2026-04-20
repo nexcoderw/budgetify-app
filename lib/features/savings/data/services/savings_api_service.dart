@@ -45,6 +45,10 @@ class SavingsApiService {
     required String label,
     required double amount,
     SavingCurrencyCode currency = SavingCurrencyCode.rwf,
+    required double targetAmount,
+    SavingCurrencyCode targetCurrency = SavingCurrencyCode.rwf,
+    required DateTime startDate,
+    required DateTime endDate,
     required DateTime date,
     String? note,
     bool stillHave = true,
@@ -56,6 +60,10 @@ class SavingsApiService {
         'label': label,
         'amount': amount,
         'currency': currency.apiValue,
+        'targetAmount': targetAmount,
+        'targetCurrency': targetCurrency.apiValue,
+        'startDate': startDate.toUtc().toIso8601String(),
+        'endDate': endDate.toUtc().toIso8601String(),
         'date': date.toUtc().toIso8601String(),
         if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
         'stillHave': stillHave,
@@ -71,6 +79,10 @@ class SavingsApiService {
     String? label,
     double? amount,
     SavingCurrencyCode? currency,
+    double? targetAmount,
+    SavingCurrencyCode? targetCurrency,
+    DateTime? startDate,
+    DateTime? endDate,
     DateTime? date,
     String? note,
     bool? stillHave,
@@ -87,6 +99,22 @@ class SavingsApiService {
 
     if (currency != null) {
       body['currency'] = currency.apiValue;
+    }
+
+    if (targetAmount != null) {
+      body['targetAmount'] = targetAmount;
+    }
+
+    if (targetCurrency != null) {
+      body['targetCurrency'] = targetCurrency.apiValue;
+    }
+
+    if (startDate != null) {
+      body['startDate'] = startDate.toUtc().toIso8601String();
+    }
+
+    if (endDate != null) {
+      body['endDate'] = endDate.toUtc().toIso8601String();
     }
 
     if (date != null) {
