@@ -130,7 +130,9 @@ class _DashboardPageState extends State<DashboardPage>
       sumSavingAmounts(_allSavings, stillHaveOnly: true);
 
   double get _allTimeMoneyLeft =>
-      sumIncomeAmounts(_allIncome) - sumExpenseAmounts(_allExpenses);
+      sumIncomeAmounts(_allIncome) -
+      sumExpenseAmounts(_allExpenses) -
+      _allTimeSavingsAmount;
 
   double get _pendingTodoAmount => sumTodoAmounts(_allTodos, pendingOnly: true);
 
@@ -324,19 +326,19 @@ class _DashboardPageState extends State<DashboardPage>
                         : _SummaryTone.expense,
                   ),
                   _SummaryCardData(
-                    label: 'Savings you still have',
-                    compactValue: _usdCompact(_allTimeSavingsAmount),
-                    fullValue: _usd(_allTimeSavingsAmount),
+                    label: 'Current savings balance',
+                    compactValue: _rwfCompact(_allTimeSavingsAmount),
+                    fullValue: _rwf(_allTimeSavingsAmount),
                     description:
-                        'All-time USD savings still marked as available',
+                        'Ledger-backed money currently parked in savings',
                     tone: _SummaryTone.saving,
                   ),
                   _SummaryCardData(
-                    label: 'Money you still have',
+                    label: 'Available money now',
                     compactValue: _rwfCompact(_allTimeMoneyLeft),
                     fullValue: _rwf(_allTimeMoneyLeft),
                     description:
-                        'All received income minus all recorded expenses',
+                        'Income minus expenses and current savings balance',
                     tone: _allTimeMoneyLeft >= 0
                         ? _SummaryTone.income
                         : _SummaryTone.expense,
