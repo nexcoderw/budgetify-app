@@ -44,6 +44,7 @@ class IncomeApiService {
     required String accessToken,
     required String label,
     required double amount,
+    CurrencyCode currency = CurrencyCode.rwf,
     required IncomeCategory category,
     required DateTime date,
     bool received = false,
@@ -54,6 +55,7 @@ class IncomeApiService {
       body: <String, dynamic>{
         'label': label,
         'amount': amount,
+        'currency': currency.apiValue,
         'category': category.apiValue,
         'date': date.toUtc().toIso8601String(),
         'received': received,
@@ -68,6 +70,7 @@ class IncomeApiService {
     required String incomeId,
     required String label,
     required double amount,
+    CurrencyCode currency = CurrencyCode.rwf,
     required IncomeCategory category,
     required DateTime date,
     bool? received,
@@ -75,6 +78,7 @@ class IncomeApiService {
     final body = <String, dynamic>{
       'label': label,
       'amount': amount,
+      'currency': currency.apiValue,
       'category': category.apiValue,
       'date': date.toUtc().toIso8601String(),
     };
