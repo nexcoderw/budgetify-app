@@ -135,6 +135,25 @@ class SavingService {
     );
   }
 
+  Future<SavingEntry> createSavingWithdrawal({
+    required String savingId,
+    required double amount,
+    SavingCurrencyCode currency = SavingCurrencyCode.rwf,
+    required DateTime date,
+    String? note,
+  }) async {
+    final session = await _resolveActiveSession();
+
+    return _savingsApiService.createSavingWithdrawal(
+      accessToken: session.accessToken,
+      savingId: savingId,
+      amount: amount,
+      currency: currency,
+      date: date,
+      note: note,
+    );
+  }
+
   Future<void> deleteSaving(String savingId) async {
     final session = await _resolveActiveSession();
 
