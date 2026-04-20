@@ -241,8 +241,13 @@ double sumSavingAmounts(
   bool stillHaveOnly = false,
 }) {
   return entries
-      .where((entry) => !stillHaveOnly || entry.stillHave)
-      .fold(0, (sum, entry) => sum + entry.amount);
+      .where((entry) => !stillHaveOnly || entry.currentBalanceRwf > 0)
+      .fold(
+        0,
+        (sum, entry) =>
+            sum +
+            (stillHaveOnly ? entry.currentBalanceRwf : entry.totalDepositedRwf),
+      );
 }
 
 double sumTodoAmounts(List<TodoItem> entries, {bool pendingOnly = false}) {
