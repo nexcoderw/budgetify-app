@@ -11,41 +11,33 @@ import '../../../../core/widgets/app_modal_dialog.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/glass_panel.dart';
 import '../../../../core/widgets/skeleton_loader.dart';
-import '../../../expenses/application/expense_service.dart';
-import '../../../expenses/data/models/expense_entry.dart';
+import '../../../income/application/income_service.dart';
+import '../../../income/data/models/income_entry.dart';
+import '../../../income/data/models/income_list_query.dart';
 import '../../../savings/application/saving_service.dart';
 import '../../../savings/data/models/saving_entry.dart';
 import '../../../savings/data/models/saving_list_query.dart';
+import '../../../savings/data/services/savings_api_service.dart';
 
 const Color _savingAccent = Color(0xFF7DD3FC);
 const Color _savingSecondary = Color(0xFF93C5FD);
-
-String _usd(double amount) {
-  final fixed = amount.toStringAsFixed(2);
-  final parts = fixed.split('.');
-  final whole = parts.first.replaceAllMapped(
-    RegExp(r'(\d)(?=(\d{3})+$)'),
-    (match) => '${match[1]},',
-  );
-  return '\$$whole.${parts[1]}';
-}
-
-String _usdCompact(double amount) {
-  final absolute = amount.abs();
-  if (absolute >= 1000000) {
-    return '\$${(amount / 1000000).toStringAsFixed(1)}M';
-  }
-  if (absolute >= 1000) {
-    return '\$${(amount / 1000).toStringAsFixed(1)}k';
-  }
-  return _usd(amount);
-}
 
 String _rwf(double amount) {
   final formatted = amount
       .toStringAsFixed(0)
       .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
   return 'RWF $formatted';
+}
+
+String _rwfCompact(double amount) {
+  final absolute = amount.abs();
+  if (absolute >= 1000000) {
+    return 'RWF ${(amount / 1000000).toStringAsFixed(1)}M';
+  }
+  if (absolute >= 1000) {
+    return 'RWF ${(amount / 1000).toStringAsFixed(1)}k';
+  }
+  return _rwf(amount);
 }
 
 String _formatLongDate(DateTime value) {
@@ -104,11 +96,11 @@ class SavingPage extends StatefulWidget {
   const SavingPage({
     super.key,
     required this.savingService,
-    required this.expenseService,
+    required this.incomeService,
   });
 
   final SavingService savingService;
-  final ExpenseService expenseService;
+  final IncomeService incomeService;
 
   @override
   State<SavingPage> createState() => _SavingPageState();
@@ -126,8 +118,10 @@ class _SavingPageState extends State<SavingPage>
   String? _loadError;
   Timer? _searchDebounce;
   bool _isSaving = false;
-  bool _isRecordingExpense = false;
-  String? _stillHaveBusyId;
+  bool _isDepositing = false;
+  bool _isWithdrawing = false;
+  bool _isLoadingHistory = false;
+  bool _isLoadingDepositSources = false;
   int _currentPage = 1;
   int _totalItems = 0;
   int _totalPages = 1;
@@ -139,10 +133,16 @@ class _SavingPageState extends State<SavingPage>
   String? _appliedSearch;
   int _loadSequence = 0;
   _SavingFormDialogStateData? _formDialog;
-  SavingEntry? _expenseDialogEntry;
+  SavingEntry? _depositDialogEntry;
+  SavingEntry? _withdrawalDialogEntry;
+  SavingEntry? _historyDialogEntry;
   SavingEntry? _deleteTarget;
   late _SavingFormValues _form;
-  late _SavingExpenseFormValues _expenseForm;
+  late _SavingDepositFormValues _depositForm;
+  late _SavingWithdrawalFormValues _withdrawalForm;
+  List<IncomeEntry> _depositIncomeOptions = const [];
+  List<SavingTransactionEntry> _historyTransactions = const [];
+  String? _historyError;
 
   @override
   void initState() {
@@ -156,7 +156,8 @@ class _SavingPageState extends State<SavingPage>
     )..forward();
     _searchCtrl = TextEditingController();
     _form = _createEmptySavingForm();
-    _expenseForm = _createEmptySavingExpenseForm();
+    _depositForm = _createEmptySavingDepositForm();
+    _withdrawalForm = _createEmptySavingWithdrawalForm();
     _loadSavings();
   }
 
@@ -168,27 +169,28 @@ class _SavingPageState extends State<SavingPage>
     super.dispose();
   }
 
-  double get _totalSaved =>
-      _entries.fold(0, (sum, entry) => sum + entry.amount);
+  double get _totalBalance =>
+      _entries.fold(0, (sum, entry) => sum + entry.currentBalanceRwf);
 
-  List<SavingEntry> get _activeEntries =>
-      _entries.where((entry) => entry.stillHave).toList(growable: false);
+  double get _totalDeposited =>
+      _entries.fold(0, (sum, entry) => sum + entry.totalDepositedRwf);
 
-  double get _stillHaveSaved =>
-      _activeEntries.fold(0, (sum, entry) => sum + entry.amount);
+  double get _totalWithdrawn =>
+      _entries.fold(0, (sum, entry) => sum + entry.totalWithdrawnRwf);
 
-  double get _inactiveSaved =>
-      (_totalSaved - _stillHaveSaved).clamp(0, double.infinity).toDouble();
-
-  int get _activeShare =>
-      _totalSaved > 0 ? ((_stillHaveSaved / _totalSaved) * 100).round() : 0;
+  int get _activeShare => _totalDeposited > 0
+      ? ((_totalBalance / _totalDeposited) * 100).round()
+      : 0;
 
   SavingEntry? get _largestSaving {
     if (_entries.isEmpty) {
       return null;
     }
     final sorted = _entries.toList(growable: false)
-      ..sort((left, right) => right.amount.compareTo(left.amount));
+      ..sort(
+        (left, right) =>
+            right.currentBalanceRwf.compareTo(left.currentBalanceRwf),
+      );
     return sorted.first;
   }
 
@@ -450,17 +452,68 @@ class _SavingPageState extends State<SavingPage>
     });
   }
 
-  void _openExpenseDialog(SavingEntry entry) {
+  Future<void> _openDepositDialog(SavingEntry entry) async {
     setState(() {
-      _expenseDialogEntry = entry;
-      _expenseForm = _createSavingExpenseFormFromEntry(entry);
+      _depositDialogEntry = entry;
+      _depositForm = _createSavingDepositFormFromEntry(entry);
+      _depositIncomeOptions = const [];
+      _isLoadingDepositSources = true;
+    });
+
+    try {
+      final incomes = await widget.incomeService.listIncome(
+        query: const IncomeListQuery(received: true),
+      );
+
+      if (!mounted || _depositDialogEntry?.id != entry.id) {
+        return;
+      }
+
+      setState(() {
+        _depositIncomeOptions = List<IncomeEntry>.unmodifiable(incomes);
+        _isLoadingDepositSources = false;
+        if (incomes.isNotEmpty && _depositForm.sources.first.incomeId == null) {
+          _depositForm = _depositForm.copyWith(
+            sources: [
+              _depositForm.sources.first.copyWith(incomeId: incomes.first.id),
+            ],
+          );
+        }
+      });
+    } catch (error) {
+      if (!mounted || _depositDialogEntry?.id != entry.id) {
+        return;
+      }
+
+      setState(() => _isLoadingDepositSources = false);
+      AppToast.error(
+        context,
+        title: 'Unable to load income sources',
+        description: _readableError(error),
+      );
+    }
+  }
+
+  void _closeDepositDialog() {
+    setState(() {
+      _depositDialogEntry = null;
+      _depositForm = _createEmptySavingDepositForm();
+      _depositIncomeOptions = const [];
+      _isLoadingDepositSources = false;
     });
   }
 
-  void _closeExpenseDialog() {
+  void _openWithdrawalDialog(SavingEntry entry) {
     setState(() {
-      _expenseDialogEntry = null;
-      _expenseForm = _createEmptySavingExpenseForm();
+      _withdrawalDialogEntry = entry;
+      _withdrawalForm = _createSavingWithdrawalFormFromEntry(entry);
+    });
+  }
+
+  void _closeWithdrawalDialog() {
+    setState(() {
+      _withdrawalDialogEntry = null;
+      _withdrawalForm = _createEmptySavingWithdrawalForm();
     });
   }
 
@@ -468,8 +521,12 @@ class _SavingPageState extends State<SavingPage>
     setState(() => _form = next);
   }
 
-  void _updateExpenseForm(_SavingExpenseFormValues next) {
-    setState(() => _expenseForm = next);
+  void _updateDepositForm(_SavingDepositFormValues next) {
+    setState(() => _depositForm = next);
+  }
+
+  void _updateWithdrawalForm(_SavingWithdrawalFormValues next) {
+    setState(() => _withdrawalForm = next);
   }
 
   Future<void> _submitSaving() async {
@@ -478,16 +535,6 @@ class _SavingPageState extends State<SavingPage>
         context,
         title: 'Missing label',
         description: 'Enter a label for this saving entry.',
-      );
-      return;
-    }
-
-    final amount = double.tryParse(_form.amount.trim());
-    if (amount == null || amount <= 0) {
-      AppToast.error(
-        context,
-        title: 'Invalid amount',
-        description: 'Enter a USD amount greater than zero.',
       );
       return;
     }
@@ -510,14 +557,13 @@ class _SavingPageState extends State<SavingPage>
         await widget.savingService.updateSaving(
           savingId: _formDialog!.entry!.id,
           label: _form.label.trim(),
-          amount: amount,
           date: parsedDate,
           note: _form.note.trim(),
         );
       } else {
         await widget.savingService.createSaving(
           label: _form.label.trim(),
-          amount: amount,
+          amount: 0,
           date: parsedDate,
           note: _form.note.trim(),
         );
@@ -540,10 +586,10 @@ class _SavingPageState extends State<SavingPage>
         context,
         title: _formDialog?.mode == _SavingFormMode.edit
             ? 'Saving updated'
-            : 'Saving added',
+            : 'Saving bucket added',
         description: _formDialog?.mode == _SavingFormMode.edit
-            ? 'Your saving entry was updated successfully.'
-            : 'Your saving entry was added successfully.',
+            ? 'Your saving bucket was updated successfully.'
+            : 'You can add money to this bucket from received income.',
       );
     } catch (error) {
       if (!mounted) {
@@ -554,7 +600,7 @@ class _SavingPageState extends State<SavingPage>
         context,
         title: _formDialog?.mode == _SavingFormMode.edit
             ? 'Unable to update saving'
-            : 'Unable to add saving',
+            : 'Unable to add saving bucket',
         description: _readableError(error),
       );
     } finally {
@@ -604,90 +650,89 @@ class _SavingPageState extends State<SavingPage>
     }
   }
 
-  Future<void> _toggleStillHave(SavingEntry entry) async {
-    setState(() => _stillHaveBusyId = entry.id);
-
-    try {
-      await widget.savingService.updateSaving(
-        savingId: entry.id,
-        stillHave: !entry.stillHave,
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      await _loadSavings();
-      if (!mounted) {
-        return;
-      }
-
-      AppToast.success(
-        context,
-        title: !entry.stillHave
-            ? 'Saving marked available'
-            : 'Saving marked unavailable',
-        description: '${entry.label} was updated successfully.',
-      );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      AppToast.error(
-        context,
-        title: 'Unable to update saving state',
-        description: _readableError(error),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _stillHaveBusyId = null);
-      }
-    }
-  }
-
-  Future<void> _recordExpenseFromSaving() async {
-    final entry = _expenseDialogEntry;
+  Future<void> _submitDeposit() async {
+    final entry = _depositDialogEntry;
     if (entry == null) {
       return;
     }
 
-    final amount = double.tryParse(_expenseForm.amountRwf.trim());
+    final amount = double.tryParse(_depositForm.amount.trim());
     if (amount == null || amount <= 0) {
       AppToast.error(
         context,
         title: 'Invalid amount',
-        description: 'Enter the converted expense amount in RWF.',
+        description: 'Enter the deposit amount in RWF.',
       );
       return;
     }
 
-    final parsedDate = DateTime.tryParse(_expenseForm.date);
+    final parsedDate = DateTime.tryParse(_depositForm.date);
     if (parsedDate == null) {
       AppToast.error(
         context,
         title: 'Invalid date',
-        description: 'Pick a valid expense date.',
+        description: 'Pick a valid deposit date.',
       );
       return;
     }
 
-    setState(() => _isRecordingExpense = true);
+    final selectedSources = _depositForm.sources
+        .where(
+          (source) =>
+              source.incomeId != null &&
+              source.amount.trim().isNotEmpty &&
+              (double.tryParse(source.amount.trim()) ?? 0) > 0,
+        )
+        .toList(growable: false);
+
+    if (selectedSources.isEmpty) {
+      AppToast.error(
+        context,
+        title: 'Missing income sources',
+        description: 'Choose at least one received income for this deposit.',
+      );
+      return;
+    }
+
+    final sourceTotal = selectedSources.fold<double>(
+      0,
+      (sum, source) => sum + (double.tryParse(source.amount.trim()) ?? 0),
+    );
+
+    if ((sourceTotal - amount).abs() > 0.01) {
+      AppToast.error(
+        context,
+        title: 'Source totals do not match',
+        description:
+            'The selected income source amounts must equal the deposit amount.',
+      );
+      return;
+    }
+
+    setState(() => _isDepositing = true);
 
     try {
-      await widget.expenseService.createExpense(
-        label: entry.label,
+      await widget.savingService.createSavingDeposit(
+        savingId: entry.id,
         amount: amount,
-        category: ExpenseCategory.savings,
+        currency: SavingCurrencyCode.rwf,
         date: parsedDate,
-        note: _expenseForm.note.trim(),
+        note: _depositForm.note.trim(),
+        incomeSources: selectedSources
+            .map(
+              (source) => SavingDepositIncomeSource(
+                incomeId: source.incomeId!,
+                amount: double.parse(source.amount.trim()),
+              ),
+            )
+            .toList(growable: false),
       );
 
       if (!mounted) {
         return;
       }
 
-      _closeExpenseDialog();
+      _closeDepositDialog();
       await _loadSavings();
       if (!mounted) {
         return;
@@ -695,8 +740,8 @@ class _SavingPageState extends State<SavingPage>
 
       AppToast.success(
         context,
-        title: 'Expense recorded',
-        description: 'The saving was sent to expenses successfully.',
+        title: 'Money added to saving',
+        description: 'The deposit was recorded with traced income sources.',
       );
     } catch (error) {
       if (!mounted) {
@@ -705,14 +750,136 @@ class _SavingPageState extends State<SavingPage>
 
       AppToast.error(
         context,
-        title: 'Unable to record expense',
+        title: 'Unable to add money',
         description: _readableError(error),
       );
     } finally {
       if (mounted) {
-        setState(() => _isRecordingExpense = false);
+        setState(() => _isDepositing = false);
       }
     }
+  }
+
+  Future<void> _submitWithdrawal() async {
+    final entry = _withdrawalDialogEntry;
+    if (entry == null) {
+      return;
+    }
+
+    final amount = double.tryParse(_withdrawalForm.amount.trim());
+    if (amount == null || amount <= 0) {
+      AppToast.error(
+        context,
+        title: 'Invalid amount',
+        description: 'Enter a withdrawal amount in RWF.',
+      );
+      return;
+    }
+
+    if (amount > entry.currentBalanceRwf + 0.01) {
+      AppToast.error(
+        context,
+        title: 'Amount exceeds balance',
+        description: 'You cannot withdraw more than the current balance.',
+      );
+      return;
+    }
+
+    final parsedDate = DateTime.tryParse(_withdrawalForm.date);
+    if (parsedDate == null) {
+      AppToast.error(
+        context,
+        title: 'Invalid date',
+        description: 'Pick a valid withdrawal date.',
+      );
+      return;
+    }
+
+    setState(() => _isWithdrawing = true);
+
+    try {
+      await widget.savingService.createSavingWithdrawal(
+        savingId: entry.id,
+        amount: amount,
+        currency: SavingCurrencyCode.rwf,
+        date: parsedDate,
+        note: _withdrawalForm.note.trim(),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _closeWithdrawalDialog();
+      await _loadSavings();
+      if (!mounted) {
+        return;
+      }
+
+      AppToast.success(
+        context,
+        title: 'Money withdrawn',
+        description: 'The withdrawal was recorded successfully.',
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      AppToast.error(
+        context,
+        title: 'Unable to withdraw money',
+        description: _readableError(error),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isWithdrawing = false);
+      }
+    }
+  }
+
+  Future<void> _openHistoryDialog(SavingEntry entry) async {
+    setState(() {
+      _historyDialogEntry = entry;
+      _historyTransactions = const [];
+      _historyError = null;
+      _isLoadingHistory = true;
+    });
+
+    try {
+      final transactions = await widget.savingService.listSavingTransactions(
+        entry.id,
+      );
+
+      if (!mounted || _historyDialogEntry?.id != entry.id) {
+        return;
+      }
+
+      setState(() {
+        _historyTransactions = List<SavingTransactionEntry>.unmodifiable(
+          transactions,
+        );
+        _isLoadingHistory = false;
+      });
+    } catch (error) {
+      if (!mounted || _historyDialogEntry?.id != entry.id) {
+        return;
+      }
+
+      setState(() {
+        _historyError = _readableError(error);
+        _isLoadingHistory = false;
+      });
+    }
+  }
+
+  void _closeHistoryDialog() {
+    setState(() {
+      _historyDialogEntry = null;
+      _historyTransactions = const [];
+      _historyError = null;
+      _isLoadingHistory = false;
+    });
   }
 
   String _formatDateOnly(DateTime value) {
@@ -744,7 +911,6 @@ class _SavingPageState extends State<SavingPage>
     final defaultDate = _defaultCreateDate();
     return _SavingFormValues(
       label: '',
-      amount: '',
       date: _formatDateOnly(defaultDate),
       note: '',
     );
@@ -753,25 +919,44 @@ class _SavingPageState extends State<SavingPage>
   _SavingFormValues _createSavingFormFromEntry(SavingEntry entry) {
     return _SavingFormValues(
       label: entry.label,
-      amount: entry.amount.toStringAsFixed(2),
       date: _formatDateOnly(entry.date),
       note: entry.note ?? '',
     );
   }
 
-  _SavingExpenseFormValues _createEmptySavingExpenseForm() {
-    return _SavingExpenseFormValues(
-      amountRwf: '',
+  _SavingDepositFormValues _createEmptySavingDepositForm() {
+    return _SavingDepositFormValues(
+      amount: '',
+      date: _formatDateOnly(DateTime.now()),
+      note: '',
+      sources: const [_SavingDepositSourceFormValue()],
+    );
+  }
+
+  _SavingDepositFormValues _createSavingDepositFormFromEntry(
+    SavingEntry entry,
+  ) {
+    return _SavingDepositFormValues(
+      amount: '',
+      date: _formatDateOnly(entry.date),
+      note: entry.note ?? '',
+      sources: const [_SavingDepositSourceFormValue()],
+    );
+  }
+
+  _SavingWithdrawalFormValues _createEmptySavingWithdrawalForm() {
+    return _SavingWithdrawalFormValues(
+      amount: '',
       date: _formatDateOnly(DateTime.now()),
       note: '',
     );
   }
 
-  _SavingExpenseFormValues _createSavingExpenseFormFromEntry(
+  _SavingWithdrawalFormValues _createSavingWithdrawalFormFromEntry(
     SavingEntry entry,
   ) {
-    return _SavingExpenseFormValues(
-      amountRwf: '',
+    return _SavingWithdrawalFormValues(
+      amount: '',
       date: _formatDateOnly(entry.date),
       note: entry.note ?? '',
     );
@@ -805,7 +990,9 @@ class _SavingPageState extends State<SavingPage>
 
   bool get _hasActiveDialog =>
       _formDialog != null ||
-      _expenseDialogEntry != null ||
+      _depositDialogEntry != null ||
+      _withdrawalDialogEntry != null ||
+      _historyDialogEntry != null ||
       _deleteTarget != null;
 
   void _dismissTopDialog() {
@@ -814,8 +1001,18 @@ class _SavingPageState extends State<SavingPage>
       return;
     }
 
-    if (_expenseDialogEntry != null && !_isRecordingExpense) {
-      _closeExpenseDialog();
+    if (_historyDialogEntry != null && !_isLoadingHistory) {
+      _closeHistoryDialog();
+      return;
+    }
+
+    if (_withdrawalDialogEntry != null && !_isWithdrawing) {
+      _closeWithdrawalDialog();
+      return;
+    }
+
+    if (_depositDialogEntry != null && !_isDepositing) {
+      _closeDepositDialog();
       return;
     }
 
@@ -848,8 +1045,8 @@ class _SavingPageState extends State<SavingPage>
                 slide: _slide(0.0, 0.45),
                 child: _SavingHeader(
                   periodLabel: _periodLabel,
-                  totalSaved: _totalSaved,
-                  activeAmount: _stillHaveSaved,
+                  currentBalance: _totalBalance,
+                  totalDeposited: _totalDeposited,
                   entryCount: _entries.length,
                   canGoNextMonth: _canGoToNextMonth,
                   onAdd: _openAddDialog,
@@ -879,11 +1076,11 @@ class _SavingPageState extends State<SavingPage>
                 slide: _slide(0.22, 0.64),
                 child: _SavingStatsRow(
                   activeShare: _activeShare,
-                  inactiveSaved: _inactiveSaved,
+                  totalBalance: _totalBalance,
+                  totalDeposited: _totalDeposited,
+                  totalWithdrawn: _totalWithdrawn,
                   largestSaving: _largestSaving,
                   latestEntry: _latestEntry,
-                  stillHaveSaved: _stillHaveSaved,
-                  totalSaved: _totalSaved,
                 ),
               ),
               const SizedBox(height: 14),
@@ -896,14 +1093,14 @@ class _SavingPageState extends State<SavingPage>
                   totalItems: _totalItems,
                   totalPages: _totalPages,
                   loadError: _loadError,
-                  stillHaveBusyId: _stillHaveBusyId,
                   onDelete: (entry) => setState(() => _deleteTarget = entry),
                   onEdit: _openEditDialog,
                   onNextPage: () => _goToPage(_currentPage + 1),
                   onPreviousPage: () => _goToPage(_currentPage - 1),
-                  onRecordExpense: _openExpenseDialog,
+                  onDeposit: _openDepositDialog,
                   onRetry: _loadSavings,
-                  onToggleStillHave: _toggleStillHave,
+                  onViewHistory: _openHistoryDialog,
+                  onWithdraw: _openWithdrawalDialog,
                 ),
               ),
               const SizedBox(height: 8),
@@ -927,17 +1124,45 @@ class _SavingPageState extends State<SavingPage>
                 onSubmit: _submitSaving,
               ),
             ),
-          if (_expenseDialogEntry != null)
+          if (_depositDialogEntry != null)
             AppModalOverlay(
-              dismissible: !_isRecordingExpense,
-              onDismiss: _closeExpenseDialog,
-              child: _SavingExpenseDialog(
-                entry: _expenseDialogEntry!,
-                form: _expenseForm,
-                isSaving: _isRecordingExpense,
-                onChange: _updateExpenseForm,
-                onClose: _closeExpenseDialog,
-                onSubmit: _recordExpenseFromSaving,
+              dismissible: !_isDepositing,
+              onDismiss: _closeDepositDialog,
+              child: _SavingDepositDialog(
+                entry: _depositDialogEntry!,
+                form: _depositForm,
+                isSaving: _isDepositing,
+                isLoadingIncomeSources: _isLoadingDepositSources,
+                incomes: _depositIncomeOptions,
+                onChange: _updateDepositForm,
+                onClose: _closeDepositDialog,
+                onSubmit: _submitDeposit,
+              ),
+            ),
+          if (_withdrawalDialogEntry != null)
+            AppModalOverlay(
+              dismissible: !_isWithdrawing,
+              onDismiss: _closeWithdrawalDialog,
+              child: _SavingWithdrawalDialog(
+                entry: _withdrawalDialogEntry!,
+                form: _withdrawalForm,
+                isSaving: _isWithdrawing,
+                onChange: _updateWithdrawalForm,
+                onClose: _closeWithdrawalDialog,
+                onSubmit: _submitWithdrawal,
+              ),
+            ),
+          if (_historyDialogEntry != null)
+            AppModalOverlay(
+              dismissible: !_isLoadingHistory,
+              onDismiss: _closeHistoryDialog,
+              child: _SavingHistoryDialog(
+                entry: _historyDialogEntry!,
+                isLoading: _isLoadingHistory,
+                error: _historyError,
+                transactions: _historyTransactions,
+                onClose: _closeHistoryDialog,
+                onRetry: () => _openHistoryDialog(_historyDialogEntry!),
               ),
             ),
           if (_deleteTarget != null)
@@ -1254,8 +1479,8 @@ class _LoadingEntryRow extends StatelessWidget {
 class _SavingHeader extends StatefulWidget {
   const _SavingHeader({
     required this.periodLabel,
-    required this.totalSaved,
-    required this.activeAmount,
+    required this.currentBalance,
+    required this.totalDeposited,
     required this.entryCount,
     required this.canGoNextMonth,
     required this.onAdd,
@@ -1264,8 +1489,8 @@ class _SavingHeader extends StatefulWidget {
   });
 
   final String periodLabel;
-  final double totalSaved;
-  final double activeAmount;
+  final double currentBalance;
+  final double totalDeposited;
   final int entryCount;
   final bool canGoNextMonth;
   final VoidCallback onAdd;
@@ -1389,7 +1614,7 @@ class _SavingHeaderState extends State<_SavingHeader>
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Track every USD reserve entry, see what is still available, and send any record to expenses when it is used.',
+                            'Create saving buckets, move money in from received income, and track every deposit and withdrawal in one ledger.',
                             style: TextStyle(
                               fontSize: 12,
                               height: 1.55,
@@ -1416,7 +1641,7 @@ class _SavingHeaderState extends State<_SavingHeader>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Total in ${widget.periodLabel}',
+                            'Current balance in ${widget.periodLabel}',
                             style: TextStyle(
                               fontSize: 11,
                               color: AppColors.textSecondary.withValues(
@@ -1427,7 +1652,7 @@ class _SavingHeaderState extends State<_SavingHeader>
                           ),
                           const SizedBox(height: 4),
                           _AnimatedCounter(
-                            value: widget.totalSaved,
+                            value: widget.currentBalance,
                             style: TextStyle(
                               fontSize: isCompact ? 30 : 36,
                               fontWeight: FontWeight.w700,
@@ -1461,7 +1686,7 @@ class _SavingHeaderState extends State<_SavingHeader>
                           ),
                           const SizedBox(width: 5),
                           Text(
-                            '${widget.entryCount} records',
+                            '${widget.entryCount} buckets · ${_rwfCompact(widget.totalDeposited)} deposited',
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -1877,52 +2102,58 @@ class _DateFilterButton extends StatelessWidget {
 class _SavingStatsRow extends StatelessWidget {
   const _SavingStatsRow({
     required this.activeShare,
-    required this.inactiveSaved,
+    required this.totalBalance,
+    required this.totalDeposited,
+    required this.totalWithdrawn,
     required this.largestSaving,
     required this.latestEntry,
-    required this.stillHaveSaved,
-    required this.totalSaved,
   });
 
   final int activeShare;
-  final double inactiveSaved;
+  final double totalBalance;
+  final double totalDeposited;
+  final double totalWithdrawn;
   final SavingEntry? largestSaving;
   final SavingEntry? latestEntry;
-  final double stillHaveSaved;
-  final double totalSaved;
 
   @override
   Widget build(BuildContext context) {
     final items = [
       _MetricCard(
-        label: 'Still available',
-        value: _usdCompact(stillHaveSaved),
-        detail: '$activeShare% of current reserve is still available',
+        label: 'Current balance',
+        value: _rwfCompact(totalBalance),
+        detail: '$activeShare% of deposited money is still inside savings',
         accent: _savingAccent,
       ),
       _MetricCard(
-        label: 'No longer available',
-        value: _usdCompact(inactiveSaved),
-        detail: 'Reserve already moved or consumed',
+        label: 'Total deposited',
+        value: _rwfCompact(totalDeposited),
+        detail: 'All money moved into savings buckets',
         accent: const Color(0xFFFFB86C),
       ),
       _MetricCard(
-        label: 'Largest entry',
-        value: largestSaving == null
-            ? 'No entries'
-            : _usdCompact(largestSaving!.amount),
-        detail: largestSaving?.label ?? 'Record your first saving',
+        label: 'Total withdrawn',
+        value: _rwfCompact(totalWithdrawn),
+        detail: 'Money already moved out of savings',
         accent: AppColors.success,
       ),
       _MetricCard(
-        label: 'Latest signal',
+        label: 'Largest balance',
+        value: largestSaving == null
+            ? 'No entries'
+            : _rwfCompact(largestSaving!.currentBalanceRwf),
+        detail: largestSaving?.label ?? 'Record your first saving',
+        accent: _savingSecondary,
+      ),
+      _MetricCard(
+        label: 'Latest activity',
         value: latestEntry == null
             ? 'No entries'
             : _formatLongDate(latestEntry!.date),
         detail:
             latestEntry?.label ??
-            (_usdCompact(totalSaved) == '\$0.00'
-                ? 'Add a saving entry to start tracking your reserve.'
+            (_rwfCompact(totalBalance) == 'RWF 0'
+                ? 'Create a saving bucket to start tracking your reserve.'
                 : 'Latest saving activity'),
         accent: _savingSecondary,
       ),
@@ -2026,14 +2257,14 @@ class _SavingEntriesPanel extends StatelessWidget {
     required this.totalItems,
     required this.totalPages,
     required this.loadError,
-    required this.stillHaveBusyId,
     required this.onDelete,
+    required this.onDeposit,
     required this.onEdit,
     required this.onNextPage,
     required this.onPreviousPage,
-    required this.onRecordExpense,
     required this.onRetry,
-    required this.onToggleStillHave,
+    required this.onViewHistory,
+    required this.onWithdraw,
   });
 
   final int currentPage;
@@ -2041,14 +2272,14 @@ class _SavingEntriesPanel extends StatelessWidget {
   final int totalItems;
   final int totalPages;
   final String? loadError;
-  final String? stillHaveBusyId;
   final void Function(SavingEntry entry) onDelete;
+  final Future<void> Function(SavingEntry entry) onDeposit;
   final void Function(SavingEntry entry) onEdit;
   final Future<void> Function() onNextPage;
   final Future<void> Function() onPreviousPage;
-  final void Function(SavingEntry entry) onRecordExpense;
   final Future<void> Function() onRetry;
-  final Future<void> Function(SavingEntry entry) onToggleStillHave;
+  final Future<void> Function(SavingEntry entry) onViewHistory;
+  final void Function(SavingEntry entry) onWithdraw;
 
   @override
   Widget build(BuildContext context) {
@@ -2064,7 +2295,7 @@ class _SavingEntriesPanel extends StatelessWidget {
             children: [
               const Expanded(
                 child: Text(
-                  'Saving entries',
+                  'Saving buckets',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -2092,12 +2323,12 @@ class _SavingEntriesPanel extends StatelessWidget {
                 for (var i = 0; i < entries.length; i++)
                   _SavingEntryTile(
                     entry: entries[i],
-                    isBusy: stillHaveBusyId == entries[i].id,
                     isLast: i == entries.length - 1,
                     onDelete: onDelete,
+                    onDeposit: onDeposit,
                     onEdit: onEdit,
-                    onRecordExpense: onRecordExpense,
-                    onToggleStillHave: onToggleStillHave,
+                    onViewHistory: onViewHistory,
+                    onWithdraw: onWithdraw,
                   ),
               ],
             ),
@@ -2186,21 +2417,21 @@ class _ErrorState extends StatelessWidget {
 class _SavingEntryTile extends StatefulWidget {
   const _SavingEntryTile({
     required this.entry,
-    required this.isBusy,
     required this.isLast,
     required this.onDelete,
+    required this.onDeposit,
     required this.onEdit,
-    required this.onRecordExpense,
-    required this.onToggleStillHave,
+    required this.onViewHistory,
+    required this.onWithdraw,
   });
 
   final SavingEntry entry;
-  final bool isBusy;
   final bool isLast;
   final void Function(SavingEntry entry) onDelete;
+  final Future<void> Function(SavingEntry entry) onDeposit;
   final void Function(SavingEntry entry) onEdit;
-  final void Function(SavingEntry entry) onRecordExpense;
-  final Future<void> Function(SavingEntry entry) onToggleStillHave;
+  final Future<void> Function(SavingEntry entry) onViewHistory;
+  final void Function(SavingEntry entry) onWithdraw;
 
   @override
   State<_SavingEntryTile> createState() => _SavingEntryTileState();
@@ -2212,7 +2443,7 @@ class _SavingEntryTileState extends State<_SavingEntryTile> {
   @override
   Widget build(BuildContext context) {
     final creatorLabel = _resolveCreatorLabel(widget.entry);
-    final amountColor = widget.entry.stillHave
+    final amountColor = widget.entry.currentBalanceRwf > 0
         ? _savingAccent
         : AppColors.textSecondary;
 
@@ -2289,7 +2520,7 @@ class _SavingEntryTileState extends State<_SavingEntryTile> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      _usdCompact(widget.entry.amount),
+                      _rwfCompact(widget.entry.currentBalanceRwf),
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -2340,12 +2571,16 @@ class _SavingEntryTileState extends State<_SavingEntryTile> {
                           runSpacing: 6,
                           children: [
                             _DetailItem(
-                              label: 'Amount',
-                              value: _usd(widget.entry.amount),
+                              label: 'Balance',
+                              value: _rwf(widget.entry.currentBalanceRwf),
                             ),
                             _DetailItem(
-                              label: 'Still have',
-                              value: widget.entry.stillHave ? 'Yes' : 'No',
+                              label: 'Deposited',
+                              value: _rwf(widget.entry.totalDepositedRwf),
+                            ),
+                            _DetailItem(
+                              label: 'Withdrawn',
+                              value: _rwf(widget.entry.totalWithdrawnRwf),
                             ),
                             _DetailItem(
                               label: 'Created',
@@ -2383,16 +2618,20 @@ class _SavingEntryTileState extends State<_SavingEntryTile> {
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            _AvailabilityChip(
-                              isBusy: widget.isBusy,
-                              stillHave: widget.entry.stillHave,
-                              onTap: () =>
-                                  widget.onToggleStillHave(widget.entry),
+                            _ActionIcon(
+                              icon: HugeIcons.strokeRoundedArrowDown01,
+                              color: _savingAccent,
+                              onTap: () => widget.onDeposit(widget.entry),
                             ),
                             _ActionIcon(
-                              icon: HugeIcons.strokeRoundedMoneySendSquare,
+                              icon: HugeIcons.strokeRoundedArrowUp01,
                               color: _savingSecondary,
-                              onTap: () => widget.onRecordExpense(widget.entry),
+                              onTap: () => widget.onWithdraw(widget.entry),
+                            ),
+                            _ActionIcon(
+                              icon: HugeIcons.strokeRoundedTransactionHistory,
+                              color: const Color(0xFFFFB86C),
+                              onTap: () => widget.onViewHistory(widget.entry),
                             ),
                             _ActionIcon(
                               icon: HugeIcons.strokeRoundedPencil,
@@ -2426,53 +2665,6 @@ class _SavingEntryTileState extends State<_SavingEntryTile> {
             ),
           ),
       ],
-    );
-  }
-}
-
-class _AvailabilityChip extends StatelessWidget {
-  const _AvailabilityChip({
-    required this.isBusy,
-    required this.stillHave,
-    required this.onTap,
-  });
-
-  final bool isBusy;
-  final bool stillHave;
-  final Future<void> Function() onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = stillHave ? _savingAccent : const Color(0xFFFFB86C);
-
-    return GestureDetector(
-      onTap: isBusy ? null : () => onTap(),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          color: accent.withValues(alpha: 0.14),
-          border: Border.all(color: accent.withValues(alpha: 0.24)),
-        ),
-        child: isBusy
-            ? SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(
-                  strokeWidth: 1.8,
-                  valueColor: AlwaysStoppedAnimation<Color>(accent),
-                ),
-              )
-            : Text(
-                stillHave ? 'Still have' : 'Used up',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: accent,
-                ),
-              ),
-      ),
     );
   }
 }
@@ -2667,49 +2859,90 @@ class _SavingFormDialogStateData {
 class _SavingFormValues {
   const _SavingFormValues({
     required this.label,
-    required this.amount,
     required this.date,
     required this.note,
   });
 
   final String label;
-  final String amount;
   final String date;
   final String note;
 
-  _SavingFormValues copyWith({
-    String? label,
-    String? amount,
-    String? date,
-    String? note,
-  }) {
+  _SavingFormValues copyWith({String? label, String? date, String? note}) {
     return _SavingFormValues(
       label: label ?? this.label,
-      amount: amount ?? this.amount,
       date: date ?? this.date,
       note: note ?? this.note,
     );
   }
 }
 
-class _SavingExpenseFormValues {
-  const _SavingExpenseFormValues({
-    required this.amountRwf,
+class _SavingDepositSourceFormValue {
+  const _SavingDepositSourceFormValue({this.incomeId, this.amount = ''});
+
+  final String? incomeId;
+  final String amount;
+
+  _SavingDepositSourceFormValue copyWith({
+    Object? incomeId = _sentinel,
+    String? amount,
+  }) {
+    return _SavingDepositSourceFormValue(
+      incomeId: identical(incomeId, _sentinel)
+          ? this.incomeId
+          : incomeId as String?,
+      amount: amount ?? this.amount,
+    );
+  }
+}
+
+const Object _sentinel = Object();
+
+class _SavingDepositFormValues {
+  const _SavingDepositFormValues({
+    required this.amount,
+    required this.date,
+    required this.note,
+    required this.sources,
+  });
+
+  final String amount;
+  final String date;
+  final String note;
+  final List<_SavingDepositSourceFormValue> sources;
+
+  _SavingDepositFormValues copyWith({
+    String? amount,
+    String? date,
+    String? note,
+    List<_SavingDepositSourceFormValue>? sources,
+  }) {
+    return _SavingDepositFormValues(
+      amount: amount ?? this.amount,
+      date: date ?? this.date,
+      note: note ?? this.note,
+      sources: sources ?? this.sources,
+    );
+  }
+}
+
+class _SavingWithdrawalFormValues {
+  const _SavingWithdrawalFormValues({
+    required this.amount,
     required this.date,
     required this.note,
   });
 
-  final String amountRwf;
+  final String amount;
   final String date;
   final String note;
 
-  _SavingExpenseFormValues copyWith({
-    String? amountRwf,
+  _SavingWithdrawalFormValues copyWith({
+    String? amount,
     String? date,
     String? note,
   }) {
-    return _SavingExpenseFormValues(
-      amountRwf: amountRwf ?? this.amountRwf,
+    return _SavingWithdrawalFormValues(
+      amount: amount ?? this.amount,
       date: date ?? this.date,
       note: note ?? this.note,
     );
@@ -2844,7 +3077,9 @@ class _SavingFormDialogState extends State<_SavingFormDialog>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            isEditing ? 'Edit saving' : 'Add saving',
+                            isEditing
+                                ? 'Edit saving bucket'
+                                : 'Add saving bucket',
                             style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w700,
@@ -2853,8 +3088,8 @@ class _SavingFormDialogState extends State<_SavingFormDialog>
                           ),
                           Text(
                             isEditing
-                                ? 'Update the details below'
-                                : 'Fill in the details below',
+                                ? 'Update the bucket details below'
+                                : 'Create a bucket first, then add money later',
                             style: TextStyle(
                               fontSize: 11,
                               color: AppColors.textSecondary.withValues(
@@ -2877,29 +3112,10 @@ class _SavingFormDialogState extends State<_SavingFormDialog>
                 const SizedBox(height: 8),
                 _GlassField(
                   initialValue: widget.form.label,
-                  hint: 'Emergency reserve contribution',
+                  hint: 'Emergency fund',
                   accent: _savingAccent,
                   onChanged: (value) =>
                       widget.onChange(widget.form.copyWith(label: value)),
-                ),
-                const SizedBox(height: 18),
-                const _FieldLabel(label: 'Amount (USD)'),
-                const SizedBox(height: 8),
-                _GlassField(
-                  initialValue: widget.form.amount,
-                  hint: '250',
-                  accent: _savingAccent,
-                  prefixText: '\$ ',
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(
-                      RegExp(r'^\d*\.?\d{0,2}$'),
-                    ),
-                  ],
-                  onChanged: (value) =>
-                      widget.onChange(widget.form.copyWith(amount: value)),
                 ),
                 const SizedBox(height: 18),
                 const _FieldLabel(label: 'Date'),
@@ -2951,7 +3167,7 @@ class _SavingFormDialogState extends State<_SavingFormDialog>
                 const SizedBox(height: 8),
                 _GlassField(
                   initialValue: widget.form.note,
-                  hint: 'Optional context for this saving entry',
+                  hint: 'Optional context for this saving bucket',
                   accent: _savingAccent,
                   maxLines: 4,
                   minLines: 3,
@@ -2972,7 +3188,7 @@ class _SavingFormDialogState extends State<_SavingFormDialog>
                     const SizedBox(width: 12),
                     Expanded(
                       child: _DialogButton(
-                        label: isEditing ? 'Save changes' : 'Add saving',
+                        label: isEditing ? 'Save changes' : 'Create bucket',
                         isPrimary: true,
                         isLoading: widget.isSaving,
                         onTap: widget.onSubmit,
@@ -2989,28 +3205,32 @@ class _SavingFormDialogState extends State<_SavingFormDialog>
   }
 }
 
-class _SavingExpenseDialog extends StatefulWidget {
-  const _SavingExpenseDialog({
+class _SavingDepositDialog extends StatefulWidget {
+  const _SavingDepositDialog({
     required this.entry,
     required this.form,
     required this.isSaving,
+    required this.isLoadingIncomeSources,
+    required this.incomes,
     required this.onChange,
     required this.onClose,
     required this.onSubmit,
   });
 
   final SavingEntry entry;
-  final _SavingExpenseFormValues form;
+  final _SavingDepositFormValues form;
   final bool isSaving;
-  final ValueChanged<_SavingExpenseFormValues> onChange;
+  final bool isLoadingIncomeSources;
+  final List<IncomeEntry> incomes;
+  final ValueChanged<_SavingDepositFormValues> onChange;
   final VoidCallback onClose;
   final Future<void> Function() onSubmit;
 
   @override
-  State<_SavingExpenseDialog> createState() => _SavingExpenseDialogState();
+  State<_SavingDepositDialog> createState() => _SavingDepositDialogState();
 }
 
-class _SavingExpenseDialogState extends State<_SavingExpenseDialog>
+class _SavingDepositDialogState extends State<_SavingDepositDialog>
     with SingleTickerProviderStateMixin {
   late final AnimationController _animCtrl;
   late final Animation<double> _scaleAnim;
@@ -3074,7 +3294,7 @@ class _SavingExpenseDialogState extends State<_SavingExpenseDialog>
 
   @override
   Widget build(BuildContext context) {
-    final parsedAmount = double.tryParse(widget.form.amountRwf);
+    final parsedAmount = double.tryParse(widget.form.amount);
     final amountPreview = parsedAmount != null && parsedAmount > 0
         ? _rwf(parsedAmount)
         : 'Enter RWF amount';
@@ -3121,7 +3341,7 @@ class _SavingExpenseDialogState extends State<_SavingExpenseDialog>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Record expense',
+                            'Add money',
                             style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w700,
@@ -3129,7 +3349,7 @@ class _SavingExpenseDialogState extends State<_SavingExpenseDialog>
                             ),
                           ),
                           Text(
-                            'Send this saving to the expenses ledger as a savings-category expense.',
+                            'Move money into this bucket and trace the deposit back to one or more received incomes.',
                             style: TextStyle(
                               fontSize: 11,
                               color: AppColors.textSecondary.withValues(
@@ -3148,14 +3368,17 @@ class _SavingExpenseDialogState extends State<_SavingExpenseDialog>
                 const SizedBox(height: 24),
                 const _GradientDivider(color: _savingSecondary),
                 const SizedBox(height: 20),
-                _SummaryBlock(label: 'Saving', value: widget.entry.label),
+                _SummaryBlock(
+                  label: 'Saving bucket',
+                  value: widget.entry.label,
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
                       child: _SummaryBlock(
-                        label: 'Amount in USD',
-                        value: _usd(widget.entry.amount),
+                        label: 'Current balance',
+                        value: _rwf(widget.entry.currentBalanceRwf),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -3168,7 +3391,7 @@ class _SavingExpenseDialogState extends State<_SavingExpenseDialog>
                   ],
                 ),
                 const SizedBox(height: 18),
-                const _FieldLabel(label: 'Expense date'),
+                const _FieldLabel(label: 'Deposit date'),
                 const SizedBox(height: 8),
                 GestureDetector(
                   onTap: _pickDate,
@@ -3216,7 +3439,7 @@ class _SavingExpenseDialogState extends State<_SavingExpenseDialog>
                 const _FieldLabel(label: 'Amount in RWF'),
                 const SizedBox(height: 8),
                 _GlassField(
-                  initialValue: widget.form.amountRwf,
+                  initialValue: widget.form.amount,
                   hint: '125000',
                   accent: _savingSecondary,
                   keyboardType: const TextInputType.numberWithOptions(
@@ -3228,7 +3451,7 @@ class _SavingExpenseDialogState extends State<_SavingExpenseDialog>
                     ),
                   ],
                   onChanged: (value) =>
-                      widget.onChange(widget.form.copyWith(amountRwf: value)),
+                      widget.onChange(widget.form.copyWith(amount: value)),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -3239,11 +3462,125 @@ class _SavingExpenseDialogState extends State<_SavingExpenseDialog>
                   ),
                 ),
                 const SizedBox(height: 18),
-                const _FieldLabel(label: 'Expense note'),
+                const _FieldLabel(label: 'Income sources'),
+                const SizedBox(height: 8),
+                if (widget.isLoadingIncomeSources)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (widget.incomes.isEmpty)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      color: Colors.white.withValues(alpha: 0.05),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.10),
+                      ),
+                    ),
+                    child: Text(
+                      'No received income is available yet. Mark income as received before tracing a deposit.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.5,
+                        color: AppColors.textSecondary.withValues(alpha: 0.75),
+                      ),
+                    ),
+                  )
+                else
+                  Column(
+                    children: [
+                      for (var i = 0; i < widget.form.sources.length; i++) ...[
+                        _SavingDepositSourceRow(
+                          index: i,
+                          source: widget.form.sources[i],
+                          incomes: widget.incomes,
+                          onIncomeChanged: (incomeId) {
+                            final nextSources = widget.form.sources.toList(
+                              growable: true,
+                            );
+                            nextSources[i] = nextSources[i].copyWith(
+                              incomeId: incomeId,
+                            );
+                            widget.onChange(
+                              widget.form.copyWith(sources: nextSources),
+                            );
+                          },
+                          onAmountChanged: (amount) {
+                            final nextSources = widget.form.sources.toList(
+                              growable: true,
+                            );
+                            nextSources[i] = nextSources[i].copyWith(
+                              amount: amount,
+                            );
+                            widget.onChange(
+                              widget.form.copyWith(sources: nextSources),
+                            );
+                          },
+                          onRemove: widget.form.sources.length == 1
+                              ? null
+                              : () {
+                                  final nextSources =
+                                      widget.form.sources.toList(growable: true)
+                                        ..removeAt(i);
+                                  widget.onChange(
+                                    widget.form.copyWith(sources: nextSources),
+                                  );
+                                },
+                        ),
+                        if (i != widget.form.sources.length - 1)
+                          const SizedBox(height: 10),
+                      ],
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: GestureDetector(
+                          onTap: () {
+                            final fallbackIncome = widget.incomes.first.id;
+                            widget.onChange(
+                              widget.form.copyWith(
+                                sources: [
+                                  ...widget.form.sources,
+                                  _SavingDepositSourceFormValue(
+                                    incomeId: fallbackIncome,
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(999),
+                              color: _savingAccent.withValues(alpha: 0.12),
+                              border: Border.all(
+                                color: _savingAccent.withValues(alpha: 0.24),
+                              ),
+                            ),
+                            child: const Text(
+                              'Add another income source',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: _savingAccent,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                const SizedBox(height: 18),
+                const _FieldLabel(label: 'Deposit note'),
                 const SizedBox(height: 8),
                 _GlassField(
                   initialValue: widget.form.note,
-                  hint: 'Optional note for the recorded expense',
+                  hint: 'Optional context for this deposit',
                   accent: _savingSecondary,
                   maxLines: 4,
                   minLines: 3,
@@ -3264,7 +3601,7 @@ class _SavingExpenseDialogState extends State<_SavingExpenseDialog>
                     const SizedBox(width: 12),
                     Expanded(
                       child: _DialogButton(
-                        label: 'Record expense',
+                        label: 'Add money',
                         isPrimary: true,
                         isLoading: widget.isSaving,
                         onTap: widget.onSubmit,
@@ -3276,6 +3613,645 @@ class _SavingExpenseDialogState extends State<_SavingExpenseDialog>
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SavingWithdrawalDialog extends StatefulWidget {
+  const _SavingWithdrawalDialog({
+    required this.entry,
+    required this.form,
+    required this.isSaving,
+    required this.onChange,
+    required this.onClose,
+    required this.onSubmit,
+  });
+
+  final SavingEntry entry;
+  final _SavingWithdrawalFormValues form;
+  final bool isSaving;
+  final ValueChanged<_SavingWithdrawalFormValues> onChange;
+  final VoidCallback onClose;
+  final Future<void> Function() onSubmit;
+
+  @override
+  State<_SavingWithdrawalDialog> createState() =>
+      _SavingWithdrawalDialogState();
+}
+
+class _SavingWithdrawalDialogState extends State<_SavingWithdrawalDialog>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animCtrl;
+  late final Animation<double> _scaleAnim;
+  late final Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+    _scaleAnim = Tween<double>(
+      begin: 0.90,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
+    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
+    _animCtrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    if (widget.isSaving) {
+      return;
+    }
+
+    final initialDate =
+        DateTime.tryParse(widget.form.date) ?? widget.entry.date;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: _savingAccent,
+            onPrimary: AppColors.background,
+            surface: AppColors.surfaceElevated,
+            onSurface: AppColors.textPrimary,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (picked != null) {
+      widget.onChange(
+        widget.form.copyWith(
+          date:
+              '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}',
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final parsedAmount = double.tryParse(widget.form.amount);
+    final amountPreview = parsedAmount != null && parsedAmount > 0
+        ? _rwf(parsedAmount)
+        : 'Enter RWF amount';
+    final dateLabel = _formatLongDate(
+      DateTime.tryParse(widget.form.date) ?? widget.entry.date,
+    );
+
+    return FadeTransition(
+      opacity: _fadeAnim,
+      child: ScaleTransition(
+        scale: _scaleAnim,
+        child: AppModalDialog(
+          maxWidth: 470,
+          padding: const EdgeInsets.all(28),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFFFB86C).withValues(alpha: 0.16),
+                      ),
+                      child: const Center(
+                        child: HugeIcon(
+                          icon: HugeIcons.strokeRoundedArrowUp01,
+                          size: 18,
+                          color: Color(0xFFFFB86C),
+                          strokeWidth: 1.8,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Withdraw money',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            'Move money out of this saving bucket and record the withdrawal in the ledger.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.7,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    AppModalCloseButton(
+                      onTap: widget.isSaving ? null : widget.onClose,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                const _GradientDivider(color: Color(0xFFFFB86C)),
+                const SizedBox(height: 20),
+                _SummaryBlock(
+                  label: 'Saving bucket',
+                  value: widget.entry.label,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _SummaryBlock(
+                        label: 'Current balance',
+                        value: _rwf(widget.entry.currentBalanceRwf),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _SummaryBlock(
+                        label: 'Total withdrawn',
+                        value: _rwf(widget.entry.totalWithdrawnRwf),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                const _FieldLabel(label: 'Withdrawal date'),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: _pickDate,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      color: Colors.white.withValues(alpha: 0.06),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.12),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        HugeIcon(
+                          icon: HugeIcons.strokeRoundedCalendar03,
+                          size: 16,
+                          color: AppColors.textSecondary.withValues(alpha: 0.7),
+                          strokeWidth: 1.8,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          dateLabel,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Spacer(),
+                        HugeIcon(
+                          icon: HugeIcons.strokeRoundedArrowDown01,
+                          size: 14,
+                          color: AppColors.textSecondary.withValues(alpha: 0.5),
+                          strokeWidth: 1.8,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const _FieldLabel(label: 'Amount in RWF'),
+                const SizedBox(height: 8),
+                _GlassField(
+                  initialValue: widget.form.amount,
+                  hint: '50000',
+                  accent: const Color(0xFFFFB86C),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'^\d*\.?\d{0,2}$'),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      widget.onChange(widget.form.copyWith(amount: value)),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  amountPreview,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary.withValues(alpha: 0.7),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const _FieldLabel(label: 'Withdrawal note'),
+                const SizedBox(height: 8),
+                _GlassField(
+                  initialValue: widget.form.note,
+                  hint: 'Optional context for this withdrawal',
+                  accent: const Color(0xFFFFB86C),
+                  maxLines: 4,
+                  minLines: 3,
+                  onChanged: (value) =>
+                      widget.onChange(widget.form.copyWith(note: value)),
+                ),
+                const SizedBox(height: 28),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _DialogButton(
+                        label: 'Cancel',
+                        isPrimary: false,
+                        isDisabled: widget.isSaving,
+                        onTap: () async => widget.onClose(),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _DialogButton(
+                        label: 'Withdraw',
+                        isPrimary: true,
+                        isLoading: widget.isSaving,
+                        onTap: widget.onSubmit,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SavingHistoryDialog extends StatefulWidget {
+  const _SavingHistoryDialog({
+    required this.entry,
+    required this.isLoading,
+    required this.error,
+    required this.transactions,
+    required this.onClose,
+    required this.onRetry,
+  });
+
+  final SavingEntry entry;
+  final bool isLoading;
+  final String? error;
+  final List<SavingTransactionEntry> transactions;
+  final VoidCallback onClose;
+  final Future<void> Function() onRetry;
+
+  @override
+  State<_SavingHistoryDialog> createState() => _SavingHistoryDialogState();
+}
+
+class _SavingHistoryDialogState extends State<_SavingHistoryDialog>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animCtrl;
+  late final Animation<double> _scaleAnim;
+  late final Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+    _scaleAnim = Tween<double>(
+      begin: 0.90,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
+    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
+    _animCtrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fadeAnim,
+      child: ScaleTransition(
+        scale: _scaleAnim,
+        child: AppModalDialog(
+          maxWidth: 560,
+          padding: const EdgeInsets.all(24),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 24,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Saving history',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          widget.entry.label,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary.withValues(
+                              alpha: 0.72,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  AppModalCloseButton(onTap: widget.onClose),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const _GradientDivider(color: _savingAccent),
+              const SizedBox(height: 16),
+              if (widget.isLoading)
+                const Expanded(
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (widget.error != null)
+                Expanded(
+                  child: _ErrorState(
+                    message: widget.error!,
+                    onRetry: widget.onRetry,
+                  ),
+                )
+              else if (widget.transactions.isEmpty)
+                const Expanded(
+                  child: _EmptyHint(
+                    message: 'No saving transactions recorded yet.',
+                  ),
+                )
+              else
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: widget.transactions.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final transaction = widget.transactions[index];
+                      final accent = switch (transaction.type) {
+                        SavingTransactionTypeCode.deposit => _savingAccent,
+                        SavingTransactionTypeCode.withdrawal => const Color(
+                          0xFFFFB86C,
+                        ),
+                        SavingTransactionTypeCode.adjustment =>
+                          _savingSecondary,
+                      };
+                      final label = switch (transaction.type) {
+                        SavingTransactionTypeCode.deposit => 'Deposit',
+                        SavingTransactionTypeCode.withdrawal => 'Withdrawal',
+                        SavingTransactionTypeCode.adjustment => 'Adjustment',
+                      };
+
+                      return Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          color: Colors.white.withValues(alpha: 0.04),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.08),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  label,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: accent,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  _rwf(transaction.amountRwf),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _formatLongDate(transaction.date),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary.withValues(
+                                  alpha: 0.7,
+                                ),
+                              ),
+                            ),
+                            if (transaction.note != null &&
+                                transaction.note!.trim().isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                transaction.note!.trim(),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  height: 1.45,
+                                  color: AppColors.textSecondary.withValues(
+                                    alpha: 0.82,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            if (transaction.incomeSources.isNotEmpty) ...[
+                              const SizedBox(height: 10),
+                              const Text(
+                                'Income sources',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              for (final source in transaction.incomeSources)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Text(
+                                    '${source.incomeLabel} · ${source.incomeCategory} · ${_rwf(source.amountRwf)}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.textSecondary.withValues(
+                                        alpha: 0.72,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SavingDepositSourceRow extends StatelessWidget {
+  const _SavingDepositSourceRow({
+    required this.index,
+    required this.source,
+    required this.incomes,
+    required this.onIncomeChanged,
+    required this.onAmountChanged,
+    this.onRemove,
+  });
+
+  final int index;
+  final _SavingDepositSourceFormValue source;
+  final List<IncomeEntry> incomes;
+  final ValueChanged<String?> onIncomeChanged;
+  final ValueChanged<String> onAmountChanged;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: Colors.white.withValues(alpha: 0.04),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Source ${index + 1}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              if (onRemove != null)
+                GestureDetector(
+                  onTap: onRemove,
+                  child: HugeIcon(
+                    icon: HugeIcons.strokeRoundedCancel01,
+                    size: 14,
+                    color: AppColors.textSecondary.withValues(alpha: 0.65),
+                    strokeWidth: 1.8,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            initialValue: incomes.any((income) => income.id == source.incomeId)
+                ? source.incomeId
+                : incomes.first.id,
+            dropdownColor: AppColors.surfaceElevated,
+            iconEnabledColor: _savingAccent,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.white.withValues(alpha: 0.06),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.12),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.12),
+                ),
+              ),
+            ),
+            items: incomes
+                .map(
+                  (income) => DropdownMenuItem<String>(
+                    value: income.id,
+                    child: Text(
+                      '${income.label} · ${_rwf(income.amountRwf)}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: onIncomeChanged,
+          ),
+          const SizedBox(height: 10),
+          _GlassField(
+            initialValue: source.amount,
+            hint: '50000',
+            accent: _savingAccent,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}$')),
+            ],
+            onChanged: onAmountChanged,
+          ),
+        ],
       ),
     );
   }
@@ -3488,7 +4464,6 @@ class _GlassField extends StatelessWidget {
     required this.onChanged,
     this.keyboardType,
     this.inputFormatters,
-    this.prefixText,
     this.maxLines = 1,
     this.minLines,
   });
@@ -3499,7 +4474,6 @@ class _GlassField extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final TextInputType? keyboardType;
   final List<TextInputFormatter>? inputFormatters;
-  final String? prefixText;
   final int? maxLines;
   final int? minLines;
 
@@ -3519,12 +4493,6 @@ class _GlassField extends StatelessWidget {
       ),
       decoration: InputDecoration(
         hintText: hint,
-        prefixText: prefixText,
-        prefixStyle: TextStyle(
-          fontSize: 13,
-          color: accent,
-          fontWeight: FontWeight.w600,
-        ),
         hintStyle: TextStyle(
           fontSize: 13,
           color: AppColors.textSecondary.withValues(alpha: 0.4),
@@ -3663,7 +4631,7 @@ class _AnimatedCounterState extends State<_AnimatedCounter>
       animation: _anim,
       builder: (context, _) {
         final value = _previous + _anim.value * (widget.value - _previous);
-        return Text(_usd(value), style: widget.style);
+        return Text(_rwf(value), style: widget.style);
       },
     );
   }
@@ -3734,7 +4702,7 @@ class _FooterNote extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Center(
         child: Text(
-          'Live saving sync · secured to your account session',
+          'Every saving movement stays linked to your ledger and account session',
           style: TextStyle(
             fontSize: 11,
             color: AppColors.textSecondary.withValues(alpha: 0.4),
