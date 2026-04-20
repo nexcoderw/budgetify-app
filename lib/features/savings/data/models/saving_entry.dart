@@ -7,6 +7,14 @@ class SavingEntry {
     required this.amount,
     required this.currency,
     required this.amountRwf,
+    required this.targetAmount,
+    required this.targetCurrency,
+    required this.targetAmountRwf,
+    required this.startDate,
+    required this.endDate,
+    required this.timeframeDays,
+    required this.targetProgressPercentage,
+    required this.timeframeProgressPercentage,
     required this.totalDepositedRwf,
     required this.totalWithdrawnRwf,
     required this.currentBalanceRwf,
@@ -28,6 +36,22 @@ class SavingEntry {
       ),
       amountRwf: ((json['amountRwf'] as num?) ?? (json['amount'] as num))
           .toDouble(),
+      targetAmount: (json['targetAmount'] as num?)?.toDouble(),
+      targetCurrency: (json['targetCurrency'] as String?) == null
+          ? null
+          : SavingCurrencyCode.fromApi(json['targetCurrency'] as String),
+      targetAmountRwf: (json['targetAmountRwf'] as num?)?.toDouble(),
+      startDate: (json['startDate'] as String?) == null
+          ? null
+          : DateTime.parse(json['startDate'] as String).toLocal(),
+      endDate: (json['endDate'] as String?) == null
+          ? null
+          : DateTime.parse(json['endDate'] as String).toLocal(),
+      timeframeDays: json['timeframeDays'] as int?,
+      targetProgressPercentage:
+          (json['targetProgressPercentage'] as num?)?.toDouble(),
+      timeframeProgressPercentage:
+          (json['timeframeProgressPercentage'] as num?)?.toDouble(),
       totalDepositedRwf:
           ((json['totalDepositedRwf'] as num?) ??
                   (json['amountRwf'] as num?) ??
@@ -55,6 +79,14 @@ class SavingEntry {
   final double amount;
   final SavingCurrencyCode currency;
   final double amountRwf;
+  final double? targetAmount;
+  final SavingCurrencyCode? targetCurrency;
+  final double? targetAmountRwf;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final int? timeframeDays;
+  final double? targetProgressPercentage;
+  final double? timeframeProgressPercentage;
   final double totalDepositedRwf;
   final double totalWithdrawnRwf;
   final double currentBalanceRwf;
