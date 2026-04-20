@@ -7,6 +7,9 @@ class SavingEntry {
     required this.amount,
     required this.currency,
     required this.amountRwf,
+    required this.totalDepositedRwf,
+    required this.totalWithdrawnRwf,
+    required this.currentBalanceRwf,
     required this.date,
     required this.note,
     required this.stillHave,
@@ -25,6 +28,17 @@ class SavingEntry {
       ),
       amountRwf: ((json['amountRwf'] as num?) ?? (json['amount'] as num))
           .toDouble(),
+      totalDepositedRwf:
+          ((json['totalDepositedRwf'] as num?) ??
+                  (json['amountRwf'] as num?) ??
+                  (json['amount'] as num))
+              .toDouble(),
+      totalWithdrawnRwf: (json['totalWithdrawnRwf'] as num? ?? 0).toDouble(),
+      currentBalanceRwf:
+          ((json['currentBalanceRwf'] as num?) ??
+                  (json['amountRwf'] as num?) ??
+                  (json['amount'] as num))
+              .toDouble(),
       date: DateTime.parse(json['date'] as String).toLocal(),
       note: json['note'] as String?,
       stillHave: json['stillHave'] as bool? ?? true,
@@ -41,6 +55,9 @@ class SavingEntry {
   final double amount;
   final SavingCurrencyCode currency;
   final double amountRwf;
+  final double totalDepositedRwf;
+  final double totalWithdrawnRwf;
+  final double currentBalanceRwf;
   final DateTime date;
   final String? note;
   final bool stillHave;
