@@ -110,6 +110,49 @@ class SavingsApiService {
     return SavingEntry.fromJson(json);
   }
 
+  Future<List<SavingTransactionEntry>> fetchSavingTransactions({
+    required String accessToken,
+    required String savingId,
+  }) async {
+    final json = await _apiClient.getJsonList(
+      _routes.transactions(savingId),
+      headers: <String, String>{'Authorization': 'Bearer $accessToken'},
+    );
+
+    return json
+        .map(
+          (item) =>
+              SavingTransactionEntry.fromJson(item as Map<String, dynamic>),
+        )
+        .toList(growable: false);
+  }
+
+  Future<SavingEntry> createSavingDeposit({
+    required String accessToken,
+    required String savingId,
+    required double amount,
+    SavingCurrencyCode currency = SavingCurrencyCode.rwf,
+    required DateTime date,
+    String? note,
+    required List<SavingDepositIncomeSource> incomeSources,
+  }) async {
+    final json = await _apiClient.postJson(
+      _routes.deposits(savingId),
+      headers: <String, String>{'Authorization': 'Bearer $accessToken'},
+      body: <String, dynamic>{
+        'amount': amount,
+        'currency': currency.apiValue,
+        'date': date.toUtc().toIso8601String(),
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+        'incomeSources': incomeSources
+            .map((source) => source.toJson())
+            .toList(growable: false),
+      },
+    );
+
+    return SavingEntry.fromJson(json);
+  }
+
   Future<void> deleteSaving({
     required String accessToken,
     required String savingId,
@@ -118,5 +161,25 @@ class SavingsApiService {
       _routes.byId(savingId),
       headers: <String, String>{'Authorization': 'Bearer $accessToken'},
     );
+  }
+}
+
+class SavingDepositIncomeSource {
+  const SavingDepositIncomeSource({
+    required this.incomeId,
+    required this.amount,
+    this.currency = SavingCurrencyCode.rwf,
+  });
+
+  final String incomeId;
+  final double amount;
+  final SavingCurrencyCode currency;
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'incomeId': incomeId,
+      'amount': amount,
+      'currency': currency.apiValue,
+    };
   }
 }
