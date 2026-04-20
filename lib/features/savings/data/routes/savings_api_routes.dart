@@ -8,4 +8,8 @@ class SavingsApiRoutes {
   String get list => _base;
 
   String byId(String savingId) => '$_base/$savingId';
+
+  String deposits(String savingId) => '$_base/$savingId/deposits';
+
+  String transactions(String savingId) => '$_base/$savingId/transactions';
 }
