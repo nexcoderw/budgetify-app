@@ -64,10 +64,53 @@ class ExpenseService {
     );
   }
 
+  Future<ExpenseSummary> getExpenseSummary({
+    ExpenseListQuery query = const ExpenseListQuery(),
+  }) async {
+    final session = await _resolveActiveSession();
+    return _expensesApiService.fetchExpenseSummary(
+      session.accessToken,
+      query: query,
+    );
+  }
+
+  Future<ExpenseAudit> getExpenseAudit({
+    ExpenseListQuery query = const ExpenseListQuery(),
+  }) async {
+    final session = await _resolveActiveSession();
+    return _expensesApiService.fetchExpenseAudit(
+      session.accessToken,
+      query: query,
+    );
+  }
+
+  Future<MobileMoneyQuote> quoteMobileMoneyExpense({
+    required double amount,
+    ExpenseCurrency currency = ExpenseCurrency.rwf,
+    required ExpenseMobileMoneyProvider mobileMoneyProvider,
+    required ExpenseMobileMoneyChannel mobileMoneyChannel,
+    ExpenseMobileMoneyNetwork? mobileMoneyNetwork,
+  }) async {
+    final session = await _resolveActiveSession();
+    return _expensesApiService.quoteMobileMoneyExpense(
+      accessToken: session.accessToken,
+      amount: amount,
+      currency: currency,
+      mobileMoneyProvider: mobileMoneyProvider,
+      mobileMoneyChannel: mobileMoneyChannel,
+      mobileMoneyNetwork: mobileMoneyNetwork,
+    );
+  }
+
   Future<ExpenseEntry> createExpense({
     required String label,
     required double amount,
+    ExpenseCurrency currency = ExpenseCurrency.rwf,
     required ExpenseCategory category,
+    ExpensePaymentMethod paymentMethod = ExpensePaymentMethod.cash,
+    ExpenseMobileMoneyChannel? mobileMoneyChannel,
+    ExpenseMobileMoneyProvider? mobileMoneyProvider,
+    ExpenseMobileMoneyNetwork? mobileMoneyNetwork,
     required DateTime date,
     String? note,
   }) async {
@@ -77,7 +120,12 @@ class ExpenseService {
       accessToken: session.accessToken,
       label: label,
       amount: amount,
+      currency: currency,
       category: category,
+      paymentMethod: paymentMethod,
+      mobileMoneyChannel: mobileMoneyChannel,
+      mobileMoneyProvider: mobileMoneyProvider,
+      mobileMoneyNetwork: mobileMoneyNetwork,
       date: date,
       note: note,
     );
@@ -87,7 +135,12 @@ class ExpenseService {
     required String expenseId,
     required String label,
     required double amount,
+    ExpenseCurrency currency = ExpenseCurrency.rwf,
     required ExpenseCategory category,
+    ExpensePaymentMethod paymentMethod = ExpensePaymentMethod.cash,
+    ExpenseMobileMoneyChannel? mobileMoneyChannel,
+    ExpenseMobileMoneyProvider? mobileMoneyProvider,
+    ExpenseMobileMoneyNetwork? mobileMoneyNetwork,
     required DateTime date,
     String? note,
   }) async {
@@ -98,7 +151,12 @@ class ExpenseService {
       expenseId: expenseId,
       label: label,
       amount: amount,
+      currency: currency,
       category: category,
+      paymentMethod: paymentMethod,
+      mobileMoneyChannel: mobileMoneyChannel,
+      mobileMoneyProvider: mobileMoneyProvider,
+      mobileMoneyNetwork: mobileMoneyNetwork,
       date: date,
       note: note,
     );
