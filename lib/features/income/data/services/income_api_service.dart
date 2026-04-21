@@ -40,6 +40,31 @@ class IncomeApiService {
     );
   }
 
+  Future<IncomeSummary> fetchIncomeSummary(
+    String accessToken, {
+    IncomeListQuery query = const IncomeListQuery(),
+  }) async {
+    final json = await _apiClient.getJson(
+      _routes.summary,
+      headers: <String, String>{'Authorization': 'Bearer $accessToken'},
+      queryParameters: query.toQueryParameters(),
+    );
+
+    return IncomeSummary.fromJson(json);
+  }
+
+  Future<IncomeDetail> fetchIncomeById(
+    String accessToken,
+    String incomeId,
+  ) async {
+    final json = await _apiClient.getJson(
+      _routes.byId(incomeId),
+      headers: <String, String>{'Authorization': 'Bearer $accessToken'},
+    );
+
+    return IncomeDetail.fromJson(json);
+  }
+
   Future<IncomeEntry> createIncome({
     required String accessToken,
     required String label,
