@@ -203,6 +203,20 @@ class SavingsApiService {
     return SavingEntry.fromJson(json);
   }
 
+  Future<SavingEntry> reverseSavingDeposit({
+    required String accessToken,
+    required String savingId,
+    required String transactionId,
+  }) async {
+    final json = await _apiClient.postJson(
+      _routes.reverseDeposit(savingId, transactionId),
+      headers: <String, String>{'Authorization': 'Bearer $accessToken'},
+      body: const <String, dynamic>{},
+    );
+
+    return SavingEntry.fromJson(json);
+  }
+
   Future<void> deleteSaving({
     required String accessToken,
     required String savingId,
