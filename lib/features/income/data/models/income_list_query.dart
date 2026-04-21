@@ -5,6 +5,7 @@ class IncomeListQuery {
     this.month,
     this.year,
     this.category,
+    this.allocationStatus,
     this.received,
     this.search,
     this.dateFrom,
@@ -16,6 +17,7 @@ class IncomeListQuery {
   final int? month;
   final int? year;
   final IncomeCategory? category;
+  final IncomeAllocationStatus? allocationStatus;
   final bool? received;
   final String? search;
   final String? dateFrom;
@@ -27,6 +29,7 @@ class IncomeListQuery {
     int? month,
     int? year,
     IncomeCategory? category,
+    IncomeAllocationStatus? allocationStatus,
     bool? received,
     String? search,
     String? dateFrom,
@@ -38,6 +41,7 @@ class IncomeListQuery {
       month: month ?? this.month,
       year: year ?? this.year,
       category: category ?? this.category,
+      allocationStatus: allocationStatus ?? this.allocationStatus,
       received: received ?? this.received,
       search: search ?? this.search,
       dateFrom: dateFrom ?? this.dateFrom,
@@ -54,6 +58,8 @@ class IncomeListQuery {
       if (month != null) 'month': month,
       if (year != null) 'year': year,
       if (category != null) 'category': category!.apiValue,
+      if (allocationStatus != null)
+        'allocationStatus': allocationStatus!.apiValue,
       if (received != null) 'received': received,
       if (normalizedSearch != null && normalizedSearch.length >= 3)
         'search': normalizedSearch,
