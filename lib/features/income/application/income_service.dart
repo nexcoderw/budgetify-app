@@ -58,6 +58,23 @@ class IncomeService {
     return _incomeApiService.fetchIncomePage(session.accessToken, query: query);
   }
 
+  Future<IncomeSummary> getIncomeSummary({
+    IncomeListQuery query = const IncomeListQuery(),
+  }) async {
+    final session = await _resolveActiveSession();
+
+    return _incomeApiService.fetchIncomeSummary(
+      session.accessToken,
+      query: query,
+    );
+  }
+
+  Future<IncomeDetail> getIncomeById(String incomeId) async {
+    final session = await _resolveActiveSession();
+
+    return _incomeApiService.fetchIncomeById(session.accessToken, incomeId);
+  }
+
   Future<IncomeEntry> createIncome({
     required String label,
     required double amount,
