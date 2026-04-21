@@ -14,4 +14,7 @@ class SavingsApiRoutes {
   String withdrawals(String savingId) => '$_base/$savingId/withdrawals';
 
   String transactions(String savingId) => '$_base/$savingId/transactions';
+
+  String reverseDeposit(String savingId, String transactionId) =>
+      '$_base/$savingId/transactions/$transactionId/reverse';
 }
