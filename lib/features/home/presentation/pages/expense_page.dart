@@ -121,6 +121,28 @@ String _readableError(Object error) {
   return message;
 }
 
+String _expensePaymentMethodLabel(ExpensePaymentMethod method) {
+  return method.displayName;
+}
+
+String _expenseMobileMoneyDetail(ExpenseEntry entry) {
+  if (entry.paymentMethod != ExpensePaymentMethod.mobileMoney ||
+      entry.mobileMoneyChannel == null ||
+      entry.mobileMoneyProvider == null) {
+    return _expensePaymentMethodLabel(entry.paymentMethod);
+  }
+
+  final buffer = StringBuffer(
+    '${entry.mobileMoneyProvider!.displayName} · ${entry.mobileMoneyChannel!.displayName}',
+  );
+
+  if (entry.mobileMoneyNetwork != null) {
+    buffer.write(' · ${entry.mobileMoneyNetwork!.displayName}');
+  }
+
+  return buffer.toString();
+}
+
 class ExpensePage extends StatefulWidget {
   const ExpensePage({super.key, required this.expenseService});
 
@@ -139,6 +161,9 @@ class _ExpensePageState extends State<ExpensePage>
   List<ExpenseCategoryOption> _categoryOptions = const [];
   List<ExpenseEntry> _entries = const [];
   List<ExpenseEntry> _pageEntries = const [];
+  ExpenseSummary? _summary;
+  ExpenseAudit? _audit;
+  ExpenseEntry? _detailsEntry;
   bool _isLoading = true;
   String? _loadError;
   Timer? _searchDebounce;
@@ -176,9 +201,13 @@ class _ExpensePageState extends State<ExpensePage>
     super.dispose();
   }
 
-  double get _total => _entries.fold(0, (sum, entry) => sum + entry.amount);
+  double get _total => _summary?.totalChargedExpensesRwf ?? 0;
 
-  double get _average => _entries.isEmpty ? 0 : _total / _entries.length;
+  double get _average => _summary?.averageExpenseRwf ?? 0;
+
+  double get _availableMoneyNow => _summary?.availableMoneyNowRwf ?? 0;
+
+  double get _totalFees => _summary?.totalFeesRwf ?? 0;
 
   ExpenseEntry? get _largestEntry {
     if (_entries.isEmpty) {
@@ -186,12 +215,11 @@ class _ExpensePageState extends State<ExpensePage>
     }
 
     final sorted = _entries.toList(growable: false)
-      ..sort((left, right) => right.amount.compareTo(left.amount));
+      ..sort(
+        (left, right) => right.totalAmountRwf.compareTo(left.totalAmountRwf),
+      );
     return sorted.first;
   }
-
-  int get _categoryCount =>
-      _entries.map((entry) => entry.category).toSet().length;
 
   bool get _hasExplicitDateFilter =>
       _selectedDateFrom != null || _selectedDateTo != null;
@@ -246,16 +274,42 @@ class _ExpensePageState extends State<ExpensePage>
             ({
               required String label,
               required double amount,
+              required ExpenseCurrency currency,
               required ExpenseCategory category,
+              required ExpensePaymentMethod paymentMethod,
+              ExpenseMobileMoneyChannel? mobileMoneyChannel,
+              ExpenseMobileMoneyProvider? mobileMoneyProvider,
+              ExpenseMobileMoneyNetwork? mobileMoneyNetwork,
               required DateTime date,
               String? note,
             }) {
               return widget.expenseService.createExpense(
                 label: label,
                 amount: amount,
+                currency: currency,
                 category: category,
+                paymentMethod: paymentMethod,
+                mobileMoneyChannel: mobileMoneyChannel,
+                mobileMoneyProvider: mobileMoneyProvider,
+                mobileMoneyNetwork: mobileMoneyNetwork,
                 date: date,
                 note: note,
+              );
+            },
+        onQuote:
+            ({
+              required double amount,
+              required ExpenseCurrency currency,
+              required ExpenseMobileMoneyProvider mobileMoneyProvider,
+              required ExpenseMobileMoneyChannel mobileMoneyChannel,
+              ExpenseMobileMoneyNetwork? mobileMoneyNetwork,
+            }) {
+              return widget.expenseService.quoteMobileMoneyExpense(
+                amount: amount,
+                currency: currency,
+                mobileMoneyProvider: mobileMoneyProvider,
+                mobileMoneyChannel: mobileMoneyChannel,
+                mobileMoneyNetwork: mobileMoneyNetwork,
               );
             },
       ),
@@ -291,7 +345,12 @@ class _ExpensePageState extends State<ExpensePage>
             ({
               required String label,
               required double amount,
+              required ExpenseCurrency currency,
               required ExpenseCategory category,
+              required ExpensePaymentMethod paymentMethod,
+              ExpenseMobileMoneyChannel? mobileMoneyChannel,
+              ExpenseMobileMoneyProvider? mobileMoneyProvider,
+              ExpenseMobileMoneyNetwork? mobileMoneyNetwork,
               required DateTime date,
               String? note,
             }) {
@@ -299,9 +358,30 @@ class _ExpensePageState extends State<ExpensePage>
                 expenseId: entry.id,
                 label: label,
                 amount: amount,
+                currency: currency,
                 category: category,
+                paymentMethod: paymentMethod,
+                mobileMoneyChannel: mobileMoneyChannel,
+                mobileMoneyProvider: mobileMoneyProvider,
+                mobileMoneyNetwork: mobileMoneyNetwork,
                 date: date,
                 note: note,
+              );
+            },
+        onQuote:
+            ({
+              required double amount,
+              required ExpenseCurrency currency,
+              required ExpenseMobileMoneyProvider mobileMoneyProvider,
+              required ExpenseMobileMoneyChannel mobileMoneyChannel,
+              ExpenseMobileMoneyNetwork? mobileMoneyNetwork,
+            }) {
+              return widget.expenseService.quoteMobileMoneyExpense(
+                amount: amount,
+                currency: currency,
+                mobileMoneyProvider: mobileMoneyProvider,
+                mobileMoneyChannel: mobileMoneyChannel,
+                mobileMoneyNetwork: mobileMoneyNetwork,
               );
             },
       ),
@@ -322,6 +402,14 @@ class _ExpensePageState extends State<ExpensePage>
       title: 'Expense updated',
       description: '${updated.label} was updated successfully.',
     );
+  }
+
+  Future<void> _openDetailsDialog(ExpenseEntry entry) async {
+    setState(() => _detailsEntry = entry);
+  }
+
+  void _closeDetailsDialog() {
+    setState(() => _detailsEntry = null);
   }
 
   Future<void> _confirmDelete(ExpenseEntry entry) async {
@@ -385,6 +473,8 @@ class _ExpensePageState extends State<ExpensePage>
       final results = await Future.wait<dynamic>([
         if (_categoryOptions.isEmpty)
           widget.expenseService.listExpenseCategories(),
+        widget.expenseService.getExpenseSummary(query: summaryQuery),
+        widget.expenseService.getExpenseAudit(query: summaryQuery),
         widget.expenseService.listExpenses(query: summaryQuery),
         widget.expenseService.listExpensesPage(query: pageQuery),
       ]);
@@ -396,6 +486,8 @@ class _ExpensePageState extends State<ExpensePage>
             .cast<ExpenseCategoryOption>();
       }
 
+      final summary = results[resultIndex++] as ExpenseSummary;
+      final audit = results[resultIndex++] as ExpenseAudit;
       final entries = (results[resultIndex++] as List<dynamic>)
           .cast<ExpenseEntry>();
       final pageResponse =
@@ -407,6 +499,8 @@ class _ExpensePageState extends State<ExpensePage>
 
       setState(() {
         _categoryOptions = categories;
+        _summary = summary;
+        _audit = audit;
         _entries = _sortedEntries(entries);
         _pageEntries = _sortedEntries(pageResponse.items);
         _totalItems = pageResponse.meta.totalItems;
@@ -422,6 +516,8 @@ class _ExpensePageState extends State<ExpensePage>
       setState(() {
         _entries = const [];
         _pageEntries = const [];
+        _summary = null;
+        _audit = null;
         _isLoading = false;
         _loadError = message;
         _totalItems = 0;
@@ -673,7 +769,8 @@ class _ExpensePageState extends State<ExpensePage>
           slide: _slide(0.0, 0.45),
           child: _ExpenseHeader(
             total: _total,
-            entryCount: _entries.length,
+            entryCount: _summary?.expenseCount ?? _entries.length,
+            availableMoneyNow: _availableMoneyNow,
             periodLabel: _periodLabel,
             canGoNextMonth: _canGoToNextMonth,
             onAdd: _openAddDialog,
@@ -712,11 +809,20 @@ class _ExpensePageState extends State<ExpensePage>
           slide: _slide(0.22, 0.64),
           child: _ExpenseStatsRow(
             average: _average,
-            categoryCount: _categoryCount,
+            totalFees: _totalFees,
+            availableMoneyNow: _availableMoneyNow,
             largestEntry: _largestEntry,
           ),
         ),
         const SizedBox(height: 14),
+        if (_audit != null) ...[
+          _Staggered(
+            fade: _fade(0.28, 0.72),
+            slide: _slide(0.28, 0.72),
+            child: _ExpenseAuditPanel(audit: _audit!),
+          ),
+          const SizedBox(height: 14),
+        ],
         _Staggered(
           fade: _fade(0.34, 0.76),
           slide: _slide(0.34, 0.76),
@@ -739,6 +845,7 @@ class _ExpensePageState extends State<ExpensePage>
             categoryLabel: _categoryLabel,
             onRetry: _loadExpenses,
             onEdit: _openEditDialog,
+            onDetails: _openDetailsDialog,
             onDelete: _confirmDelete,
             onNextPage: () => _goToPage(_currentPage + 1),
             onPreviousPage: () => _goToPage(_currentPage - 1),
@@ -750,6 +857,12 @@ class _ExpensePageState extends State<ExpensePage>
           slide: _slide(0.70, 1.0),
           child: const _FooterNote(),
         ),
+        if (_detailsEntry != null)
+          _ExpenseDetailsDialog(
+            entry: _detailsEntry!,
+            categoryLabel: _categoryLabel,
+            onClose: _closeDetailsDialog,
+          ),
       ],
     );
   }
@@ -1078,6 +1191,7 @@ class _ExpenseHeader extends StatefulWidget {
   const _ExpenseHeader({
     required this.total,
     required this.entryCount,
+    required this.availableMoneyNow,
     required this.periodLabel,
     required this.canGoNextMonth,
     required this.onAdd,
@@ -1087,6 +1201,7 @@ class _ExpenseHeader extends StatefulWidget {
 
   final double total;
   final int entryCount;
+  final double availableMoneyNow;
   final String periodLabel;
   final bool canGoNextMonth;
   final Future<void> Function() onAdd;
@@ -1239,7 +1354,7 @@ class _ExpenseHeaderState extends State<_ExpenseHeader>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Total in ${widget.periodLabel}',
+                            'Charged total in ${widget.periodLabel}',
                             style: TextStyle(
                               fontSize: 11,
                               color: AppColors.textSecondary.withValues(
@@ -1261,38 +1376,62 @@ class _ExpenseHeaderState extends State<_ExpenseHeader>
                         ],
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        color: AppColors.danger.withValues(alpha: 0.12),
-                        border: Border.all(
-                          color: AppColors.danger.withValues(alpha: 0.22),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const HugeIcon(
-                            icon: HugeIcons.strokeRoundedArrowDownLeft01,
-                            size: 12,
-                            color: AppColors.danger,
-                            strokeWidth: 2,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
                           ),
-                          const SizedBox(width: 5),
-                          Text(
-                            '${widget.entryCount} records',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.danger,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            color: AppColors.danger.withValues(alpha: 0.12),
+                            border: Border.all(
+                              color: AppColors.danger.withValues(alpha: 0.22),
                             ),
                           ),
-                        ],
-                      ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const HugeIcon(
+                                icon: HugeIcons.strokeRoundedArrowDownLeft01,
+                                size: 12,
+                                color: AppColors.danger,
+                                strokeWidth: 2,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                '${widget.entryCount} records',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.danger,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Available now',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppColors.textSecondary.withValues(
+                              alpha: 0.62,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _rwfCompact(widget.availableMoneyNow),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.success,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -1788,12 +1927,14 @@ class _DateFilterButton extends StatelessWidget {
 class _ExpenseStatsRow extends StatelessWidget {
   const _ExpenseStatsRow({
     required this.average,
-    required this.categoryCount,
+    required this.totalFees,
+    required this.availableMoneyNow,
     required this.largestEntry,
   });
 
   final double average;
-  final int categoryCount;
+  final double totalFees;
+  final double availableMoneyNow;
   final ExpenseEntry? largestEntry;
 
   @override
@@ -1811,16 +1952,20 @@ class _ExpenseStatsRow extends StatelessWidget {
             label: 'Largest expense',
             value: largestEntry == null
                 ? 'No entries'
-                : _rwfCompact(largestEntry!.amount),
+                : _rwfCompact(largestEntry!.totalAmountRwf),
             detail: largestEntry?.label ?? 'Record your first expense',
             accent: AppColors.danger,
           ),
           _MetricCard(
-            label: 'Categories used',
-            value: '$categoryCount',
-            detail: categoryCount == 1
-                ? 'Category active'
-                : 'Categories active',
+            label: 'Mobile money fees',
+            value: _rwfCompact(totalFees),
+            detail: 'Extra charges captured automatically',
+            accent: AppColors.success,
+          ),
+          _MetricCard(
+            label: 'Available money now',
+            value: _rwfCompact(availableMoneyNow),
+            detail: 'Current spending headroom',
             accent: const Color(0xFF7EB8FF),
           ),
         ];
@@ -1914,6 +2059,142 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
+class _ExpenseAuditPanel extends StatelessWidget {
+  const _ExpenseAuditPanel({required this.audit});
+
+  final ExpenseAudit audit;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPanel(
+      padding: const EdgeInsets.all(20),
+      borderRadius: BorderRadius.circular(28),
+      blur: 24,
+      opacity: 0.12,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Expense audit',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(999),
+                  color:
+                      (audit.isBalanced ? AppColors.success : AppColors.danger)
+                          .withValues(alpha: 0.12),
+                  border: Border.all(
+                    color:
+                        (audit.isBalanced
+                                ? AppColors.success
+                                : AppColors.danger)
+                            .withValues(alpha: 0.24),
+                  ),
+                ),
+                child: Text(
+                  audit.isBalanced ? 'Balanced' : 'Needs review',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: audit.isBalanced
+                        ? AppColors.success
+                        : AppColors.danger,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Charged totals, fees, and available money are reconciled for the active period.',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary.withValues(alpha: 0.72),
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _AuditStat(
+                label: 'Before expenses',
+                value: _rwfCompact(audit.availableMoneyBeforeExpensesRwf),
+              ),
+              _AuditStat(
+                label: 'After expenses',
+                value: _rwfCompact(audit.availableMoneyAfterExpensesRwf),
+              ),
+              _AuditStat(
+                label: 'Fee-bearing rows',
+                value: '${audit.feeBearingExpenseCount}',
+              ),
+              _AuditStat(
+                label: 'Gap',
+                value: _rwfCompact(audit.reconciliationDifferenceRwf.abs()),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuditStat extends StatelessWidget {
+  const _AuditStat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 140),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.white.withValues(alpha: 0.04),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: AppColors.textSecondary.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CategoryBreakdown extends StatelessWidget {
   const _CategoryBreakdown({
     required this.entries,
@@ -1931,8 +2212,8 @@ class _CategoryBreakdown extends StatelessWidget {
     for (final entry in entries) {
       totals.update(
         entry.category,
-        (value) => value + entry.amount,
-        ifAbsent: () => entry.amount,
+        (value) => value + entry.totalAmountRwf,
+        ifAbsent: () => entry.totalAmountRwf,
       );
     }
 
@@ -2070,6 +2351,7 @@ class _ExpenseEntriesPanel extends StatelessWidget {
     required this.categoryLabel,
     required this.onRetry,
     required this.onEdit,
+    required this.onDetails,
     required this.onDelete,
     required this.onNextPage,
     required this.onPreviousPage,
@@ -2083,6 +2365,7 @@ class _ExpenseEntriesPanel extends StatelessWidget {
   final String Function(ExpenseCategory category) categoryLabel;
   final Future<void> Function() onRetry;
   final Future<void> Function(ExpenseEntry entry) onEdit;
+  final Future<void> Function(ExpenseEntry entry) onDetails;
   final Future<void> Function(ExpenseEntry entry) onDelete;
   final Future<void> Function() onNextPage;
   final Future<void> Function() onPreviousPage;
@@ -2131,6 +2414,7 @@ class _ExpenseEntriesPanel extends StatelessWidget {
                     entry: entries[i],
                     isLast: i == entries.length - 1,
                     categoryLabel: categoryLabel,
+                    onDetails: onDetails,
                     onDelete: onDelete,
                     onEdit: onEdit,
                   ),
@@ -2223,6 +2507,7 @@ class _ExpenseEntryTile extends StatefulWidget {
     required this.entry,
     required this.isLast,
     required this.categoryLabel,
+    required this.onDetails,
     required this.onEdit,
     required this.onDelete,
   });
@@ -2230,6 +2515,7 @@ class _ExpenseEntryTile extends StatefulWidget {
   final ExpenseEntry entry;
   final bool isLast;
   final String Function(ExpenseCategory category) categoryLabel;
+  final Future<void> Function(ExpenseEntry entry) onDetails;
   final Future<void> Function(ExpenseEntry entry) onEdit;
   final Future<void> Function(ExpenseEntry entry) onDelete;
 
@@ -2316,7 +2602,7 @@ class _ExpenseEntryTileState extends State<_ExpenseEntryTile> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      _rwfCompact(widget.entry.amount),
+                      _rwfCompact(widget.entry.totalAmountRwf),
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -2367,14 +2653,38 @@ class _ExpenseEntryTileState extends State<_ExpenseEntryTile> {
                           runSpacing: 6,
                           children: [
                             _DetailItem(
-                              label: 'Amount',
-                              value: _rwf(widget.entry.amount),
+                              label: 'Recipient',
+                              value: _rwf(widget.entry.amountRwf),
+                            ),
+                            _DetailItem(
+                              label: 'Charged',
+                              value: _rwf(widget.entry.totalAmountRwf),
+                            ),
+                            _DetailItem(
+                              label: 'Fee',
+                              value: _rwf(widget.entry.feeAmountRwf),
+                            ),
+                            _DetailItem(
+                              label: 'Payment',
+                              value: _expensePaymentMethodLabel(
+                                widget.entry.paymentMethod,
+                              ),
                             ),
                             _DetailItem(
                               label: 'Date',
                               value: _formatLongDate(widget.entry.date),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          _expenseMobileMoneyDetail(widget.entry),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary.withValues(
+                              alpha: 0.72,
+                            ),
+                          ),
                         ),
                         if (widget.entry.note != null &&
                             widget.entry.note!.trim().isNotEmpty) ...[
@@ -2406,6 +2716,12 @@ class _ExpenseEntryTileState extends State<_ExpenseEntryTile> {
                           spacing: 8,
                           runSpacing: 8,
                           children: [
+                            _ActionIcon(
+                              icon: HugeIcons.strokeRoundedView,
+                              color: AppColors.success,
+                              tooltip: 'Details',
+                              onTap: () => widget.onDetails(widget.entry),
+                            ),
                             _ActionIcon(
                               icon: HugeIcons.strokeRoundedPencil,
                               color: const Color(0xFF7EB8FF),
@@ -2622,6 +2938,7 @@ class _ExpenseFormDialog extends StatefulWidget {
   const _ExpenseFormDialog({
     required this.categoryOptions,
     required this.onSubmit,
+    required this.onQuote,
     this.entry,
     this.initialCategory,
     this.initialDate,
@@ -2634,11 +2951,24 @@ class _ExpenseFormDialog extends StatefulWidget {
   final Future<ExpenseEntry> Function({
     required String label,
     required double amount,
+    required ExpenseCurrency currency,
     required ExpenseCategory category,
+    required ExpensePaymentMethod paymentMethod,
+    ExpenseMobileMoneyChannel? mobileMoneyChannel,
+    ExpenseMobileMoneyProvider? mobileMoneyProvider,
+    ExpenseMobileMoneyNetwork? mobileMoneyNetwork,
     required DateTime date,
     String? note,
   })
   onSubmit;
+  final Future<MobileMoneyQuote> Function({
+    required double amount,
+    required ExpenseCurrency currency,
+    required ExpenseMobileMoneyProvider mobileMoneyProvider,
+    required ExpenseMobileMoneyChannel mobileMoneyChannel,
+    ExpenseMobileMoneyNetwork? mobileMoneyNetwork,
+  })
+  onQuote;
 
   @override
   State<_ExpenseFormDialog> createState() => _ExpenseFormDialogState();
@@ -2650,15 +2980,25 @@ class _ExpenseFormDialogState extends State<_ExpenseFormDialog>
   late final TextEditingController _amountCtrl;
   late final TextEditingController _noteCtrl;
   late ExpenseCategory _category;
+  late ExpenseCurrency _currency;
+  late ExpensePaymentMethod _paymentMethod;
+  late ExpenseMobileMoneyProvider _mobileMoneyProvider;
+  late ExpenseMobileMoneyChannel _mobileMoneyChannel;
+  ExpenseMobileMoneyNetwork? _mobileMoneyNetwork;
   late DateTime _date;
   late final AnimationController _animCtrl;
   late final Animation<double> _scaleAnim;
   late final Animation<double> _fadeAnim;
+  Timer? _quoteDebounce;
+  MobileMoneyQuote? _quote;
+  String? _quoteError;
 
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
+  bool _isLoadingQuote = false;
 
   bool get _isEditing => widget.entry != null;
+  bool get _isMobileMoney => _paymentMethod == ExpensePaymentMethod.mobileMoney;
 
   @override
   void initState() {
@@ -2672,6 +3012,15 @@ class _ExpenseFormDialogState extends State<_ExpenseFormDialog>
         widget.entry?.category ??
         widget.initialCategory ??
         ExpenseCategory.foodDining;
+    _currency = widget.entry?.currency ?? ExpenseCurrency.rwf;
+    _paymentMethod = widget.entry?.paymentMethod ?? ExpensePaymentMethod.cash;
+    _mobileMoneyProvider =
+        widget.entry?.mobileMoneyProvider ??
+        ExpenseMobileMoneyProvider.mtnRwanda;
+    _mobileMoneyChannel =
+        widget.entry?.mobileMoneyChannel ??
+        ExpenseMobileMoneyChannel.merchantCode;
+    _mobileMoneyNetwork = widget.entry?.mobileMoneyNetwork;
     _date = widget.entry?.date ?? widget.initialDate ?? DateTime.now();
 
     _animCtrl = AnimationController(
@@ -2684,10 +3033,14 @@ class _ExpenseFormDialogState extends State<_ExpenseFormDialog>
     ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
     _animCtrl.forward();
+    if (_isMobileMoney) {
+      _scheduleQuote();
+    }
   }
 
   @override
   void dispose() {
+    _quoteDebounce?.cancel();
     _labelCtrl.dispose();
     _amountCtrl.dispose();
     _noteCtrl.dispose();
@@ -2741,7 +3094,16 @@ class _ExpenseFormDialogState extends State<_ExpenseFormDialog>
       final result = await widget.onSubmit(
         label: _labelCtrl.text.trim(),
         amount: amount,
+        currency: _currency,
         category: _category,
+        paymentMethod: _paymentMethod,
+        mobileMoneyChannel: _isMobileMoney ? _mobileMoneyChannel : null,
+        mobileMoneyProvider: _isMobileMoney ? _mobileMoneyProvider : null,
+        mobileMoneyNetwork:
+            _isMobileMoney &&
+                _mobileMoneyChannel == ExpenseMobileMoneyChannel.p2pTransfer
+            ? _mobileMoneyNetwork
+            : null,
         date: _date,
         note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
       );
@@ -2768,6 +3130,68 @@ class _ExpenseFormDialogState extends State<_ExpenseFormDialog>
         setState(() => _isSubmitting = false);
       }
     }
+  }
+
+  void _scheduleQuote() {
+    _quoteDebounce?.cancel();
+    if (!_isMobileMoney) {
+      setState(() {
+        _quote = null;
+        _quoteError = null;
+        _isLoadingQuote = false;
+      });
+      return;
+    }
+
+    final amount = double.tryParse(_amountCtrl.text.replaceAll(',', ''));
+    if (amount == null || amount <= 0) {
+      setState(() {
+        _quote = null;
+        _quoteError = null;
+        _isLoadingQuote = false;
+      });
+      return;
+    }
+
+    _quoteDebounce = Timer(const Duration(milliseconds: 250), () async {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoadingQuote = true;
+        _quoteError = null;
+      });
+
+      try {
+        final quote = await widget.onQuote(
+          amount: amount,
+          currency: _currency,
+          mobileMoneyProvider: _mobileMoneyProvider,
+          mobileMoneyChannel: _mobileMoneyChannel,
+          mobileMoneyNetwork:
+              _mobileMoneyChannel == ExpenseMobileMoneyChannel.p2pTransfer
+              ? _mobileMoneyNetwork
+              : null,
+        );
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _quote = quote;
+          _isLoadingQuote = false;
+        });
+      } catch (error) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _quote = null;
+          _quoteError = _readableError(error);
+          _isLoadingQuote = false;
+        });
+      }
+    });
   }
 
   @override
@@ -2871,6 +3295,7 @@ class _ExpenseFormDialogState extends State<_ExpenseFormDialog>
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     prefixText: 'RWF ',
+                    onChanged: (_) => _scheduleQuote(),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Please enter an amount';
@@ -2885,6 +3310,134 @@ class _ExpenseFormDialogState extends State<_ExpenseFormDialog>
                     },
                   ),
                   const SizedBox(height: 18),
+                  const _FieldLabel(label: 'Currency'),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: ExpenseCurrency.values
+                        .map(
+                          (currency) => _ChoiceChipButton(
+                            label: currency.displayName,
+                            isSelected: _currency == currency,
+                            accent: AppColors.danger,
+                            onTap: () {
+                              setState(() => _currency = currency);
+                              _scheduleQuote();
+                            },
+                          ),
+                        )
+                        .toList(growable: false),
+                  ),
+                  const SizedBox(height: 18),
+                  const _FieldLabel(label: 'Payment method'),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: ExpensePaymentMethod.values
+                        .map(
+                          (method) => _ChoiceChipButton(
+                            label: method.displayName,
+                            isSelected: _paymentMethod == method,
+                            accent: method == ExpensePaymentMethod.mobileMoney
+                                ? AppColors.success
+                                : AppColors.danger,
+                            onTap: () {
+                              setState(() {
+                                _paymentMethod = method;
+                                if (!_isMobileMoney) {
+                                  _quote = null;
+                                  _quoteError = null;
+                                }
+                              });
+                              _scheduleQuote();
+                            },
+                          ),
+                        )
+                        .toList(growable: false),
+                  ),
+                  if (_isMobileMoney) ...[
+                    const SizedBox(height: 18),
+                    const _FieldLabel(label: 'Mobile money provider'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: ExpenseMobileMoneyProvider.values
+                          .map(
+                            (provider) => _ChoiceChipButton(
+                              label: provider.displayName,
+                              isSelected: _mobileMoneyProvider == provider,
+                              accent: AppColors.success,
+                              onTap: () {
+                                setState(() => _mobileMoneyProvider = provider);
+                                _scheduleQuote();
+                              },
+                            ),
+                          )
+                          .toList(growable: false),
+                    ),
+                    const SizedBox(height: 18),
+                    const _FieldLabel(label: 'Transfer type'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: ExpenseMobileMoneyChannel.values
+                          .map(
+                            (channel) => _ChoiceChipButton(
+                              label: channel.displayName,
+                              isSelected: _mobileMoneyChannel == channel,
+                              accent: AppColors.success,
+                              onTap: () {
+                                setState(() {
+                                  _mobileMoneyChannel = channel;
+                                  if (channel ==
+                                      ExpenseMobileMoneyChannel.merchantCode) {
+                                    _mobileMoneyNetwork = null;
+                                  } else {
+                                    _mobileMoneyNetwork ??=
+                                        ExpenseMobileMoneyNetwork.onNet;
+                                  }
+                                });
+                                _scheduleQuote();
+                              },
+                            ),
+                          )
+                          .toList(growable: false),
+                    ),
+                    if (_mobileMoneyChannel ==
+                        ExpenseMobileMoneyChannel.p2pTransfer) ...[
+                      const SizedBox(height: 18),
+                      const _FieldLabel(label: 'Network'),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: ExpenseMobileMoneyNetwork.values
+                            .map(
+                              (network) => _ChoiceChipButton(
+                                label: network.displayName,
+                                isSelected: _mobileMoneyNetwork == network,
+                                accent: AppColors.success,
+                                onTap: () {
+                                  setState(() => _mobileMoneyNetwork = network);
+                                  _scheduleQuote();
+                                },
+                              ),
+                            )
+                            .toList(growable: false),
+                      ),
+                    ],
+                    const SizedBox(height: 18),
+                    _QuotePreviewCard(
+                      isLoading: _isLoadingQuote,
+                      quote: _quote,
+                      error: _quoteError,
+                    ),
+                    const SizedBox(height: 18),
+                  ],
                   const _FieldLabel(label: 'Category'),
                   const SizedBox(height: 8),
                   _CategoryPicker(
@@ -3180,6 +3733,109 @@ class _DeleteConfirmDialogState extends State<_DeleteConfirmDialog>
   }
 }
 
+class _ExpenseDetailsDialog extends StatelessWidget {
+  const _ExpenseDetailsDialog({
+    required this.entry,
+    required this.categoryLabel,
+    required this.onClose,
+  });
+
+  final ExpenseEntry entry;
+  final String Function(ExpenseCategory category) categoryLabel;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppModalDialog(
+      maxWidth: 460,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      entry.label,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      categoryLabel(entry.category),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary.withValues(alpha: 0.72),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              AppModalCloseButton(onTap: onClose),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const _GradientDivider(color: AppColors.danger),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _AuditStat(
+                label: 'Recipient',
+                value: _rwfCompact(entry.amountRwf),
+              ),
+              _AuditStat(label: 'Fee', value: _rwfCompact(entry.feeAmountRwf)),
+              _AuditStat(
+                label: 'Charged',
+                value: _rwfCompact(entry.totalAmountRwf),
+              ),
+              _AuditStat(
+                label: 'Method',
+                value: _expensePaymentMethodLabel(entry.paymentMethod),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _DetailItem(label: 'Date', value: _formatLongDate(entry.date)),
+          const SizedBox(height: 10),
+          _DetailItem(
+            label: 'Channel',
+            value: _expenseMobileMoneyDetail(entry),
+          ),
+          if (entry.note != null && entry.note!.trim().isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: Colors.white.withValues(alpha: 0.04),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              ),
+              child: Text(
+                entry.note!.trim(),
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.5,
+                  color: AppColors.textSecondary.withValues(alpha: 0.8),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _FieldLabel extends StatelessWidget {
   const _FieldLabel({required this.label});
 
@@ -3210,6 +3866,7 @@ class _GlassField extends StatelessWidget {
     this.validator,
     this.maxLines = 1,
     this.minLines,
+    this.onChanged,
   });
 
   final TextEditingController controller;
@@ -3221,6 +3878,7 @@ class _GlassField extends StatelessWidget {
   final String? Function(String?)? validator;
   final int? maxLines;
   final int? minLines;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -3228,6 +3886,7 @@ class _GlassField extends StatelessWidget {
       controller: controller,
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
+      onChanged: onChanged,
       validator: validator,
       minLines: minLines,
       maxLines: maxLines,
@@ -3279,6 +3938,129 @@ class _GlassField extends StatelessWidget {
           ),
         ),
         errorStyle: const TextStyle(fontSize: 11, color: AppColors.danger),
+      ),
+    );
+  }
+}
+
+class _ChoiceChipButton extends StatelessWidget {
+  const _ChoiceChipButton({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    required this.accent,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: isSelected
+              ? accent.withValues(alpha: 0.18)
+              : Colors.white.withValues(alpha: 0.05),
+          border: Border.all(
+            color: isSelected
+                ? accent.withValues(alpha: 0.34)
+                : Colors.white.withValues(alpha: 0.10),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: isSelected ? accent : AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuotePreviewCard extends StatelessWidget {
+  const _QuotePreviewCard({
+    required this.isLoading,
+    required this.quote,
+    required this.error,
+  });
+
+  final bool isLoading;
+  final MobileMoneyQuote? quote;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: AppColors.success.withValues(alpha: 0.06),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.14)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Mobile money quote',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (isLoading)
+            Text(
+              'Calculating transfer fee...',
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary.withValues(alpha: 0.7),
+              ),
+            )
+          else if (error != null)
+            Text(
+              error!,
+              style: const TextStyle(fontSize: 11, color: AppColors.danger),
+            )
+          else if (quote == null)
+            Text(
+              'Enter an amount to preview fee and charged total.',
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary.withValues(alpha: 0.7),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _AuditStat(
+                  label: 'Recipient',
+                  value: _rwfCompact(quote!.amountRwf),
+                ),
+                _AuditStat(
+                  label: 'Fee',
+                  value: _rwfCompact(quote!.feeAmountRwf),
+                ),
+                _AuditStat(
+                  label: 'Charged',
+                  value: _rwfCompact(quote!.totalAmountRwf),
+                ),
+              ],
+            ),
+        ],
       ),
     );
   }
