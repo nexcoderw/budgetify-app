@@ -39,7 +39,10 @@ class ExpensesApiService {
       queryParameters: query.toQueryParameters(),
     );
 
-    return PaginatedResponse<ExpenseEntry>.fromJson(json, ExpenseEntry.fromJson);
+    return PaginatedResponse<ExpenseEntry>.fromJson(
+      json,
+      ExpenseEntry.fromJson,
+    );
   }
 
   Future<List<ExpenseEntry>> fetchExpenses(
@@ -54,11 +57,66 @@ class ExpensesApiService {
     );
   }
 
+  Future<ExpenseSummary> fetchExpenseSummary(
+    String accessToken, {
+    ExpenseListQuery query = const ExpenseListQuery(),
+  }) async {
+    final json = await _apiClient.getJson(
+      _routes.summary,
+      headers: <String, String>{'Authorization': 'Bearer $accessToken'},
+      queryParameters: query.toQueryParameters(),
+    );
+
+    return ExpenseSummary.fromJson(json);
+  }
+
+  Future<ExpenseAudit> fetchExpenseAudit(
+    String accessToken, {
+    ExpenseListQuery query = const ExpenseListQuery(),
+  }) async {
+    final json = await _apiClient.getJson(
+      _routes.audit,
+      headers: <String, String>{'Authorization': 'Bearer $accessToken'},
+      queryParameters: query.toQueryParameters(),
+    );
+
+    return ExpenseAudit.fromJson(json);
+  }
+
+  Future<MobileMoneyQuote> quoteMobileMoneyExpense({
+    required String accessToken,
+    required double amount,
+    ExpenseCurrency currency = ExpenseCurrency.rwf,
+    required ExpenseMobileMoneyProvider mobileMoneyProvider,
+    required ExpenseMobileMoneyChannel mobileMoneyChannel,
+    ExpenseMobileMoneyNetwork? mobileMoneyNetwork,
+  }) async {
+    final json = await _apiClient.postJson(
+      _routes.mobileMoneyQuote,
+      headers: <String, String>{'Authorization': 'Bearer $accessToken'},
+      body: <String, dynamic>{
+        'amount': amount,
+        'currency': currency.apiValue,
+        'mobileMoneyProvider': mobileMoneyProvider.apiValue,
+        'mobileMoneyChannel': mobileMoneyChannel.apiValue,
+        if (mobileMoneyNetwork != null)
+          'mobileMoneyNetwork': mobileMoneyNetwork.apiValue,
+      },
+    );
+
+    return MobileMoneyQuote.fromJson(json);
+  }
+
   Future<ExpenseEntry> createExpense({
     required String accessToken,
     required String label,
     required double amount,
+    ExpenseCurrency currency = ExpenseCurrency.rwf,
     required ExpenseCategory category,
+    ExpensePaymentMethod paymentMethod = ExpensePaymentMethod.cash,
+    ExpenseMobileMoneyChannel? mobileMoneyChannel,
+    ExpenseMobileMoneyProvider? mobileMoneyProvider,
+    ExpenseMobileMoneyNetwork? mobileMoneyNetwork,
     required DateTime date,
     String? note,
   }) async {
@@ -68,7 +126,15 @@ class ExpensesApiService {
       body: <String, dynamic>{
         'label': label,
         'amount': amount,
+        'currency': currency.apiValue,
         'category': category.apiValue,
+        'paymentMethod': paymentMethod.apiValue,
+        if (mobileMoneyChannel != null)
+          'mobileMoneyChannel': mobileMoneyChannel.apiValue,
+        if (mobileMoneyProvider != null)
+          'mobileMoneyProvider': mobileMoneyProvider.apiValue,
+        if (mobileMoneyNetwork != null)
+          'mobileMoneyNetwork': mobileMoneyNetwork.apiValue,
         'date': date.toUtc().toIso8601String(),
         if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
       },
@@ -82,7 +148,12 @@ class ExpensesApiService {
     required String expenseId,
     required String label,
     required double amount,
+    ExpenseCurrency currency = ExpenseCurrency.rwf,
     required ExpenseCategory category,
+    ExpensePaymentMethod paymentMethod = ExpensePaymentMethod.cash,
+    ExpenseMobileMoneyChannel? mobileMoneyChannel,
+    ExpenseMobileMoneyProvider? mobileMoneyProvider,
+    ExpenseMobileMoneyNetwork? mobileMoneyNetwork,
     required DateTime date,
     String? note,
   }) async {
@@ -92,7 +163,12 @@ class ExpensesApiService {
       body: <String, dynamic>{
         'label': label,
         'amount': amount,
+        'currency': currency.apiValue,
         'category': category.apiValue,
+        'paymentMethod': paymentMethod.apiValue,
+        'mobileMoneyChannel': mobileMoneyChannel?.apiValue,
+        'mobileMoneyProvider': mobileMoneyProvider?.apiValue,
+        'mobileMoneyNetwork': mobileMoneyNetwork?.apiValue,
         'date': date.toUtc().toIso8601String(),
         'note': note?.trim().isEmpty ?? true ? null : note!.trim(),
       },
