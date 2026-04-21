@@ -170,6 +170,19 @@ class SavingService {
     );
   }
 
+  Future<SavingEntry> reverseSavingDeposit({
+    required String savingId,
+    required String transactionId,
+  }) async {
+    final session = await _resolveActiveSession();
+
+    return _savingsApiService.reverseSavingDeposit(
+      accessToken: session.accessToken,
+      savingId: savingId,
+      transactionId: transactionId,
+    );
+  }
+
   Future<void> deleteSaving(String savingId) async {
     final session = await _resolveActiveSession();
 
