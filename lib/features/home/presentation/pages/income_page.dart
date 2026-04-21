@@ -14,6 +14,7 @@ import '../../../../core/widgets/skeleton_loader.dart';
 import '../../../income/application/income_service.dart';
 import '../../../income/data/models/income_entry.dart';
 import '../../../income/data/models/income_list_query.dart';
+import '../../../savings/application/saving_service.dart';
 
 enum _IncomeReceivedFilter { all, received, pending }
 
@@ -78,13 +79,20 @@ class IncomePage extends StatefulWidget {
 class _IncomePageState extends State<IncomePage>
     with SingleTickerProviderStateMixin {
   static const int _pageSize = 12;
+  final SavingService _savingService = SavingService.createDefault();
 
   late final AnimationController _entranceCtrl;
   late final TextEditingController _searchCtrl;
   List<IncomeEntry> _entries = const [];
   List<IncomeEntry> _pageEntries = const [];
+  IncomeSummary? _summary;
   bool _isLoading = true;
   String? _loadError;
+  IncomeEntry? _detailsEntry;
+  IncomeDetail? _detailEntry;
+  bool _isLoadingDetail = false;
+  bool _isReversingAllocation = false;
+  String? _highlightAllocationId;
   Timer? _searchDebounce;
   String? _busyReceivedId;
   int _currentPage = 1;
@@ -99,6 +107,7 @@ class _IncomePageState extends State<IncomePage>
   String _searchInput = '';
   String? _appliedSearch;
   int _loadSequence = 0;
+  _BlockedIncomeActionState? _blockedAction;
 
   @override
   void initState() {
@@ -124,14 +133,11 @@ class _IncomePageState extends State<IncomePage>
 
   // ── Computed ─────────────────────────────────────────────────────────────────
 
-  double get _total => _entries.fold(0, (sum, e) => sum + e.amount);
+  double get _total => _summary?.totalIncomeRwf ?? 0;
 
-  double get _receivedTotal => _entries
-      .where((entry) => entry.received)
-      .fold(0, (sum, entry) => sum + entry.amount);
+  double get _receivedTotal => _summary?.receivedIncomeRwf ?? 0;
 
-  double get _pendingTotal =>
-      (_total - _receivedTotal).clamp(0, double.infinity).toDouble();
+  double get _availableMoneyNow => _summary?.availableMoneyNowRwf ?? 0;
 
   bool get _hasExplicitDateFilter =>
       _selectedDateFrom != null || _selectedDateTo != null;
@@ -210,11 +216,22 @@ class _IncomePageState extends State<IncomePage>
   }
 
   Future<void> _openEditDialog(IncomeEntry entry) async {
+    if (entry.allocatedToSavingsRwf > 0) {
+      setState(() {
+        _blockedAction = _BlockedIncomeActionState(
+          entry: entry,
+          action: _BlockedIncomeAction.edit,
+        );
+      });
+      return;
+    }
+
     final updated = await showDialog<IncomeEntry>(
       context: context,
       builder: (_) => _IncomeFormDialog(
         entry: entry,
         initialReceived: entry.received,
+        onOpenRecovery: () => _openDetailsDialog(entry, highlightFirstActive: true),
         onSubmit:
             ({
               required String label,
@@ -305,6 +322,16 @@ class _IncomePageState extends State<IncomePage>
   }
 
   Future<void> _confirmDelete(IncomeEntry entry) async {
+    if (entry.allocatedToSavingsRwf > 0) {
+      setState(() {
+        _blockedAction = _BlockedIncomeActionState(
+          entry: entry,
+          action: _BlockedIncomeAction.delete,
+        );
+      });
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => _DeleteConfirmDialog(label: entry.label),
@@ -359,9 +386,11 @@ class _IncomePageState extends State<IncomePage>
       final results = await Future.wait([
         widget.incomeService.listIncome(query: summaryQuery),
         widget.incomeService.listIncomePage(query: pageQuery),
+        widget.incomeService.getIncomeSummary(query: summaryQuery),
       ]);
       final entries = results[0] as List<IncomeEntry>;
       final pageResponse = results[1] as PaginatedResponse<IncomeEntry>;
+      final summary = results[2] as IncomeSummary;
 
       if (!mounted || loadId != _loadSequence) {
         return;
@@ -370,6 +399,7 @@ class _IncomePageState extends State<IncomePage>
       setState(() {
         _entries = _sortedEntries(entries);
         _pageEntries = _sortedEntries(pageResponse.items);
+        _summary = summary;
         _totalItems = pageResponse.meta.totalItems;
         _totalPages = pageResponse.meta.totalPages;
         _isLoading = false;
@@ -383,6 +413,7 @@ class _IncomePageState extends State<IncomePage>
       setState(() {
         _entries = const [];
         _pageEntries = const [];
+        _summary = null;
         _isLoading = false;
         _loadError = message;
         _totalItems = 0;
@@ -398,6 +429,16 @@ class _IncomePageState extends State<IncomePage>
   }
 
   Future<void> _toggleReceived(IncomeEntry entry) async {
+    if (entry.received && entry.allocatedToSavingsRwf > 0) {
+      setState(() {
+        _blockedAction = _BlockedIncomeActionState(
+          entry: entry,
+          action: _BlockedIncomeAction.edit,
+        );
+      });
+      return;
+    }
+
     setState(() => _busyReceivedId = entry.id);
 
     try {
@@ -589,6 +630,113 @@ class _IncomePageState extends State<IncomePage>
     return sorted;
   }
 
+  Future<void> _openDetailsDialog(
+    IncomeEntry entry, {
+    bool highlightFirstActive = false,
+  }) async {
+    setState(() {
+      _detailsEntry = entry;
+      _detailEntry = null;
+      _isLoadingDetail = true;
+      _highlightAllocationId = null;
+    });
+
+    try {
+      final detail = await widget.incomeService.getIncomeById(entry.id);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _detailsEntry = detail;
+        _detailEntry = detail;
+        _isLoadingDetail = false;
+        _highlightAllocationId = highlightFirstActive
+            ? _firstActiveAllocationId(detail)
+            : null;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoadingDetail = false;
+      });
+
+      AppToast.error(
+        context,
+        title: 'Unable to load income details',
+        description: _readableError(error),
+      );
+    }
+  }
+
+  String? _firstActiveAllocationId(IncomeDetail detail) {
+    for (final allocation in detail.savingAllocations) {
+      if (!allocation.isReversed) {
+        return allocation.id;
+      }
+    }
+
+    return null;
+  }
+
+  void _closeDetailsDialog() {
+    setState(() {
+      _detailsEntry = null;
+      _detailEntry = null;
+      _isLoadingDetail = false;
+      _isReversingAllocation = false;
+      _highlightAllocationId = null;
+    });
+  }
+
+  Future<void> _reverseAllocation(
+    IncomeEntry entry,
+    IncomeSavingAllocation allocation,
+  ) async {
+    setState(() => _isReversingAllocation = true);
+
+    try {
+      await _savingService.reverseSavingDeposit(
+        savingId: allocation.savingId,
+        transactionId: allocation.transactionId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      await _openDetailsDialog(entry);
+      await _loadIncome();
+      if (!mounted) {
+        return;
+      }
+
+      AppToast.success(
+        context,
+        title: 'Allocation reversed',
+        description:
+            '${allocation.savingLabel} no longer uses money from ${entry.label}.',
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      AppToast.error(
+        context,
+        title: 'Unable to reverse allocation',
+        description: _readableError(error),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isReversingAllocation = false);
+      }
+    }
+  }
+
   IncomeListQuery _buildIncomeQuery({int? page, int? limit}) {
     return IncomeListQuery(
       month: _hasExplicitDateFilter ? null : _selectedMonth,
@@ -697,7 +845,7 @@ class _IncomePageState extends State<IncomePage>
 
     final total = _total;
     final receivedTotal = _receivedTotal;
-    final pendingTotal = _pendingTotal;
+    final availableMoneyNow = _availableMoneyNow;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -755,12 +903,12 @@ class _IncomePageState extends State<IncomePage>
           slide: _slide(0.20, 0.62),
           child: _BreakdownRow(
             activeTotal: receivedTotal,
-            passiveTotal: pendingTotal,
-            total: total,
-            leftLabel: 'Received',
+            passiveTotal: availableMoneyNow,
+            total: receivedTotal > 0 ? receivedTotal : total,
+            leftLabel: 'Received cash',
             leftSublabel: 'Money already collected',
-            rightLabel: 'Pending',
-            rightSublabel: 'Expected but not yet received',
+            rightLabel: 'Available now',
+            rightSublabel: 'Received minus expenses and savings',
           ),
         ),
         const SizedBox(height: 14),
@@ -783,6 +931,7 @@ class _IncomePageState extends State<IncomePage>
             totalItems: _totalItems,
             totalPages: _totalPages,
             loadError: _loadError,
+            onDetails: _openDetailsDialog,
             onNextPage: () => _goToPage(_currentPage + 1),
             onPreviousPage: () => _goToPage(_currentPage - 1),
             onRecordNextMonth: _openRecordNextMonthDialog,
@@ -799,9 +948,39 @@ class _IncomePageState extends State<IncomePage>
           slide: _slide(0.70, 1.0),
           child: const _FooterNote(),
         ),
+        if (_detailsEntry != null)
+          _IncomeDetailsSheet(
+            entry: _detailsEntry!,
+            detail: _detailEntry,
+            highlightAllocationId: _highlightAllocationId,
+            isLoading: _isLoadingDetail,
+            isReversingAllocation: _isReversingAllocation,
+            onClose: _closeDetailsDialog,
+            onReverseAllocation: _reverseAllocation,
+          ),
+        if (_blockedAction != null)
+          _BlockedIncomeActionDialog(
+            action: _blockedAction!.action,
+            entry: _blockedAction!.entry,
+            onCancel: () => setState(() => _blockedAction = null),
+            onReviewAllocations: () async {
+              final entry = _blockedAction!.entry;
+              setState(() => _blockedAction = null);
+              await _openDetailsDialog(entry, highlightFirstActive: true);
+            },
+          ),
       ],
     );
   }
+}
+
+enum _BlockedIncomeAction { edit, delete }
+
+class _BlockedIncomeActionState {
+  const _BlockedIncomeActionState({required this.entry, required this.action});
+
+  final IncomeEntry entry;
+  final _BlockedIncomeAction action;
 }
 
 class _IncomePageLoading extends StatelessWidget {
@@ -2357,6 +2536,7 @@ class _EntryList extends StatelessWidget {
     required this.totalItems,
     required this.totalPages,
     required this.loadError,
+    required this.onDetails,
     required this.onNextPage,
     required this.onPreviousPage,
     required this.onRecordNextMonth,
@@ -2373,6 +2553,7 @@ class _EntryList extends StatelessWidget {
   final int totalItems;
   final int totalPages;
   final String? loadError;
+  final void Function(IncomeEntry) onDetails;
   final Future<void> Function() onNextPage;
   final Future<void> Function() onPreviousPage;
   final void Function(IncomeEntry) onRecordNextMonth;
@@ -2443,6 +2624,7 @@ class _EntryList extends StatelessWidget {
                 busyReceivedId: busyReceivedId,
                 isLast: i == entries.length - 1,
                 index: i,
+                onDetails: onDetails,
                 onEdit: onEdit,
                 onDelete: onDelete,
                 onRecordNextMonth: onRecordNextMonth,
@@ -2472,6 +2654,7 @@ class _EntryRow extends StatefulWidget {
     required this.busyReceivedId,
     required this.isLast,
     required this.index,
+    required this.onDetails,
     required this.onEdit,
     required this.onDelete,
     required this.onRecordNextMonth,
@@ -2483,6 +2666,7 @@ class _EntryRow extends StatefulWidget {
   final String? busyReceivedId;
   final bool isLast;
   final int index;
+  final void Function(IncomeEntry) onDetails;
   final void Function(IncomeEntry) onEdit;
   final void Function(IncomeEntry) onDelete;
   final void Function(IncomeEntry) onRecordNextMonth;
@@ -2622,17 +2806,60 @@ class _EntryRowState extends State<_EntryRow>
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        _rwfCompact(widget.entry.amount),
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: color,
+                        Text(
+                          _rwfCompact(widget.entry.amountRwf),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: color,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      AnimatedRotation(
-                        turns: _expanded ? 0.5 : 0,
+                        const SizedBox(height: 2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            color: switch (widget.entry.allocationStatus) {
+                              IncomeAllocationStatus.fullyAllocated =>
+                                AppColors.primary.withValues(alpha: 0.14),
+                              IncomeAllocationStatus.partiallyAllocated =>
+                                const Color(0xFFFFB86C).withValues(alpha: 0.14),
+                              IncomeAllocationStatus.unallocated =>
+                                AppColors.success.withValues(alpha: 0.12),
+                            },
+                            border: Border.all(
+                              color: switch (widget.entry.allocationStatus) {
+                                IncomeAllocationStatus.fullyAllocated =>
+                                  AppColors.primary.withValues(alpha: 0.25),
+                                IncomeAllocationStatus.partiallyAllocated =>
+                                  const Color(0xFFFFB86C).withValues(alpha: 0.25),
+                                IncomeAllocationStatus.unallocated =>
+                                  AppColors.success.withValues(alpha: 0.20),
+                              },
+                            ),
+                          ),
+                          child: Text(
+                            widget.entry.allocationStatus.displayName,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: switch (widget.entry.allocationStatus) {
+                                IncomeAllocationStatus.fullyAllocated =>
+                                  AppColors.primary,
+                                IncomeAllocationStatus.partiallyAllocated =>
+                                  const Color(0xFFFFB86C),
+                                IncomeAllocationStatus.unallocated =>
+                                  AppColors.success,
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        AnimatedRotation(
+                          turns: _expanded ? 0.5 : 0,
                         duration: const Duration(milliseconds: 200),
                         child: HugeIcon(
                           icon: HugeIcons.strokeRoundedArrowDown01,
@@ -2676,7 +2903,7 @@ class _EntryRowState extends State<_EntryRow>
                               children: [
                                 _DetailItem(
                                   label: 'Amount',
-                                  value: _rwf(widget.entry.amount),
+                                  value: _rwf(widget.entry.amountRwf),
                                 ),
                                 const SizedBox(height: 4),
                                 _DetailItem(
@@ -2689,6 +2916,16 @@ class _EntryRowState extends State<_EntryRow>
                                   value: widget.entry.received
                                       ? 'Received'
                                       : 'Pending',
+                                ),
+                                const SizedBox(height: 4),
+                                _DetailItem(
+                                  label: 'Parked in savings',
+                                  value: _rwf(widget.entry.allocatedToSavingsRwf),
+                                ),
+                                const SizedBox(height: 4),
+                                _DetailItem(
+                                  label: 'Still free',
+                                  value: _rwf(widget.entry.remainingAvailableRwf),
                                 ),
                               ],
                             ),
@@ -2703,6 +2940,12 @@ class _EntryRowState extends State<_EntryRow>
                                 received: widget.entry.received,
                                 onTap: () =>
                                     widget.onToggleReceived(widget.entry),
+                              ),
+                              _ActionIcon(
+                                icon: HugeIcons.strokeRoundedView,
+                                color: AppColors.textPrimary,
+                                tooltip: 'Details',
+                                onTap: () => widget.onDetails(widget.entry),
                               ),
                               _ActionIcon(
                                 icon: HugeIcons.strokeRoundedPencil,
@@ -2993,6 +3236,7 @@ class _IncomeFormDialog extends StatefulWidget {
   const _IncomeFormDialog({
     required this.onSubmit,
     this.entry,
+    this.onOpenRecovery,
     this.initialLabel,
     this.initialAmount,
     this.initialCategory,
@@ -3004,6 +3248,7 @@ class _IncomeFormDialog extends StatefulWidget {
   });
 
   final IncomeEntry? entry;
+  final Future<void> Function()? onOpenRecovery;
   final String? initialLabel;
   final double? initialAmount;
   final IncomeCategory? initialCategory;
@@ -3040,6 +3285,8 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
   bool _isSubmitting = false;
 
   bool get _isEditing => widget.entry != null;
+  bool get _hasSavingAllocations =>
+      (widget.entry?.allocatedToSavingsRwf ?? 0) > 0;
 
   @override
   void initState() {
@@ -3305,8 +3552,46 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
                   const SizedBox(height: 8),
                   _ReceivedStatePicker(
                     received: _received,
+                    disablePending: _hasSavingAllocations,
                     onChanged: (value) => setState(() => _received = value),
                   ),
+                  if (_hasSavingAllocations) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        color: const Color(0xFFFFB86C).withValues(alpha: 0.10),
+                        border: Border.all(
+                          color: const Color(0xFFFFB86C).withValues(alpha: 0.20),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'This income already funds savings. You can still update the label and date, but to mark it pending again or reduce it, first reverse the linked saving allocation.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              height: 1.5,
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.92,
+                              ),
+                            ),
+                          ),
+                          if (widget.onOpenRecovery != null) ...[
+                            const SizedBox(height: 10),
+                            _DialogButton(
+                              label: 'Review linked allocations',
+                              isPrimary: false,
+                              onTap: widget.onOpenRecovery!,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 18),
 
                   // Date
@@ -3456,10 +3741,15 @@ class _CategoryPicker extends StatelessWidget {
 }
 
 class _ReceivedStatePicker extends StatelessWidget {
-  const _ReceivedStatePicker({required this.received, required this.onChanged});
+  const _ReceivedStatePicker({
+    required this.received,
+    required this.onChanged,
+    this.disablePending = false,
+  });
 
   final bool received;
   final ValueChanged<bool> onChanged;
+  final bool disablePending;
 
   @override
   Widget build(BuildContext context) {
@@ -3476,6 +3766,7 @@ class _ReceivedStatePicker extends StatelessWidget {
         _ReceivedStateChoice(
           label: 'Pending',
           isSelected: !received,
+          isDisabled: disablePending,
           color: const Color(0xFFFFB86C),
           onTap: () => onChanged(false),
         ),
@@ -3490,17 +3781,19 @@ class _ReceivedStateChoice extends StatelessWidget {
     required this.isSelected,
     required this.color,
     required this.onTap,
+    this.isDisabled = false,
   });
 
   final String label;
   final bool isSelected;
   final Color color;
   final VoidCallback onTap;
+  final bool isDisabled;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: isDisabled ? null : onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -3520,9 +3813,466 @@ class _ReceivedStateChoice extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            color: isSelected ? color : AppColors.textSecondary,
+            color: isDisabled
+                ? AppColors.textSecondary.withValues(alpha: 0.35)
+                : isSelected
+                ? color
+                : AppColors.textSecondary,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _IncomeDetailsSheet extends StatelessWidget {
+  const _IncomeDetailsSheet({
+    required this.entry,
+    required this.detail,
+    required this.highlightAllocationId,
+    required this.isLoading,
+    required this.isReversingAllocation,
+    required this.onClose,
+    required this.onReverseAllocation,
+  });
+
+  final IncomeEntry entry;
+  final IncomeDetail? detail;
+  final String? highlightAllocationId;
+  final bool isLoading;
+  final bool isReversingAllocation;
+  final VoidCallback onClose;
+  final Future<void> Function(IncomeEntry entry, IncomeSavingAllocation allocation)
+  onReverseAllocation;
+
+  @override
+  Widget build(BuildContext context) {
+    final source = detail ?? entry;
+
+    return FadeTransition(
+      opacity: const AlwaysStoppedAnimation(1),
+      child: AppModalDialog(
+        maxWidth: 520,
+        padding: const EdgeInsets.all(24),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        source.label,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${source.category.displayName} • ${_formatSheetDate(source.date)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary.withValues(alpha: 0.72),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                AppModalCloseButton(onTap: onClose),
+              ],
+            ),
+            const SizedBox(height: 18),
+            _GradientDivider(color: AppColors.success),
+            const SizedBox(height: 18),
+            if (isLoading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.success),
+                  ),
+                ),
+              )
+            else ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: _SheetStat(
+                      label: 'Recorded amount',
+                      value: _rwf(source.amountRwf),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _SheetStat(
+                      label: 'Parked in savings',
+                      value: _rwf(source.allocatedToSavingsRwf),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _SheetStat(
+                      label: 'Still free',
+                      value: _rwf(source.remainingAvailableRwf),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: Colors.white.withValues(alpha: 0.04),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Cash state',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      source.received ? 'Received cash' : 'Scheduled only',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      source.received
+                          ? 'This money is already in hand. The free amount can still be spent or moved into savings.'
+                          : 'This income is planned, but it should not count as money you already have until it is marked received.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.5,
+                        color: AppColors.textSecondary.withValues(alpha: 0.82),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Saving allocations',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (detail == null || detail!.savingAllocations.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    color: Colors.white.withValues(alpha: 0.04),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  ),
+                  child: Text(
+                    'No part of this income has been linked to a saving bucket yet.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.5,
+                      color: AppColors.textSecondary.withValues(alpha: 0.78),
+                    ),
+                  ),
+                )
+              else
+                ...detail!.savingAllocations.map(
+                  (allocation) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _AllocationCard(
+                      allocation: allocation,
+                      highlight: allocation.id == highlightAllocationId,
+                      isBusy: isReversingAllocation,
+                      onReverse: allocation.isReversed
+                          ? null
+                          : () => onReverseAllocation(entry, allocation),
+                    ),
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatSheetDate(DateTime value) =>
+      '${_monthShort(value.month)} ${value.day}, ${value.year}';
+}
+
+class _BlockedIncomeActionDialog extends StatelessWidget {
+  const _BlockedIncomeActionDialog({
+    required this.action,
+    required this.entry,
+    required this.onCancel,
+    required this.onReviewAllocations,
+  });
+
+  final _BlockedIncomeAction action;
+  final IncomeEntry entry;
+  final VoidCallback onCancel;
+  final Future<void> Function() onReviewAllocations;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppModalDialog(
+      maxWidth: 420,
+      padding: const EdgeInsets.all(24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            action == _BlockedIncomeAction.delete
+                ? 'This income cannot be deleted yet'
+                : 'Some income changes are blocked',
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${entry.label} already funds one or more saving buckets. To ${action == _BlockedIncomeAction.delete ? 'delete' : 'change this income freely'}, first reverse the linked saving allocation.',
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.55,
+              color: AppColors.textSecondary.withValues(alpha: 0.82),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: Colors.white.withValues(alpha: 0.04),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _DetailItem(
+                  label: 'Allocated now',
+                  value: _rwf(entry.allocatedToSavingsRwf),
+                ),
+                const SizedBox(height: 4),
+                _DetailItem(
+                  label: 'Still free',
+                  value: _rwf(entry.remainingAvailableRwf),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: _DialogButton(
+                  label: 'Cancel',
+                  isPrimary: false,
+                  onTap: () async => onCancel(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _DialogButton(
+                  label: 'Review allocations',
+                  isPrimary: true,
+                  onTap: onReviewAllocations,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SheetStat extends StatelessWidget {
+  const _SheetStat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.white.withValues(alpha: 0.04),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary.withValues(alpha: 0.65),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AllocationCard extends StatelessWidget {
+  const _AllocationCard({
+    required this.allocation,
+    required this.highlight,
+    required this.isBusy,
+    required this.onReverse,
+  });
+
+  final IncomeSavingAllocation allocation;
+  final bool highlight;
+  final bool isBusy;
+  final Future<void> Function()? onReverse;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: highlight
+            ? AppColors.primary.withValues(alpha: 0.08)
+            : Colors.white.withValues(alpha: 0.04),
+        border: Border.all(
+          color: highlight
+              ? AppColors.primary.withValues(alpha: 0.22)
+              : Colors.white.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (highlight)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                'Reverse this allocation to unblock the income',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary.withValues(alpha: 0.92),
+                ),
+              ),
+            ),
+          if (allocation.isReversed)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                'Reversed allocation',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFFFFB86C).withValues(alpha: 0.92),
+                ),
+              ),
+            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      allocation.savingLabel,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Deposited ${_monthShort(allocation.transactionDate.month)} ${allocation.transactionDate.day}, ${allocation.transactionDate.year}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary.withValues(alpha: 0.68),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                _rwf(allocation.amountRwf),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          if (allocation.note != null && allocation.note!.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              allocation.note!,
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.5,
+                color: AppColors.textSecondary.withValues(alpha: 0.82),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: _DialogButton(
+              label: allocation.isReversed
+                  ? 'Already reversed'
+                  : isBusy
+                  ? 'Reversing...'
+                  : 'Reverse allocation',
+              isPrimary: true,
+              isDisabled: allocation.isReversed || onReverse == null || isBusy,
+              onTap: onReverse ?? () async {},
+            ),
+          ),
+        ],
       ),
     );
   }
