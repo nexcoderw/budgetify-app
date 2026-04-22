@@ -556,11 +556,31 @@ class _TodoPageState extends State<TodoPage>
       builder: (_) => TodoExpenseDialog(
         entry: entry,
         categories: _expenseCategories,
+        onQuote:
+            ({
+              required double amount,
+              required ExpenseCurrency currency,
+              required ExpenseMobileMoneyProvider mobileMoneyProvider,
+              required ExpenseMobileMoneyChannel mobileMoneyChannel,
+              ExpenseMobileMoneyNetwork? mobileMoneyNetwork,
+            }) {
+              return widget.expenseService.quoteMobileMoneyExpense(
+                amount: amount,
+                currency: currency,
+                mobileMoneyProvider: mobileMoneyProvider,
+                mobileMoneyChannel: mobileMoneyChannel,
+                mobileMoneyNetwork: mobileMoneyNetwork,
+              );
+            },
         onSubmit:
             ({
               required double amount,
               required ExpenseCategory category,
               required String date,
+              required ExpensePaymentMethod paymentMethod,
+              ExpenseMobileMoneyChannel? mobileMoneyChannel,
+              ExpenseMobileMoneyProvider? mobileMoneyProvider,
+              ExpenseMobileMoneyNetwork? mobileMoneyNetwork,
             }) async {
               setState(() => _recordExpenseBusyId = entry.id);
 
@@ -570,6 +590,10 @@ class _TodoPageState extends State<TodoPage>
                   label: entry.name.trim(),
                   amount: amount,
                   category: category,
+                  paymentMethod: paymentMethod,
+                  mobileMoneyChannel: mobileMoneyChannel,
+                  mobileMoneyProvider: mobileMoneyProvider,
+                  mobileMoneyNetwork: mobileMoneyNetwork,
                   date: parseDateOnly(date),
                   occurrenceDate: date,
                 );
