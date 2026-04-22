@@ -21,13 +21,25 @@ import '../widgets/todo_expense_dialog.dart';
 import '../widgets/todo_form_dialog.dart';
 import '../widgets/todo_item_card.dart';
 
-enum _TodoDoneFilter { all, done, notDone }
+enum _TodoStatusFilter { all, active, recorded, completed, skipped, archived }
 
-extension _TodoDoneFilterX on _TodoDoneFilter {
+extension _TodoStatusFilterX on _TodoStatusFilter {
   String get label => switch (this) {
-    _TodoDoneFilter.all => 'All',
-    _TodoDoneFilter.done => 'Done',
-    _TodoDoneFilter.notDone => 'Open',
+    _TodoStatusFilter.all => 'All',
+    _TodoStatusFilter.active => 'Active',
+    _TodoStatusFilter.recorded => 'Recorded',
+    _TodoStatusFilter.completed => 'Completed',
+    _TodoStatusFilter.skipped => 'Skipped',
+    _TodoStatusFilter.archived => 'Archived',
+  };
+
+  TodoStatus? get value => switch (this) {
+    _TodoStatusFilter.all => null,
+    _TodoStatusFilter.active => TodoStatus.active,
+    _TodoStatusFilter.recorded => TodoStatus.recorded,
+    _TodoStatusFilter.completed => TodoStatus.completed,
+    _TodoStatusFilter.skipped => TodoStatus.skipped,
+    _TodoStatusFilter.archived => TodoStatus.archived,
   };
 }
 
@@ -61,14 +73,14 @@ class _TodoPageState extends State<TodoPage>
   String? _loadError;
   String? _expenseCategoriesError;
   Timer? _searchDebounce;
-  String? _doneBusyId;
+  String? _statusBusyId;
   String? _recordExpenseBusyId;
   int _currentPage = 1;
   int _totalItems = 0;
   int _totalPages = 1;
   TodoPriority? _selectedPriority;
   TodoFrequency? _selectedFrequency;
-  _TodoDoneFilter _selectedDone = _TodoDoneFilter.all;
+  _TodoStatusFilter _selectedStatus = _TodoStatusFilter.all;
   DateTime? _selectedDateFrom;
   DateTime? _selectedDateTo;
   String _searchInput = '';
@@ -97,9 +109,11 @@ class _TodoPageState extends State<TodoPage>
   double get _plannedTotal =>
       _entries.fold(0, (sum, entry) => sum + entry.price);
 
-  int get _doneCount => _entries.where((entry) => entry.done).length;
+  int get _completedCount =>
+      _entries.where((entry) => entry.status == TodoStatus.completed).length;
 
-  int get _openCount => (_entries.length - _doneCount).clamp(0, 1000000);
+  int get _openCount =>
+      _entries.where((entry) => !isClosedTodoStatus(entry.status)).length;
 
   int get _topPriorityCount => _entries
       .where((entry) => entry.priority == TodoPriority.topPriority)
@@ -110,8 +124,9 @@ class _TodoPageState extends State<TodoPage>
 
   int get _recurringCount => _entries.where(isRecurringTodo).length;
 
-  int get _completionShare =>
-      _entries.isEmpty ? 0 : ((_doneCount / _entries.length) * 100).round();
+  int get _completionShare => _entries.isEmpty
+      ? 0
+      : ((_completedCount / _entries.length) * 100).round();
 
   TodoItem? get _latestEntry => _entries.isEmpty ? null : _entries.first;
 
@@ -121,7 +136,7 @@ class _TodoPageState extends State<TodoPage>
   bool get _hasActiveFilters =>
       _selectedPriority != null ||
       _selectedFrequency != null ||
-      _selectedDone != _TodoDoneFilter.all ||
+      _selectedStatus != _TodoStatusFilter.all ||
       _appliedSearch != null ||
       _hasExplicitDateFilter;
 
@@ -211,11 +226,7 @@ class _TodoPageState extends State<TodoPage>
     return TodoListQuery(
       frequency: _selectedFrequency,
       priority: _selectedPriority,
-      done: switch (_selectedDone) {
-        _TodoDoneFilter.all => null,
-        _TodoDoneFilter.done => true,
-        _TodoDoneFilter.notDone => false,
-      },
+      status: _selectedStatus.value,
       search: _appliedSearch,
       dateFrom: _selectedDateFrom == null
           ? null
@@ -287,7 +298,7 @@ class _TodoPageState extends State<TodoPage>
     setState(() {
       _selectedPriority = null;
       _selectedFrequency = null;
-      _selectedDone = _TodoDoneFilter.all;
+      _selectedStatus = _TodoStatusFilter.all;
       _selectedDateFrom = null;
       _selectedDateTo = null;
       _searchInput = '';
@@ -334,7 +345,7 @@ class _TodoPageState extends State<TodoPage>
               required String name,
               required double price,
               required TodoPriority priority,
-              required bool done,
+              required TodoStatus status,
               required TodoFrequency frequency,
               required String startDate,
               required String endDate,
@@ -347,7 +358,7 @@ class _TodoPageState extends State<TodoPage>
                 name: name,
                 price: price,
                 priority: priority,
-                done: done,
+                status: status,
                 frequency: frequency,
                 startDate: startDate,
                 endDate: endDate,
@@ -390,7 +401,7 @@ class _TodoPageState extends State<TodoPage>
               required String name,
               required double price,
               required TodoPriority priority,
-              required bool done,
+              required TodoStatus status,
               required TodoFrequency frequency,
               required String startDate,
               required String endDate,
@@ -404,7 +415,7 @@ class _TodoPageState extends State<TodoPage>
                 name: name,
                 price: price,
                 priority: priority,
-                done: done,
+                status: status,
                 frequency: frequency,
                 startDate: startDate,
                 endDate: endDate,
@@ -479,11 +490,15 @@ class _TodoPageState extends State<TodoPage>
     }
   }
 
-  Future<void> _toggleDone(TodoItem entry) async {
-    setState(() => _doneBusyId = entry.id);
+  Future<void> _toggleStatus(TodoItem entry) async {
+    setState(() => _statusBusyId = entry.id);
+
+    final nextStatus = isClosedTodoStatus(entry.status)
+        ? TodoStatus.active
+        : TodoStatus.completed;
 
     try {
-      await widget.todoService.updateTodo(todoId: entry.id, done: !entry.done);
+      await widget.todoService.updateTodo(todoId: entry.id, status: nextStatus);
       if (!mounted) {
         return;
       }
@@ -495,7 +510,9 @@ class _TodoPageState extends State<TodoPage>
 
       AppToast.success(
         context,
-        title: entry.done ? 'Todo reopened' : 'Todo marked done',
+        title: nextStatus == TodoStatus.completed
+            ? 'Todo marked completed'
+            : 'Todo reopened',
         description: '${entry.name} was updated successfully.',
       );
     } catch (error) {
@@ -510,7 +527,7 @@ class _TodoPageState extends State<TodoPage>
       );
     } finally {
       if (mounted) {
-        setState(() => _doneBusyId = null);
+        setState(() => _statusBusyId = null);
       }
     }
   }
@@ -533,7 +550,7 @@ class _TodoPageState extends State<TodoPage>
         title: 'No expense can be recorded',
         description: isRecurringTodo(entry)
             ? 'This recurring todo has no remaining budget or occurrence left.'
-            : 'This todo is already complete.',
+            : 'This todo is ${resolveTodoStatusLabel(entry.status).toLowerCase()}.',
       );
       return;
     }
@@ -571,7 +588,7 @@ class _TodoPageState extends State<TodoPage>
                 } else {
                   await widget.todoService.updateTodo(
                     todoId: entry.id,
-                    done: true,
+                    status: TodoStatus.recorded,
                   );
                 }
               } catch (error) {
@@ -602,7 +619,7 @@ class _TodoPageState extends State<TodoPage>
       title: 'Expense recorded',
       description: isRecurringTodo(entry)
           ? 'Recurring budget was updated successfully.'
-          : 'Expense recorded and todo marked as done.',
+          : 'Expense recorded and todo moved to recorded status.',
     );
   }
 
@@ -691,7 +708,7 @@ class _TodoPageState extends State<TodoPage>
             slide: _slide(0.24, 0.68),
             child: _TodoStatsRow(
               completionShare: _completionShare,
-              doneCount: _doneCount,
+              completedCount: _completedCount,
               latestEntry: _latestEntry,
               withImagesCount: _withImagesCount,
             ),
@@ -703,7 +720,7 @@ class _TodoPageState extends State<TodoPage>
             child: _TodoFiltersPanel(
               dateFrom: _selectedDateFrom,
               dateTo: _selectedDateTo,
-              done: _selectedDone,
+              status: _selectedStatus,
               frequency: _selectedFrequency,
               hasActiveFilters: _hasActiveFilters,
               priority: _selectedPriority,
@@ -712,9 +729,9 @@ class _TodoPageState extends State<TodoPage>
               onClearAll: _clearAllFilters,
               onClearDate: _clearDateFilter,
               onDatePicked: _pickFilterDate,
-              onDoneChanged: (value) async {
+              onStatusChanged: (value) async {
                 setState(() {
-                  _selectedDone = value;
+                  _selectedStatus = value;
                   _currentPage = 1;
                 });
                 await _loadTodos();
@@ -746,7 +763,7 @@ class _TodoPageState extends State<TodoPage>
               totalItems: _totalItems,
               totalPages: _totalPages,
               loadError: _loadError,
-              doneBusyId: _doneBusyId,
+              statusBusyId: _statusBusyId,
               recordExpenseBusyId: _recordExpenseBusyId,
               onDelete: _confirmDelete,
               onEdit: _openEditDialog,
@@ -754,7 +771,7 @@ class _TodoPageState extends State<TodoPage>
               onPreviousPage: () => _goToPage(_currentPage - 1),
               onRecordExpense: _openExpenseDialog,
               onRetry: _loadTodos,
-              onToggleDone: _toggleDone,
+              onToggleStatus: _toggleStatus,
             ),
           ),
         ],
@@ -1543,13 +1560,13 @@ class _HeroPill extends StatelessWidget {
 class _TodoStatsRow extends StatelessWidget {
   const _TodoStatsRow({
     required this.completionShare,
-    required this.doneCount,
+    required this.completedCount,
     required this.latestEntry,
     required this.withImagesCount,
   });
 
   final int completionShare;
-  final int doneCount;
+  final int completedCount;
   final TodoItem? latestEntry;
   final int withImagesCount;
 
@@ -1561,7 +1578,7 @@ class _TodoStatsRow extends StatelessWidget {
           child: _StatCard(
             label: 'Completion',
             value: '$completionShare%',
-            detail: '$doneCount items done',
+            detail: '$completedCount items completed',
           ),
         ),
         const SizedBox(width: 10),
@@ -1645,7 +1662,7 @@ class _TodoFiltersPanel extends StatelessWidget {
   const _TodoFiltersPanel({
     required this.dateFrom,
     required this.dateTo,
-    required this.done,
+    required this.status,
     required this.frequency,
     required this.hasActiveFilters,
     required this.priority,
@@ -1654,7 +1671,7 @@ class _TodoFiltersPanel extends StatelessWidget {
     required this.onClearAll,
     required this.onClearDate,
     required this.onDatePicked,
-    required this.onDoneChanged,
+    required this.onStatusChanged,
     required this.onFrequencyChanged,
     required this.onPriorityChanged,
     required this.onSearchChanged,
@@ -1662,7 +1679,7 @@ class _TodoFiltersPanel extends StatelessWidget {
 
   final DateTime? dateFrom;
   final DateTime? dateTo;
-  final _TodoDoneFilter done;
+  final _TodoStatusFilter status;
   final TodoFrequency? frequency;
   final bool hasActiveFilters;
   final TodoPriority? priority;
@@ -1671,7 +1688,7 @@ class _TodoFiltersPanel extends StatelessWidget {
   final Future<void> Function() onClearAll;
   final Future<void> Function({required bool isFrom}) onClearDate;
   final Future<void> Function({required bool isFrom}) onDatePicked;
-  final Future<void> Function(_TodoDoneFilter value) onDoneChanged;
+  final Future<void> Function(_TodoStatusFilter value) onStatusChanged;
   final Future<void> Function(TodoFrequency? value) onFrequencyChanged;
   final Future<void> Function(TodoPriority? value) onPriorityChanged;
   final ValueChanged<String> onSearchChanged;
@@ -1726,7 +1743,7 @@ class _TodoFiltersPanel extends StatelessWidget {
           Text(
             searchInput.isNotEmpty && searchInput.trim().length < 3
                 ? 'Type at least 3 characters to apply search.'
-                : 'Server filters include frequency, priority, done state, chosen dates, and pagination.',
+                : 'Server filters include frequency, priority, status, chosen dates, and pagination.',
             style: TextStyle(
               fontSize: 11,
               height: 1.45,
@@ -1802,12 +1819,12 @@ class _TodoFiltersPanel extends StatelessWidget {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: _TodoDoneFilter.values
+            children: _TodoStatusFilter.values
                 .map(
                   (value) => _FilterChip(
                     label: value.label,
-                    selected: done == value,
-                    onTap: () => onDoneChanged(value),
+                    selected: status == value,
+                    onTap: () => onStatusChanged(value),
                   ),
                 )
                 .toList(growable: false),
@@ -1957,7 +1974,7 @@ class _TodoEntriesPanel extends StatelessWidget {
     required this.totalItems,
     required this.totalPages,
     required this.loadError,
-    required this.doneBusyId,
+    required this.statusBusyId,
     required this.recordExpenseBusyId,
     required this.onDelete,
     required this.onEdit,
@@ -1965,7 +1982,7 @@ class _TodoEntriesPanel extends StatelessWidget {
     required this.onPreviousPage,
     required this.onRecordExpense,
     required this.onRetry,
-    required this.onToggleDone,
+    required this.onToggleStatus,
   });
 
   final int currentPage;
@@ -1973,7 +1990,7 @@ class _TodoEntriesPanel extends StatelessWidget {
   final int totalItems;
   final int totalPages;
   final String? loadError;
-  final String? doneBusyId;
+  final String? statusBusyId;
   final String? recordExpenseBusyId;
   final Future<void> Function(TodoItem entry) onDelete;
   final Future<void> Function(TodoItem entry) onEdit;
@@ -1981,7 +1998,7 @@ class _TodoEntriesPanel extends StatelessWidget {
   final Future<void> Function() onPreviousPage;
   final Future<void> Function(TodoItem entry) onRecordExpense;
   final Future<void> Function() onRetry;
-  final Future<void> Function(TodoItem entry) onToggleDone;
+  final Future<void> Function(TodoItem entry) onToggleStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -2025,12 +2042,12 @@ class _TodoEntriesPanel extends StatelessWidget {
                 for (var i = 0; i < entries.length; i++) ...[
                   TodoItemCard(
                     todo: entries[i],
-                    busyDone: doneBusyId == entries[i].id,
+                    busyStatus: statusBusyId == entries[i].id,
                     busyRecordExpense: recordExpenseBusyId == entries[i].id,
                     onDelete: () => onDelete(entries[i]),
                     onEdit: () => onEdit(entries[i]),
                     onRecordExpense: () => onRecordExpense(entries[i]),
-                    onToggleDone: () => onToggleDone(entries[i]),
+                    onToggleStatus: () => onToggleStatus(entries[i]),
                   ),
                   if (i != entries.length - 1) const SizedBox(height: 12),
                 ],
