@@ -10,21 +10,21 @@ class TodoItemCard extends StatefulWidget {
   const TodoItemCard({
     super.key,
     required this.todo,
-    required this.busyDone,
+    required this.busyStatus,
     required this.busyRecordExpense,
     required this.onDelete,
     required this.onEdit,
     required this.onRecordExpense,
-    required this.onToggleDone,
+    required this.onToggleStatus,
   });
 
   final TodoItem todo;
-  final bool busyDone;
+  final bool busyStatus;
   final bool busyRecordExpense;
   final VoidCallback onDelete;
   final VoidCallback onEdit;
   final VoidCallback onRecordExpense;
-  final VoidCallback onToggleDone;
+  final VoidCallback onToggleStatus;
 
   @override
   State<TodoItemCard> createState() => _TodoItemCardState();
@@ -39,6 +39,7 @@ class _TodoItemCardState extends State<TodoItemCard> {
     final recurring = isRecurringTodo(widget.todo);
     final canRecord = canRecordTodoExpense(widget.todo);
     final creator = _resolveCreatorLabel(widget.todo);
+    final statusColor = _todoStatusColor(widget.todo.status);
     final remainingShare =
         recurring &&
             widget.todo.remainingAmount != null &&
@@ -80,10 +81,8 @@ class _TodoItemCardState extends State<TodoItemCard> {
                           color: AppColors.primary,
                         ),
                         _MetaChip(
-                          label: widget.todo.done ? 'Done' : 'Open',
-                          color: widget.todo.done
-                              ? AppColors.success
-                              : const Color(0xFFFFB86C),
+                          label: resolveTodoStatusLabel(widget.todo.status),
+                          color: statusColor,
                         ),
                       ],
                     ),
@@ -319,17 +318,17 @@ class _TodoItemCardState extends State<TodoItemCard> {
                 onTap: widget.onRecordExpense,
               ),
               _ActionButton(
-                label: widget.busyDone
+                label: widget.busyStatus
                     ? 'Updating...'
-                    : widget.todo.done
-                    ? 'Mark open'
-                    : 'Mark done',
+                    : isClosedTodoStatus(widget.todo.status)
+                    ? 'Reopen'
+                    : 'Mark completed',
                 icon: HugeIcons.strokeRoundedCheckmarkCircle02,
-                color: widget.todo.done
+                color: isClosedTodoStatus(widget.todo.status)
                     ? const Color(0xFFFFB86C)
                     : AppColors.success,
-                disabled: widget.busyDone,
-                onTap: widget.onToggleDone,
+                disabled: widget.busyStatus,
+                onTap: widget.onToggleStatus,
               ),
               _ActionButton(
                 label: 'Edit',
@@ -496,6 +495,14 @@ Color _priorityColor(TodoPriority priority) => switch (priority) {
   TodoPriority.topPriority => AppColors.danger,
   TodoPriority.priority => AppColors.primary,
   TodoPriority.notPriority => AppColors.success,
+};
+
+Color _todoStatusColor(TodoStatus status) => switch (status) {
+  TodoStatus.active => const Color(0xFFFFB86C),
+  TodoStatus.recorded => AppColors.primary,
+  TodoStatus.completed => AppColors.success,
+  TodoStatus.skipped => AppColors.danger,
+  TodoStatus.archived => AppColors.textSecondary,
 };
 
 String _rwf(double amount) {
