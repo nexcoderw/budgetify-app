@@ -20,7 +20,7 @@ class TodoFormDialog extends StatefulWidget {
     required String name,
     required double price,
     required TodoPriority priority,
-    required bool done,
+    required TodoStatus status,
     required TodoFrequency frequency,
     required String startDate,
     required String endDate,
@@ -46,7 +46,7 @@ class _TodoFormDialogState extends State<TodoFormDialog>
   late final TextEditingController _priceCtrl;
 
   late TodoPriority _priority;
-  late bool _done;
+  late TodoStatus _status;
   late TodoFrequency _frequency;
   late String _startDate;
   late String _endDate;
@@ -80,7 +80,7 @@ class _TodoFormDialogState extends State<TodoFormDialog>
       text: todo == null ? '' : todo.price.toStringAsFixed(0),
     );
     _priority = todo?.priority ?? TodoPriority.topPriority;
-    _done = todo?.done ?? false;
+    _status = todo?.status ?? TodoStatus.active;
     _frequency = initialFrequency;
     _startDate = defaultStartDate;
     _endDate = computeTodoEndDate(_startDate, _frequency);
@@ -256,20 +256,16 @@ class _TodoFormDialogState extends State<TodoFormDialog>
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: [
-                      _ChoiceChipButton(
-                        label: 'Open',
-                        selected: !_done,
-                        color: const Color(0xFFFFB86C),
-                        onTap: () => setState(() => _done = false),
-                      ),
-                      _ChoiceChipButton(
-                        label: 'Done',
-                        selected: _done,
-                        color: AppColors.success,
-                        onTap: () => setState(() => _done = true),
-                      ),
-                    ],
+                    children: TodoStatus.values
+                        .map(
+                          (status) => _ChoiceChipButton(
+                            label: resolveTodoStatusLabel(status),
+                            selected: _status == status,
+                            color: _todoStatusColor(status),
+                            onTap: () => setState(() => _status = status),
+                          ),
+                        )
+                        .toList(growable: false),
                   ),
                   const SizedBox(height: 20),
                   _FieldLabel(label: 'How often will this happen?'),
@@ -639,7 +635,7 @@ class _TodoFormDialogState extends State<TodoFormDialog>
         name: _nameCtrl.text.trim(),
         price: price,
         priority: _priority,
-        done: _done,
+        status: _status,
         frequency: _frequency,
         startDate: _startDate,
         endDate: _endDate,
@@ -1036,6 +1032,14 @@ Color _priorityColor(TodoPriority priority) => switch (priority) {
   TodoPriority.topPriority => AppColors.danger,
   TodoPriority.priority => AppColors.primary,
   TodoPriority.notPriority => AppColors.success,
+};
+
+Color _todoStatusColor(TodoStatus status) => switch (status) {
+  TodoStatus.active => const Color(0xFFFFB86C),
+  TodoStatus.recorded => AppColors.primary,
+  TodoStatus.completed => AppColors.success,
+  TodoStatus.skipped => AppColors.danger,
+  TodoStatus.archived => AppColors.textSecondary,
 };
 
 class _GradientDivider extends StatelessWidget {
