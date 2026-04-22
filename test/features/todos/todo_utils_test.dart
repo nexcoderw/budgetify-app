@@ -1,4 +1,5 @@
 import 'package:budgetify/features/todos/data/models/todo_item.dart';
+import 'package:budgetify/features/expenses/data/models/expense_entry.dart';
 import 'package:budgetify/features/todos/presentation/todo_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -23,6 +24,7 @@ TodoItem _buildTodo({
     recordedOccurrenceDates: recordedOccurrenceDates,
     remainingAmount: remainingAmount,
     recordingCount: recordedOccurrenceDates.length,
+    recordings: const <TodoRecordingItem>[],
     coverImageUrl: null,
     imageCount: 0,
     images: const <TodoImageItem>[],
@@ -33,6 +35,79 @@ TodoItem _buildTodo({
 }
 
 void main() {
+  group('TodoItem recordings', () {
+    test('parses recording audit totals from API responses', () {
+      final item = TodoItem.fromJson(<String, dynamic>{
+        'id': 'todo-1',
+        'name': 'School fees',
+        'price': 120000,
+        'priority': 'PRIORITY',
+        'status': 'RECORDED',
+        'frequency': 'MONTHLY',
+        'startDate': '2026-04-01',
+        'endDate': '2026-05-01',
+        'frequencyDays': <int>[],
+        'occurrenceDates': <String>['2026-04-24'],
+        'recordedOccurrenceDates': <String>['2026-04-24'],
+        'remainingAmount': 0,
+        'recordingCount': 1,
+        'recordings': <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'recording-1',
+            'todoId': 'todo-1',
+            'expenseId': 'expense-1',
+            'occurrenceDate': '2026-04-24',
+            'plannedAmount': 100000,
+            'baseAmount': 99000,
+            'feeAmount': 1000,
+            'totalChargedAmount': 100000,
+            'varianceAmount': 0,
+            'paymentMethod': 'MOBILE_MONEY',
+            'mobileMoneyChannel': 'P2P_TRANSFER',
+            'mobileMoneyNetwork': 'ON_NET',
+            'recordedAt': '2026-04-24T08:00:00.000Z',
+            'recordedBy': <String, dynamic>{
+              'id': 'user-1',
+              'firstName': 'Alice',
+              'lastName': 'Mutoni',
+              'avatarUrl': null,
+            },
+            'expense': <String, dynamic>{
+              'id': 'expense-1',
+              'label': 'School fees',
+              'category': 'SCHOOL_FEES',
+              'date': '2026-04-24T00:00:00.000Z',
+              'totalAmountRwf': 100000,
+              'feeAmountRwf': 1000,
+            },
+          },
+        ],
+        'coverImageUrl': null,
+        'imageCount': 0,
+        'images': <Map<String, dynamic>>[],
+        'createdBy': null,
+        'createdAt': '2026-04-01T08:00:00.000Z',
+        'updatedAt': '2026-04-24T08:00:00.000Z',
+      });
+
+      expect(item.recordings, hasLength(1));
+      expect(item.recordings.first.plannedAmount, 100000);
+      expect(item.recordings.first.feeAmount, 1000);
+      expect(
+        item.recordings.first.paymentMethod,
+        ExpensePaymentMethod.mobileMoney,
+      );
+      expect(
+        item.recordings.first.mobileMoneyChannel,
+        ExpenseMobileMoneyChannel.p2pTransfer,
+      );
+      expect(
+        item.recordings.first.expense?.category,
+        ExpenseCategory.schoolFees,
+      );
+    });
+  });
+
   group('TodoStatus', () {
     test('maps API values and closed-state semantics correctly', () {
       expect(TodoStatus.fromApiValue('ACTIVE'), TodoStatus.active);
