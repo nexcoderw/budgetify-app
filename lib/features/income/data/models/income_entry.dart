@@ -29,8 +29,8 @@ class IncomeEntry {
       category: IncomeCategory.fromApi(json['category'] as String),
       date: DateTime.parse(json['date'] as String).toLocal(),
       received: json['received'] as bool? ?? false,
-      allocatedToSavingsRwf:
-          (json['allocatedToSavingsRwf'] as num? ?? 0).toDouble(),
+      allocatedToSavingsRwf: (json['allocatedToSavingsRwf'] as num? ?? 0)
+          .toDouble(),
       remainingAvailableRwf:
           ((json['remainingAvailableRwf'] as num?) ??
                   (json['amountRwf'] as num?) ??
@@ -82,10 +82,10 @@ class IncomeSummary {
       receivedIncomeRwf: (json['receivedIncomeRwf'] as num? ?? 0).toDouble(),
       pendingIncomeRwf: (json['pendingIncomeRwf'] as num? ?? 0).toDouble(),
       totalExpensesRwf: (json['totalExpensesRwf'] as num? ?? 0).toDouble(),
-      totalSavingsBalanceRwf:
-          (json['totalSavingsBalanceRwf'] as num? ?? 0).toDouble(),
-      availableMoneyNowRwf:
-          (json['availableMoneyNowRwf'] as num? ?? 0).toDouble(),
+      totalSavingsBalanceRwf: (json['totalSavingsBalanceRwf'] as num? ?? 0)
+          .toDouble(),
+      availableMoneyNowRwf: (json['availableMoneyNowRwf'] as num? ?? 0)
+          .toDouble(),
       totalIncomeCount: json['totalIncomeCount'] as int? ?? 0,
       receivedIncomeCount: json['receivedIncomeCount'] as int? ?? 0,
       pendingIncomeCount: json['pendingIncomeCount'] as int? ?? 0,

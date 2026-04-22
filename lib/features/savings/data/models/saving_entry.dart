@@ -48,10 +48,10 @@ class SavingEntry {
           ? null
           : DateTime.parse(json['endDate'] as String).toLocal(),
       timeframeDays: json['timeframeDays'] as int?,
-      targetProgressPercentage:
-          (json['targetProgressPercentage'] as num?)?.toDouble(),
-      timeframeProgressPercentage:
-          (json['timeframeProgressPercentage'] as num?)?.toDouble(),
+      targetProgressPercentage: (json['targetProgressPercentage'] as num?)
+          ?.toDouble(),
+      timeframeProgressPercentage: (json['timeframeProgressPercentage'] as num?)
+          ?.toDouble(),
       totalDepositedRwf:
           ((json['totalDepositedRwf'] as num?) ??
                   (json['amountRwf'] as num?) ??

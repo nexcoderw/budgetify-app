@@ -6,6 +6,7 @@ import '../../../../../features/loans/data/models/loan_entry.dart';
 import '../../../../../features/partnerships/data/models/partnership_models.dart';
 import '../../../../../features/savings/data/models/saving_entry.dart';
 import '../../../../../features/todos/data/models/todo_item.dart';
+import '../../../../../features/todos/data/models/todo_summary.dart';
 import '../../../../../features/todos/presentation/todo_utils.dart';
 
 class DashboardDailyPoint {
@@ -436,6 +437,65 @@ List<DashboardUpcomingTodoDay> buildUpcomingTodoSchedule(List<TodoItem> todos) {
           totalAmount: totalAmount,
         );
       })
+      .toList(growable: false);
+}
+
+DashboardTodoReserveSummary mapTodoReserveSummary(
+  TodoUpcomingSummary? upcoming,
+) {
+  if (upcoming == null) {
+    return const DashboardTodoReserveSummary(
+      targetAmount: 0,
+      usedAmount: 0,
+      remainingAmount: 0,
+      items: <DashboardTodoReserveItem>[],
+    );
+  }
+
+  return DashboardTodoReserveSummary(
+    targetAmount: upcoming.reserveSummary.targetAmount,
+    usedAmount: upcoming.reserveSummary.usedAmount,
+    remainingAmount: upcoming.reserveSummary.remainingAmount,
+    items: upcoming.reserveSummary.items
+        .map(
+          (item) => DashboardTodoReserveItem(
+            id: item.id,
+            name: item.name,
+            frequency: item.frequency,
+            targetAmount: item.targetAmount,
+            usedAmount: item.usedAmount,
+            remainingAmount: item.remainingAmount,
+            remainingOccurrences: item.remainingOccurrenceCount,
+          ),
+        )
+        .toList(growable: false),
+  );
+}
+
+List<DashboardUpcomingTodoDay> mapUpcomingTodoSchedule(
+  TodoUpcomingSummary? upcoming,
+) {
+  if (upcoming == null) {
+    return const <DashboardUpcomingTodoDay>[];
+  }
+
+  return upcoming.days
+      .map(
+        (day) => DashboardUpcomingTodoDay(
+          date: day.date,
+          totalAmount: day.totalAmount,
+          items: day.items
+              .map(
+                (item) => DashboardUpcomingTodoItem(
+                  id: item.id,
+                  name: item.name,
+                  frequency: item.frequency,
+                  amount: item.amount,
+                ),
+              )
+              .toList(growable: false),
+        ),
+      )
       .toList(growable: false);
 }
 

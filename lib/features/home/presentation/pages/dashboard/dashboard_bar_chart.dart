@@ -137,8 +137,18 @@ class _ChartHeader extends StatelessWidget {
   final List<double> dailySpending;
 
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   @override
@@ -176,7 +186,9 @@ class _ChartHeader extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
             color: AppColors.primary.withValues(alpha: 0.12),
-            border: Border.all(color: AppColors.primary.withValues(alpha: 0.22)),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.22),
+            ),
           ),
           child: const Text(
             'Monthly',
@@ -274,8 +286,8 @@ class _BarChartPainter extends CustomPainter {
       final barColor = isHighlighted
           ? primaryColor
           : isToday
-              ? primaryColor.withValues(alpha: 0.85)
-              : accentColor;
+          ? primaryColor.withValues(alpha: 0.85)
+          : accentColor;
 
       final paint = Paint()
         ..shader = LinearGradient(

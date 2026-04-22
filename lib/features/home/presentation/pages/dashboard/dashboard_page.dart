@@ -19,7 +19,7 @@ import '../../../../../features/partnerships/data/models/partnership_models.dart
 import '../../../../../features/savings/application/saving_service.dart';
 import '../../../../../features/savings/data/models/saving_entry.dart';
 import '../../../../../features/todos/application/todo_service.dart';
-import '../../../../../features/todos/data/models/todo_item.dart';
+import '../../../../../features/todos/data/models/todo_summary.dart';
 import '../../../../../features/todos/presentation/todo_utils.dart';
 import 'dashboard_header.dart';
 import 'dashboard_utils.dart';
@@ -59,7 +59,8 @@ class _DashboardPageState extends State<DashboardPage>
   List<ExpenseEntry> _allExpenses = const <ExpenseEntry>[];
   List<SavingEntry> _allSavings = const <SavingEntry>[];
   List<LoanEntry> _allLoans = const <LoanEntry>[];
-  List<TodoItem> _allTodos = const <TodoItem>[];
+  TodoSummary? _todoSummary;
+  TodoUpcomingSummary? _todoUpcoming;
   List<ExpenseCategoryOption> _expenseCategories =
       const <ExpenseCategoryOption>[];
   Partnership? _partnership;
@@ -134,7 +135,7 @@ class _DashboardPageState extends State<DashboardPage>
       sumExpenseAmounts(_allExpenses) -
       _allTimeSavingsAmount;
 
-  double get _pendingTodoAmount => sumTodoAmounts(_allTodos, pendingOnly: true);
+  double get _pendingTodoAmount => _todoSummary?.openPlannedTotal ?? 0;
 
   Future<void> _loadDashboard() async {
     setState(() {
@@ -148,7 +149,8 @@ class _DashboardPageState extends State<DashboardPage>
         widget.expenseService.listExpenses(),
         widget.savingService.listSavings(),
         widget.loanService.listLoans(),
-        widget.todoService.listTodos(),
+        widget.todoService.summarizeTodos(),
+        widget.todoService.listUpcomingTodos(days: 7),
         widget.expenseService.listExpenseCategories().catchError((_) {
           return <ExpenseCategoryOption>[];
         }),
@@ -166,10 +168,11 @@ class _DashboardPageState extends State<DashboardPage>
         _allExpenses = (results[1] as List<dynamic>).cast<ExpenseEntry>();
         _allSavings = (results[2] as List<dynamic>).cast<SavingEntry>();
         _allLoans = (results[3] as List<dynamic>).cast<LoanEntry>();
-        _allTodos = (results[4] as List<dynamic>).cast<TodoItem>();
-        _expenseCategories = (results[5] as List<dynamic>)
+        _todoSummary = results[4] as TodoSummary;
+        _todoUpcoming = results[5] as TodoUpcomingSummary;
+        _expenseCategories = (results[6] as List<dynamic>)
             .cast<ExpenseCategoryOption>();
-        _partnership = results[6] as Partnership?;
+        _partnership = results[7] as Partnership?;
         _isLoading = false;
       });
     } catch (error) {
@@ -262,8 +265,8 @@ class _DashboardPageState extends State<DashboardPage>
       month: _selectedMonth,
       year: _selectedYear,
     );
-    final todoReserveSummary = buildDashboardTodoReserveSummary(_allTodos);
-    final upcomingTodoDays = buildUpcomingTodoSchedule(_allTodos);
+    final todoReserveSummary = mapTodoReserveSummary(_todoUpcoming);
+    final upcomingTodoDays = mapUpcomingTodoSchedule(_todoUpcoming);
     final partnerActivitySummary = buildPartnerActivitySummary(
       currentUser: widget.user,
       partnership: _partnership,

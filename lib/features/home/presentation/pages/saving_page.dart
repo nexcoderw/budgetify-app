@@ -3131,7 +3131,8 @@ class _SavingFormDialogState extends State<_SavingFormDialog>
       return;
     }
 
-    final initialDate = DateTime.tryParse(widget.form.endDate) ?? DateTime.now();
+    final initialDate =
+        DateTime.tryParse(widget.form.endDate) ?? DateTime.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,

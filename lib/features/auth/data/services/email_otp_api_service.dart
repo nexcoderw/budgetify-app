@@ -10,8 +10,8 @@ class EmailOtpApiService {
   EmailOtpApiService({
     required ApiClient apiClient,
     required AuthApiRoutes routes,
-  })  : _apiClient = apiClient,
-        _routes = routes;
+  }) : _apiClient = apiClient,
+       _routes = routes;
 
   final ApiClient _apiClient;
   final AuthApiRoutes _routes;

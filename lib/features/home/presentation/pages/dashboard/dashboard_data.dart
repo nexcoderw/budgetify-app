@@ -107,7 +107,7 @@ class DashboardData {
         amount: totalSpent * 0.18,
         total: totalSpent,
         color: const Color(0xFF7EB8F7),
-      icon: Icons.directions_car_rounded,
+        icon: Icons.directions_car_rounded,
       ),
       SpendingCategory(
         label: 'Health',

@@ -37,10 +37,7 @@ class DashboardCategoryList extends StatelessWidget {
               const SizedBox(height: 4),
               const Text(
                 'Where your money is going',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 18),
               ...categories.asMap().entries.map(
@@ -169,10 +166,7 @@ class _CategoryRowState extends State<_CategoryRow>
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(4),
                     gradient: LinearGradient(
-                      colors: [
-                        cat.color,
-                        cat.color.withValues(alpha: 0.55),
-                      ],
+                      colors: [cat.color, cat.color.withValues(alpha: 0.55)],
                     ),
                     boxShadow: [
                       BoxShadow(

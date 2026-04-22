@@ -146,11 +146,7 @@ class _BalanceCardShell extends StatelessWidget {
                   Colors.white.withValues(alpha: 0.07),
                   AppColors.primary.withValues(alpha: 0.06),
                 ],
-                stops: [
-                  0.0,
-                  shimmer.value,
-                  1.0,
-                ],
+                stops: [0.0, shimmer.value, 1.0],
               ),
               border: Border.all(
                 color: AppColors.primary.withValues(alpha: 0.25),
@@ -227,8 +223,7 @@ class _AnimatedBalanceState extends State<_AnimatedBalance>
     return AnimatedBuilder(
       animation: _anim,
       builder: (context, _) {
-        final value =
-            _previous + (_anim.value * (widget.balance - _previous));
+        final value = _previous + (_anim.value * (widget.balance - _previous));
         final formatted =
             '\$${value.toStringAsFixed(2).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+\.)'), (m) => '${m[1]},')}';
         return Text(

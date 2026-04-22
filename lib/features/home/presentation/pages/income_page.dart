@@ -231,7 +231,8 @@ class _IncomePageState extends State<IncomePage>
       builder: (_) => _IncomeFormDialog(
         entry: entry,
         initialReceived: entry.received,
-        onOpenRecovery: () => _openDetailsDialog(entry, highlightFirstActive: true),
+        onOpenRecovery: () =>
+            _openDetailsDialog(entry, highlightFirstActive: true),
         onSubmit:
             ({
               required String label,
@@ -2806,60 +2807,60 @@ class _EntryRowState extends State<_EntryRow>
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                        Text(
-                          _rwfCompact(widget.entry.amountRwf),
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: color,
-                          ),
+                      Text(
+                        _rwfCompact(widget.entry.amountRwf),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: color,
                         ),
-                        const SizedBox(height: 2),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(999),
+                      ),
+                      const SizedBox(height: 2),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(999),
+                          color: switch (widget.entry.allocationStatus) {
+                            IncomeAllocationStatus.fullyAllocated =>
+                              AppColors.primary.withValues(alpha: 0.14),
+                            IncomeAllocationStatus.partiallyAllocated =>
+                              const Color(0xFFFFB86C).withValues(alpha: 0.14),
+                            IncomeAllocationStatus.unallocated =>
+                              AppColors.success.withValues(alpha: 0.12),
+                          },
+                          border: Border.all(
                             color: switch (widget.entry.allocationStatus) {
                               IncomeAllocationStatus.fullyAllocated =>
-                                AppColors.primary.withValues(alpha: 0.14),
+                                AppColors.primary.withValues(alpha: 0.25),
                               IncomeAllocationStatus.partiallyAllocated =>
-                                const Color(0xFFFFB86C).withValues(alpha: 0.14),
+                                const Color(0xFFFFB86C).withValues(alpha: 0.25),
                               IncomeAllocationStatus.unallocated =>
-                                AppColors.success.withValues(alpha: 0.12),
+                                AppColors.success.withValues(alpha: 0.20),
                             },
-                            border: Border.all(
-                              color: switch (widget.entry.allocationStatus) {
-                                IncomeAllocationStatus.fullyAllocated =>
-                                  AppColors.primary.withValues(alpha: 0.25),
-                                IncomeAllocationStatus.partiallyAllocated =>
-                                  const Color(0xFFFFB86C).withValues(alpha: 0.25),
-                                IncomeAllocationStatus.unallocated =>
-                                  AppColors.success.withValues(alpha: 0.20),
-                              },
-                            ),
-                          ),
-                          child: Text(
-                            widget.entry.allocationStatus.displayName,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: switch (widget.entry.allocationStatus) {
-                                IncomeAllocationStatus.fullyAllocated =>
-                                  AppColors.primary,
-                                IncomeAllocationStatus.partiallyAllocated =>
-                                  const Color(0xFFFFB86C),
-                                IncomeAllocationStatus.unallocated =>
-                                  AppColors.success,
-                              },
-                            ),
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        AnimatedRotation(
-                          turns: _expanded ? 0.5 : 0,
+                        child: Text(
+                          widget.entry.allocationStatus.displayName,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: switch (widget.entry.allocationStatus) {
+                              IncomeAllocationStatus.fullyAllocated =>
+                                AppColors.primary,
+                              IncomeAllocationStatus.partiallyAllocated =>
+                                const Color(0xFFFFB86C),
+                              IncomeAllocationStatus.unallocated =>
+                                AppColors.success,
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      AnimatedRotation(
+                        turns: _expanded ? 0.5 : 0,
                         duration: const Duration(milliseconds: 200),
                         child: HugeIcon(
                           icon: HugeIcons.strokeRoundedArrowDown01,
@@ -2920,12 +2921,16 @@ class _EntryRowState extends State<_EntryRow>
                                 const SizedBox(height: 4),
                                 _DetailItem(
                                   label: 'Parked in savings',
-                                  value: _rwf(widget.entry.allocatedToSavingsRwf),
+                                  value: _rwf(
+                                    widget.entry.allocatedToSavingsRwf,
+                                  ),
                                 ),
                                 const SizedBox(height: 4),
                                 _DetailItem(
                                   label: 'Still free',
-                                  value: _rwf(widget.entry.remainingAvailableRwf),
+                                  value: _rwf(
+                                    widget.entry.remainingAvailableRwf,
+                                  ),
                                 ),
                               ],
                             ),
@@ -3564,7 +3569,9 @@ class _IncomeFormDialogState extends State<_IncomeFormDialog>
                         borderRadius: BorderRadius.circular(14),
                         color: const Color(0xFFFFB86C).withValues(alpha: 0.10),
                         border: Border.all(
-                          color: const Color(0xFFFFB86C).withValues(alpha: 0.20),
+                          color: const Color(
+                            0xFFFFB86C,
+                          ).withValues(alpha: 0.20),
                         ),
                       ),
                       child: Column(
@@ -3842,7 +3849,10 @@ class _IncomeDetailsSheet extends StatelessWidget {
   final bool isLoading;
   final bool isReversingAllocation;
   final VoidCallback onClose;
-  final Future<void> Function(IncomeEntry entry, IncomeSavingAllocation allocation)
+  final Future<void> Function(
+    IncomeEntry entry,
+    IncomeSavingAllocation allocation,
+  )
   onReverseAllocation;
 
   @override
@@ -3878,7 +3888,9 @@ class _IncomeDetailsSheet extends StatelessWidget {
                         '${source.category.displayName} • ${_formatSheetDate(source.date)}',
                         style: TextStyle(
                           fontSize: 12,
-                          color: AppColors.textSecondary.withValues(alpha: 0.72),
+                          color: AppColors.textSecondary.withValues(
+                            alpha: 0.72,
+                          ),
                         ),
                       ),
                     ],
@@ -3896,7 +3908,9 @@ class _IncomeDetailsSheet extends StatelessWidget {
                 child: Center(
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.success),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppColors.success,
+                    ),
                   ),
                 ),
               )
@@ -3932,7 +3946,9 @@ class _IncomeDetailsSheet extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   color: Colors.white.withValues(alpha: 0.04),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -3985,7 +4001,9 @@ class _IncomeDetailsSheet extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
                     color: Colors.white.withValues(alpha: 0.04),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
                   ),
                   child: Text(
                     'No part of this income has been linked to a saving bucket yet.',
@@ -4247,7 +4265,8 @@ class _AllocationCard extends StatelessWidget {
               ),
             ],
           ),
-          if (allocation.note != null && allocation.note!.trim().isNotEmpty) ...[
+          if (allocation.note != null &&
+              allocation.note!.trim().isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
               allocation.note!,

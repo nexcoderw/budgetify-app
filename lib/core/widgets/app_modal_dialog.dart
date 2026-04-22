@@ -114,8 +114,7 @@ class AppModalActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final effectivePrimaryForeground =
         primaryForegroundColor.toARGB32() == Colors.white.toARGB32() ||
-            primaryForegroundColor.toARGB32() ==
-                AppColors.background.toARGB32()
+            primaryForegroundColor.toARGB32() == AppColors.background.toARGB32()
         ? primaryColor
         : primaryForegroundColor;
     final foregroundColor = isPrimary

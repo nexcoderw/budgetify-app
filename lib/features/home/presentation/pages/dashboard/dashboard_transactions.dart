@@ -93,10 +93,10 @@ class _TransactionTileState extends State<_TransactionTile>
       duration: const Duration(milliseconds: 500),
     );
     _fade = CurvedAnimation(parent: _entranceCtrl, curve: Curves.easeOut);
-    _slide = Tween<Offset>(
-      begin: const Offset(0.04, 0),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _entranceCtrl, curve: Curves.easeOutCubic));
+    _slide = Tween<Offset>(begin: const Offset(0.04, 0), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _entranceCtrl, curve: Curves.easeOutCubic),
+        );
 
     Future.delayed(Duration(milliseconds: 80 + widget.index * 70), () {
       if (mounted) _entranceCtrl.forward();
@@ -183,7 +183,9 @@ class _TransactionTileState extends State<_TransactionTile>
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: tx.isIncome ? AppColors.success : AppColors.textPrimary,
+                        color: tx.isIncome
+                            ? AppColors.success
+                            : AppColors.textPrimary,
                         letterSpacing: -0.3,
                       ),
                     ),
