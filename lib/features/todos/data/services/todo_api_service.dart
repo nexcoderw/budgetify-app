@@ -5,8 +5,10 @@ import 'package:http_parser/http_parser.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/paginated_response.dart';
 import '../../../../core/network/pagination_helpers.dart';
+import '../../../expenses/data/models/expense_entry.dart';
 import '../models/todo_item.dart';
 import '../models/todo_list_query.dart';
+import '../models/todo_summary.dart';
 import '../models/todo_upload_image.dart';
 import '../routes/todo_api_routes.dart';
 
@@ -25,7 +27,7 @@ class TodoApiService {
     final json = await _apiClient.getJson(
       _routes.list,
       headers: <String, String>{'Authorization': 'Bearer $accessToken'},
-      queryParameters: query.toQueryParameters(),
+      queryParameters: _buildQueryParameters(query),
     );
 
     return PaginatedResponse<TodoItem>.fromJson(json, TodoItem.fromJson);
@@ -53,6 +55,37 @@ class TodoApiService {
     );
 
     return TodoItem.fromJson(json);
+  }
+
+  Future<TodoSummary> fetchTodoSummary(
+    String accessToken, {
+    TodoListQuery query = const TodoListQuery(),
+  }) async {
+    final json = await _apiClient.getJson(
+      _routes.summary,
+      headers: <String, String>{'Authorization': 'Bearer $accessToken'},
+      queryParameters: _buildQueryParameters(query, includePagination: false),
+    );
+
+    return TodoSummary.fromJson(json);
+  }
+
+  Future<TodoUpcomingSummary> fetchTodoUpcoming(
+    String accessToken, {
+    TodoListQuery query = const TodoListQuery(),
+    int days = 7,
+  }) async {
+    final json = await _apiClient.getJson(
+      _routes.upcoming,
+      headers: <String, String>{'Authorization': 'Bearer $accessToken'},
+      queryParameters: _buildQueryParameters(
+        query,
+        includePagination: false,
+        days: days,
+      ),
+    );
+
+    return TodoUpcomingSummary.fromJson(json);
   }
 
   Future<TodoItem> createTodo({
@@ -128,6 +161,45 @@ class TodoApiService {
     return TodoItem.fromJson(json);
   }
 
+  Future<void> recordTodoExpense({
+    required String accessToken,
+    required String todoId,
+    required String label,
+    required double amount,
+    ExpenseCurrency currency = ExpenseCurrency.rwf,
+    required ExpenseCategory category,
+    ExpensePaymentMethod paymentMethod = ExpensePaymentMethod.cash,
+    ExpenseMobileMoneyChannel? mobileMoneyChannel,
+    ExpenseMobileMoneyProvider? mobileMoneyProvider,
+    ExpenseMobileMoneyNetwork? mobileMoneyNetwork,
+    required DateTime date,
+    String? occurrenceDate,
+    String? note,
+  }) async {
+    await _apiClient.postJson(
+      _routes.recordExpense(todoId),
+      headers: <String, String>{'Authorization': 'Bearer $accessToken'},
+      body: <String, dynamic>{
+        'label': label,
+        'amount': amount,
+        'currency': currency.apiValue,
+        'category': category.apiValue,
+        'paymentMethod': paymentMethod.apiValue,
+        if (mobileMoneyChannel != null)
+          'mobileMoneyChannel': mobileMoneyChannel.apiValue,
+        if (mobileMoneyProvider != null)
+          'mobileMoneyProvider': mobileMoneyProvider.apiValue,
+        if (mobileMoneyNetwork != null)
+          'mobileMoneyNetwork': mobileMoneyNetwork.apiValue,
+        'date': date.toUtc().toIso8601String(),
+        ...?(occurrenceDate == null
+            ? null
+            : <String, dynamic>{'occurrenceDate': occurrenceDate}),
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      },
+    );
+  }
+
   Future<void> deleteTodo({
     required String accessToken,
     required String todoId,
@@ -195,5 +267,31 @@ class TodoApiService {
     }
 
     return fields;
+  }
+
+  Map<String, dynamic> _buildQueryParameters(
+    TodoListQuery query, {
+    bool includePagination = true,
+    int? days,
+  }) {
+    final normalizedSearch = query.search?.trim();
+
+    final parameters = <String, dynamic>{
+      if (query.frequency != null) 'frequency': query.frequency!.apiValue,
+      if (query.priority != null) 'priority': query.priority!.apiValue,
+      if (query.status != null) 'status': query.status!.apiValue,
+      if (normalizedSearch != null && normalizedSearch.length >= 3)
+        'search': normalizedSearch,
+      if (query.dateFrom?.isNotEmpty ?? false) 'dateFrom': query.dateFrom,
+      if (query.dateTo?.isNotEmpty ?? false) 'dateTo': query.dateTo,
+      if (includePagination && query.page != null) 'page': query.page,
+      if (includePagination && query.limit != null) 'limit': query.limit,
+    };
+
+    if (days != null) {
+      parameters['days'] = days;
+    }
+
+    return parameters;
   }
 }
