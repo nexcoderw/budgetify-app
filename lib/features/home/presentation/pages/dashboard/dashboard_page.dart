@@ -347,7 +347,7 @@ class _DashboardPageState extends State<DashboardPage>
                     label: 'Todo amount',
                     compactValue: _rwfCompact(_pendingTodoAmount),
                     fullValue: _rwf(_pendingTodoAmount),
-                    description: 'All todo prices that are still not done',
+                    description: 'All todo prices that are still active',
                     tone: _SummaryTone.todo,
                   ),
                 ],
