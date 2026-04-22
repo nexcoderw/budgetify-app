@@ -40,6 +40,9 @@ class _TodoItemCardState extends State<TodoItemCard> {
     final canRecord = canRecordTodoExpense(widget.todo);
     final creator = _resolveCreatorLabel(widget.todo);
     final statusColor = _todoStatusColor(widget.todo.status);
+    final latestRecording = widget.todo.recordings.isEmpty
+        ? null
+        : widget.todo.recordings.first;
     final remainingShare =
         recurring &&
             widget.todo.remainingAmount != null &&
@@ -217,6 +220,10 @@ class _TodoItemCardState extends State<TodoItemCard> {
               ),
             ),
           ],
+          if (latestRecording != null) ...[
+            const SizedBox(height: 14),
+            _LatestRecordingPanel(recording: latestRecording),
+          ],
           const SizedBox(height: 14),
           GestureDetector(
             onTap: () => setState(() => _expanded = !_expanded),
@@ -295,6 +302,14 @@ class _TodoItemCardState extends State<TodoItemCard> {
                           .toList(growable: false),
                     ),
                   ],
+                  if (widget.todo.recordings.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    _RecordingHistoryList(
+                      recordings: widget.todo.recordings
+                          .take(5)
+                          .toList(growable: false),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -363,6 +378,241 @@ class _TodoItemCardState extends State<TodoItemCard> {
     ].join(' ');
 
     return fullName.isEmpty ? 'partner' : fullName;
+  }
+}
+
+class _LatestRecordingPanel extends StatelessWidget {
+  const _LatestRecordingPanel({required this.recording});
+
+  final TodoRecordingItem recording;
+
+  @override
+  Widget build(BuildContext context) {
+    final varianceColor = _varianceColor(recording.varianceAmount);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: AppColors.primary.withValues(alpha: 0.08),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.14)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const HugeIcon(
+                icon: HugeIcons.strokeRoundedInvoice03,
+                size: 16,
+                color: AppColors.primary,
+                strokeWidth: 1.8,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Latest recording',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                formatTodoDate(parseDateOnly(recording.occurrenceDate)),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: AppColors.textSecondary.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _AuditAmountTile(
+                label: 'Plan',
+                value: _rwf(recording.plannedAmount),
+              ),
+              _AuditAmountTile(
+                label: 'Charged',
+                value: _rwf(recording.totalChargedAmount),
+                valueColor: AppColors.primary,
+              ),
+              _AuditAmountTile(label: 'Fee', value: _rwf(recording.feeAmount)),
+              _AuditAmountTile(
+                label: 'Variance',
+                value: _rwf(recording.varianceAmount),
+                valueColor: varianceColor,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _recordingPaymentSummary(recording),
+            style: TextStyle(
+              fontSize: 11,
+              height: 1.45,
+              color: AppColors.textSecondary.withValues(alpha: 0.74),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecordingHistoryList extends StatelessWidget {
+  const _RecordingHistoryList({required this.recordings});
+
+  final List<TodoRecordingItem> recordings;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: Colors.white.withValues(alpha: 0.04),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Recording history',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textSecondary.withValues(alpha: 0.84),
+            ),
+          ),
+          const SizedBox(height: 10),
+          ...recordings.map(
+            (recording) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _RecordingHistoryRow(recording: recording),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecordingHistoryRow extends StatelessWidget {
+  const _RecordingHistoryRow({required this.recording});
+
+  final TodoRecordingItem recording;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: Colors.black.withValues(alpha: 0.12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  formatTodoDate(parseDateOnly(recording.occurrenceDate)),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                _rwf(recording.totalChargedAmount),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _SubtlePill(label: 'Plan ${_rwf(recording.plannedAmount)}'),
+              _SubtlePill(label: 'Base ${_rwf(recording.baseAmount)}'),
+              _SubtlePill(label: 'Fee ${_rwf(recording.feeAmount)}'),
+              _SubtlePill(label: 'Variance ${_rwf(recording.varianceAmount)}'),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _recordingPaymentSummary(recording),
+            style: TextStyle(
+              fontSize: 10,
+              color: AppColors.textSecondary.withValues(alpha: 0.68),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuditAmountTile extends StatelessWidget {
+  const _AuditAmountTile({
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
+
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 112),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: Colors.black.withValues(alpha: 0.13),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              color: AppColors.textSecondary.withValues(alpha: 0.68),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: valueColor ?? AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -504,6 +754,37 @@ Color _todoStatusColor(TodoStatus status) => switch (status) {
   TodoStatus.skipped => AppColors.danger,
   TodoStatus.archived => AppColors.textSecondary,
 };
+
+Color _varianceColor(double amount) {
+  if (amount > 0) {
+    return AppColors.danger;
+  }
+
+  if (amount < 0) {
+    return AppColors.success;
+  }
+
+  return AppColors.textPrimary;
+}
+
+String _recordingPaymentSummary(TodoRecordingItem recording) {
+  final details = <String>[recording.paymentMethod.displayName];
+
+  if (recording.mobileMoneyChannel != null) {
+    details.add(recording.mobileMoneyChannel!.displayName);
+  }
+
+  if (recording.mobileMoneyNetwork != null) {
+    details.add(recording.mobileMoneyNetwork!.displayName);
+  }
+
+  final expenseLabel = recording.expense?.label.trim();
+  if (expenseLabel != null && expenseLabel.isNotEmpty) {
+    details.add(expenseLabel);
+  }
+
+  return details.join(' · ');
+}
 
 String _rwf(double amount) {
   final formatted = amount
