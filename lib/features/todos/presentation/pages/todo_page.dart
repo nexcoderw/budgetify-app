@@ -14,6 +14,7 @@ import '../../../expenses/data/models/expense_entry.dart';
 import '../../application/todo_service.dart';
 import '../../data/models/todo_item.dart';
 import '../../data/models/todo_list_query.dart';
+import '../../data/models/todo_summary.dart';
 import '../../data/models/todo_upload_image.dart';
 import '../todo_utils.dart';
 import '../widgets/todo_delete_dialog.dart';
@@ -65,8 +66,8 @@ class _TodoPageState extends State<TodoPage>
 
   late final AnimationController _entranceCtrl;
   late final TextEditingController _searchCtrl;
-  List<TodoItem> _entries = const <TodoItem>[];
   List<TodoItem> _pageEntries = const <TodoItem>[];
+  TodoSummary? _summary;
   List<ExpenseCategoryOption> _expenseCategories =
       const <ExpenseCategoryOption>[];
   bool _isLoading = true;
@@ -106,29 +107,23 @@ class _TodoPageState extends State<TodoPage>
     super.dispose();
   }
 
-  double get _plannedTotal =>
-      _entries.fold(0, (sum, entry) => sum + entry.price);
+  double get _plannedTotal => _summary?.plannedTotal ?? 0;
 
-  int get _completedCount =>
-      _entries.where((entry) => entry.status == TodoStatus.completed).length;
+  int get _completedCount => _summary?.completedCount ?? 0;
 
-  int get _openCount =>
-      _entries.where((entry) => !isClosedTodoStatus(entry.status)).length;
+  int get _openCount => _summary?.openCount ?? 0;
 
-  int get _topPriorityCount => _entries
-      .where((entry) => entry.priority == TodoPriority.topPriority)
-      .length;
+  int get _topPriorityCount => _summary?.topPriorityCount ?? 0;
 
-  int get _withImagesCount =>
-      _entries.where((entry) => entry.imageCount > 0).length;
+  int get _withImagesCount => _summary?.withImagesCount ?? 0;
 
-  int get _recurringCount => _entries.where(isRecurringTodo).length;
+  int get _recurringCount => _summary?.recurringCount ?? 0;
 
-  int get _completionShare => _entries.isEmpty
-      ? 0
-      : ((_completedCount / _entries.length) * 100).round();
+  int get _completionShare => _summary?.completionPercentage ?? 0;
 
-  TodoItem? get _latestEntry => _entries.isEmpty ? null : _entries.first;
+  int get _totalCount => _summary?.totalCount ?? 0;
+
+  TodoSummaryLatestItem? get _latestEntry => _summary?.latestTodo;
 
   bool get _hasExplicitDateFilter =>
       _selectedDateFrom != null || _selectedDateTo != null;
@@ -181,11 +176,11 @@ class _TodoPageState extends State<TodoPage>
       final summaryQuery = _buildTodoQuery();
       final pageQuery = _buildTodoQuery(page: _currentPage, limit: _pageSize);
       final results = await Future.wait<dynamic>(<Future<dynamic>>[
-        widget.todoService.listTodos(query: summaryQuery),
+        widget.todoService.summarizeTodos(query: summaryQuery),
         widget.todoService.listTodosPage(query: pageQuery),
       ]);
 
-      final entries = (results[0] as List<dynamic>).cast<TodoItem>();
+      final summary = results[0] as TodoSummary;
       final pageResponse = results[1] as PaginatedResponse<TodoItem>;
 
       if (!mounted || loadId != _loadSequence) {
@@ -193,7 +188,7 @@ class _TodoPageState extends State<TodoPage>
       }
 
       setState(() {
-        _entries = _sortTodos(entries);
+        _summary = summary;
         _pageEntries = _sortTodos(pageResponse.items);
         _totalItems = pageResponse.meta.totalItems;
         _totalPages = pageResponse.meta.totalPages;
@@ -206,7 +201,7 @@ class _TodoPageState extends State<TodoPage>
 
       final message = _readableError(error);
       setState(() {
-        _entries = const <TodoItem>[];
+        _summary = null;
         _pageEntries = const <TodoItem>[];
         _isLoading = false;
         _loadError = message;
@@ -568,34 +563,16 @@ class _TodoPageState extends State<TodoPage>
               required String date,
             }) async {
               setState(() => _recordExpenseBusyId = entry.id);
-              var expenseCreated = false;
 
               try {
-                await widget.expenseService.createExpense(
+                await widget.todoService.recordTodoExpense(
+                  todoId: entry.id,
                   label: entry.name.trim(),
                   amount: amount,
                   category: category,
                   date: parseDateOnly(date),
+                  occurrenceDate: date,
                 );
-                expenseCreated = true;
-
-                if (isRecurringTodo(entry)) {
-                  await widget.todoService.updateTodo(
-                    todoId: entry.id,
-                    deductAmount: amount,
-                    recordedOccurrenceDate: date,
-                  );
-                } else {
-                  await widget.todoService.updateTodo(
-                    todoId: entry.id,
-                    status: TodoStatus.recorded,
-                  );
-                }
-              } catch (error) {
-                if (expenseCreated) {
-                  await _loadTodos();
-                }
-                rethrow;
               } finally {
                 if (mounted) {
                   setState(() => _recordExpenseBusyId = null);
@@ -685,7 +662,7 @@ class _TodoPageState extends State<TodoPage>
             slide: _slide(0.0, 0.42),
             child: _TodoHeader(
               plannedTotal: _plannedTotal,
-              totalCount: _entries.length,
+              totalCount: _totalCount,
               onAdd: _openCreateDialog,
               showBackButton: !widget.embedded,
             ),
@@ -699,7 +676,7 @@ class _TodoPageState extends State<TodoPage>
               openCount: _openCount,
               recurringCount: _recurringCount,
               topPriorityCount: _topPriorityCount,
-              totalCount: _entries.length,
+              totalCount: _totalCount,
             ),
           ),
           const SizedBox(height: 14),
@@ -1567,7 +1544,7 @@ class _TodoStatsRow extends StatelessWidget {
 
   final int completionShare;
   final int completedCount;
-  final TodoItem? latestEntry;
+  final TodoSummaryLatestItem? latestEntry;
   final int withImagesCount;
 
   @override
