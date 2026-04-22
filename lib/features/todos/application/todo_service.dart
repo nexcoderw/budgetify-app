@@ -1,16 +1,18 @@
 import '../../../core/config/app_env.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paginated_response.dart';
 import '../../../core/storage/secure_storage_service.dart';
+import '../../expenses/data/models/expense_entry.dart';
 import '../../auth/data/models/auth_session.dart';
 import '../../auth/data/routes/auth_api_routes.dart';
 import '../../auth/data/services/auth_api_service.dart';
 import '../../auth/data/services/auth_session_storage.dart';
 import '../data/models/todo_item.dart';
 import '../data/models/todo_list_query.dart';
+import '../data/models/todo_summary.dart';
 import '../data/models/todo_upload_image.dart';
 import '../data/routes/todo_api_routes.dart';
 import '../data/services/todo_api_service.dart';
-import '../../../core/network/paginated_response.dart';
 
 class TodoService {
   TodoService({
@@ -57,6 +59,27 @@ class TodoService {
     final session = await _resolveActiveSession();
 
     return _todoApiService.fetchTodosPage(session.accessToken, query: query);
+  }
+
+  Future<TodoSummary> summarizeTodos({
+    TodoListQuery query = const TodoListQuery(),
+  }) async {
+    final session = await _resolveActiveSession();
+
+    return _todoApiService.fetchTodoSummary(session.accessToken, query: query);
+  }
+
+  Future<TodoUpcomingSummary> listUpcomingTodos({
+    TodoListQuery query = const TodoListQuery(),
+    int days = 7,
+  }) async {
+    final session = await _resolveActiveSession();
+
+    return _todoApiService.fetchTodoUpcoming(
+      session.accessToken,
+      query: query,
+      days: days,
+    );
   }
 
   Future<TodoItem> getTodo(String todoId) async {
@@ -131,6 +154,39 @@ class TodoService {
       recordedOccurrenceDate: recordedOccurrenceDate,
       primaryImageId: primaryImageId,
       images: images,
+    );
+  }
+
+  Future<void> recordTodoExpense({
+    required String todoId,
+    required String label,
+    required double amount,
+    ExpenseCurrency currency = ExpenseCurrency.rwf,
+    required ExpenseCategory category,
+    ExpensePaymentMethod paymentMethod = ExpensePaymentMethod.cash,
+    ExpenseMobileMoneyChannel? mobileMoneyChannel,
+    ExpenseMobileMoneyProvider? mobileMoneyProvider,
+    ExpenseMobileMoneyNetwork? mobileMoneyNetwork,
+    required DateTime date,
+    String? occurrenceDate,
+    String? note,
+  }) async {
+    final session = await _resolveActiveSession();
+
+    await _todoApiService.recordTodoExpense(
+      accessToken: session.accessToken,
+      todoId: todoId,
+      label: label,
+      amount: amount,
+      currency: currency,
+      category: category,
+      paymentMethod: paymentMethod,
+      mobileMoneyChannel: mobileMoneyChannel,
+      mobileMoneyProvider: mobileMoneyProvider,
+      mobileMoneyNetwork: mobileMoneyNetwork,
+      date: date,
+      occurrenceDate: occurrenceDate,
+      note: note,
     );
   }
 
