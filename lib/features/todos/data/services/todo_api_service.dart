@@ -60,7 +60,7 @@ class TodoApiService {
     required String name,
     required double price,
     required TodoPriority priority,
-    required bool done,
+    required TodoStatus status,
     required TodoFrequency frequency,
     required String startDate,
     String? endDate,
@@ -75,7 +75,7 @@ class TodoApiService {
         name: name,
         price: price,
         priority: priority,
-        done: done,
+        status: status,
         frequency: frequency,
         startDate: startDate,
         endDate: endDate,
@@ -94,7 +94,7 @@ class TodoApiService {
     String? name,
     double? price,
     TodoPriority? priority,
-    bool? done,
+    TodoStatus? status,
     TodoFrequency? frequency,
     String? startDate,
     String? endDate,
@@ -112,7 +112,7 @@ class TodoApiService {
         name: name,
         price: price,
         priority: priority,
-        done: done,
+        status: status,
         frequency: frequency,
         startDate: startDate,
         endDate: endDate,
@@ -159,7 +159,7 @@ class TodoApiService {
     String? name,
     double? price,
     TodoPriority? priority,
-    bool? done,
+    TodoStatus? status,
     TodoFrequency? frequency,
     String? startDate,
     String? endDate,
@@ -174,7 +174,7 @@ class TodoApiService {
     if (name != null) fields['name'] = name;
     if (price != null) fields['price'] = _encodeAmount(price);
     if (priority != null) fields['priority'] = priority.apiValue;
-    if (done != null) fields['done'] = done.toString();
+    if (status != null) fields['status'] = status.apiValue;
     if (frequency != null) fields['frequency'] = frequency.apiValue;
     if (startDate != null) fields['startDate'] = startDate;
     if (endDate != null) fields['endDate'] = endDate;
