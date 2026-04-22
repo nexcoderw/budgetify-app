@@ -144,6 +144,14 @@ bool isRecurringTodo(TodoItem entry) {
   return entry.frequency != TodoFrequency.once;
 }
 
+String resolveTodoStatusLabel(TodoStatus status) {
+  return status.label;
+}
+
+bool isClosedTodoStatus(TodoStatus status) {
+  return status.isClosed;
+}
+
 List<String> getRemainingOccurrenceDates(TodoItem entry) {
   return entry.occurrenceDates
       .where((date) => !entry.recordedOccurrenceDates.contains(date))
@@ -168,12 +176,12 @@ double getSuggestedTodoExpenseAmount(TodoItem entry) {
 }
 
 bool canRecordTodoExpense(TodoItem entry) {
-  if (entry.done) {
+  if (isClosedTodoStatus(entry.status)) {
     return false;
   }
 
   if (!isRecurringTodo(entry)) {
-    return true;
+    return entry.status != TodoStatus.recorded;
   }
 
   return (entry.remainingAmount ?? 0) > 0 &&
