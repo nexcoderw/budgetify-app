@@ -22,8 +22,11 @@ extension _ExpenseCategoryPresentation on ExpenseCategory {
     ExpenseCategory.housing => HugeIcons.strokeRoundedHome01,
     ExpenseCategory.loan => HugeIcons.strokeRoundedWallet03,
     ExpenseCategory.utilities => HugeIcons.strokeRoundedPlug01,
+    ExpenseCategory.airtime => HugeIcons.strokeRoundedSmartPhone01,
     ExpenseCategory.healthcare => HugeIcons.strokeRoundedShield01,
     ExpenseCategory.education => HugeIcons.strokeRoundedBook02,
+    ExpenseCategory.schoolFees => HugeIcons.strokeRoundedMortarboard02,
+    ExpenseCategory.parentSibling => HugeIcons.strokeRoundedUserGroup,
     ExpenseCategory.entertainment => HugeIcons.strokeRoundedGameController01,
     ExpenseCategory.shopping => HugeIcons.strokeRoundedShoppingBag01,
     ExpenseCategory.personalCare => HugeIcons.strokeRoundedSparkles,
@@ -38,8 +41,11 @@ extension _ExpenseCategoryPresentation on ExpenseCategory {
     ExpenseCategory.housing => AppColors.primary,
     ExpenseCategory.loan => const Color(0xFFFF8E8E),
     ExpenseCategory.utilities => const Color(0xFF7AD7C3),
+    ExpenseCategory.airtime => const Color(0xFF58D6FF),
     ExpenseCategory.healthcare => AppColors.success,
     ExpenseCategory.education => const Color(0xFFC79BFF),
+    ExpenseCategory.schoolFees => const Color(0xFF9C8CFF),
+    ExpenseCategory.parentSibling => const Color(0xFFFFB26B),
     ExpenseCategory.entertainment => const Color(0xFFFF7AB6),
     ExpenseCategory.shopping => const Color(0xFFFFD36E),
     ExpenseCategory.personalCare => const Color(0xFFA5E06E),
@@ -268,6 +274,7 @@ class _ExpensePageState extends State<ExpensePage>
       context: context,
       builder: (_) => _ExpenseFormDialog(
         categoryOptions: _effectiveCategoryOptions,
+        availableMoneyNow: _availableMoneyNow,
         initialCategory: _selectedCategory ?? ExpenseCategory.foodDining,
         initialDate: _defaultCreateDate(),
         onSubmit:
@@ -341,6 +348,7 @@ class _ExpensePageState extends State<ExpensePage>
       builder: (_) => _ExpenseFormDialog(
         entry: entry,
         categoryOptions: _effectiveCategoryOptions,
+        availableMoneyNow: _availableMoneyNow,
         onSubmit:
             ({
               required String label,
@@ -2939,6 +2947,7 @@ class _ExpenseFormDialog extends StatefulWidget {
     required this.categoryOptions,
     required this.onSubmit,
     required this.onQuote,
+    this.availableMoneyNow,
     this.entry,
     this.initialCategory,
     this.initialDate,
@@ -2946,6 +2955,7 @@ class _ExpenseFormDialog extends StatefulWidget {
 
   final ExpenseEntry? entry;
   final List<ExpenseCategoryOption> categoryOptions;
+  final double? availableMoneyNow;
   final ExpenseCategory? initialCategory;
   final DateTime? initialDate;
   final Future<ExpenseEntry> Function({
@@ -3088,9 +3098,25 @@ class _ExpenseFormDialogState extends State<_ExpenseFormDialog>
       return;
     }
 
+    final chargedAmount = _isMobileMoney
+        ? (_quote?.totalAmountRwf ?? amount)
+        : amount;
+    final availableMoneyNow = widget.availableMoneyNow;
+    final exceedsAvailable =
+        availableMoneyNow != null && chargedAmount > availableMoneyNow;
+
     setState(() => _isSubmitting = true);
 
     try {
+      if (exceedsAvailable) {
+        AppToast.info(
+          context,
+          title: 'Expense exceeds available money',
+          description:
+              'This expense is higher than your current available money, but it will still be saved.',
+        );
+      }
+
       final result = await widget.onSubmit(
         label: _labelCtrl.text.trim(),
         amount: amount,
