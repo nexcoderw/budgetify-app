@@ -122,7 +122,7 @@ class _TodoExpenseDialogState extends State<TodoExpenseDialog>
                           Text(
                             recurring
                                 ? 'This records the expense and deducts it from the recurring todo budget.'
-                                : 'This records the expense and marks the todo as done.',
+                                : 'This records the expense and moves the todo to recorded status.',
                             style: TextStyle(
                               fontSize: 11,
                               color: AppColors.textSecondary.withValues(
