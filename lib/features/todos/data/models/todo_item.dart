@@ -53,6 +53,43 @@ enum TodoFrequency {
   };
 }
 
+enum TodoStatus {
+  active,
+  recorded,
+  completed,
+  skipped,
+  archived;
+
+  String get apiValue => switch (this) {
+    TodoStatus.active => 'ACTIVE',
+    TodoStatus.recorded => 'RECORDED',
+    TodoStatus.completed => 'COMPLETED',
+    TodoStatus.skipped => 'SKIPPED',
+    TodoStatus.archived => 'ARCHIVED',
+  };
+
+  String get label => switch (this) {
+    TodoStatus.active => 'Active',
+    TodoStatus.recorded => 'Recorded',
+    TodoStatus.completed => 'Completed',
+    TodoStatus.skipped => 'Skipped',
+    TodoStatus.archived => 'Archived',
+  };
+
+  bool get isClosed => switch (this) {
+    TodoStatus.completed || TodoStatus.skipped || TodoStatus.archived => true,
+    TodoStatus.active || TodoStatus.recorded => false,
+  };
+
+  static TodoStatus fromApiValue(String? value) => switch (value) {
+    'RECORDED' => TodoStatus.recorded,
+    'COMPLETED' => TodoStatus.completed,
+    'SKIPPED' => TodoStatus.skipped,
+    'ARCHIVED' => TodoStatus.archived,
+    _ => TodoStatus.active,
+  };
+}
+
 class TodoImageItem {
   const TodoImageItem({
     required this.id,
@@ -100,7 +137,7 @@ class TodoItem {
     required this.name,
     required this.price,
     required this.priority,
-    required this.done,
+    required this.status,
     required this.frequency,
     required this.startDate,
     required this.endDate,
@@ -108,6 +145,7 @@ class TodoItem {
     required this.occurrenceDates,
     required this.recordedOccurrenceDates,
     required this.remainingAmount,
+    required this.recordingCount,
     required this.coverImageUrl,
     required this.imageCount,
     required this.images,
@@ -117,7 +155,7 @@ class TodoItem {
   });
 
   factory TodoItem.fromJson(Map<String, dynamic> json) {
-    final images = (json['images'] as List<dynamic>)
+    final images = (json['images'] as List<dynamic>? ?? const <dynamic>[])
         .cast<Map<String, dynamic>>()
         .map(TodoImageItem.fromJson)
         .toList(growable: false);
@@ -127,7 +165,7 @@ class TodoItem {
       name: json['name'] as String,
       price: (json['price'] as num).toDouble(),
       priority: TodoPriority.fromApiValue(json['priority'] as String),
-      done: json['done'] as bool? ?? false,
+      status: TodoStatus.fromApiValue(json['status'] as String?),
       frequency: TodoFrequency.fromApiValue(json['frequency'] as String?),
       startDate: _parseOptionalDateOnly(json['startDate']),
       endDate: _parseOptionalDateOnly(json['endDate']),
@@ -145,6 +183,7 @@ class TodoItem {
               .map((value) => value as String)
               .toList(growable: false),
       remainingAmount: (json['remainingAmount'] as num?)?.toDouble(),
+      recordingCount: (json['recordingCount'] as num? ?? 0).toInt(),
       coverImageUrl: json['coverImageUrl'] as String?,
       imageCount: (json['imageCount'] as num).toInt(),
       images: images,
@@ -160,7 +199,7 @@ class TodoItem {
   final String name;
   final double price;
   final TodoPriority priority;
-  final bool done;
+  final TodoStatus status;
   final TodoFrequency frequency;
   final DateTime? startDate;
   final DateTime? endDate;
@@ -168,12 +207,15 @@ class TodoItem {
   final List<String> occurrenceDates;
   final List<String> recordedOccurrenceDates;
   final double? remainingAmount;
+  final int recordingCount;
   final String? coverImageUrl;
   final int imageCount;
   final List<TodoImageItem> images;
   final CreatedBySummary? createdBy;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  bool get isClosed => status.isClosed;
 
   TodoImageItem? get primaryImage {
     for (final image in images) {
