@@ -252,7 +252,7 @@ double sumSavingAmounts(
 
 double sumTodoAmounts(List<TodoItem> entries, {bool pendingOnly = false}) {
   return entries
-      .where((entry) => !pendingOnly || !entry.done)
+      .where((entry) => !pendingOnly || !isClosedTodoStatus(entry.status))
       .fold(0, (sum, entry) => sum + entry.price);
 }
 
@@ -337,7 +337,7 @@ DashboardTodoReserveSummary buildDashboardTodoReserveSummary(
       todos
           .where(
             (entry) =>
-                !entry.done &&
+                !isClosedTodoStatus(entry.status) &&
                 (entry.frequency == TodoFrequency.weekly ||
                     entry.frequency == TodoFrequency.monthly),
           )
@@ -402,7 +402,7 @@ List<DashboardUpcomingTodoDay> buildUpcomingTodoSchedule(List<TodoItem> todos) {
     for (final value in nextSevenDays) value: <DashboardUpcomingTodoItem>[],
   };
 
-  for (final entry in todos.where((todo) => !todo.done)) {
+  for (final entry in todos.where((todo) => !isClosedTodoStatus(todo.status))) {
     final remainingDates = getRemainingOccurrenceDates(entry);
     if (remainingDates.isEmpty) {
       continue;
