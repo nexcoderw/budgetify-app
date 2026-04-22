@@ -1,4 +1,5 @@
 import '../../../../core/models/created_by_summary.dart';
+import '../../../expenses/data/models/expense_entry.dart';
 
 enum TodoPriority {
   topPriority,
@@ -131,6 +132,109 @@ class TodoImageItem {
   final DateTime updatedAt;
 }
 
+class TodoRecordingExpenseSummary {
+  const TodoRecordingExpenseSummary({
+    required this.id,
+    required this.label,
+    required this.category,
+    required this.date,
+    required this.totalAmountRwf,
+    required this.feeAmountRwf,
+  });
+
+  factory TodoRecordingExpenseSummary.fromJson(Map<String, dynamic> json) {
+    return TodoRecordingExpenseSummary(
+      id: json['id'] as String,
+      label: json['label'] as String,
+      category: ExpenseCategory.fromApi(json['category'] as String),
+      date: DateTime.parse(json['date'] as String).toLocal(),
+      totalAmountRwf: (json['totalAmountRwf'] as num? ?? 0).toDouble(),
+      feeAmountRwf: (json['feeAmountRwf'] as num? ?? 0).toDouble(),
+    );
+  }
+
+  final String id;
+  final String label;
+  final ExpenseCategory category;
+  final DateTime date;
+  final double totalAmountRwf;
+  final double feeAmountRwf;
+}
+
+class TodoRecordingItem {
+  const TodoRecordingItem({
+    required this.id,
+    required this.todoId,
+    required this.expenseId,
+    required this.occurrenceDate,
+    required this.plannedAmount,
+    required this.baseAmount,
+    required this.feeAmount,
+    required this.totalChargedAmount,
+    required this.varianceAmount,
+    required this.paymentMethod,
+    required this.mobileMoneyChannel,
+    required this.mobileMoneyNetwork,
+    required this.recordedAt,
+    required this.recordedBy,
+    required this.expense,
+  });
+
+  factory TodoRecordingItem.fromJson(Map<String, dynamic> json) {
+    return TodoRecordingItem(
+      id: json['id'] as String,
+      todoId: json['todoId'] as String,
+      expenseId: json['expenseId'] as String?,
+      occurrenceDate: json['occurrenceDate'] as String,
+      plannedAmount: (json['plannedAmount'] as num? ?? 0).toDouble(),
+      baseAmount: (json['baseAmount'] as num? ?? 0).toDouble(),
+      feeAmount: (json['feeAmount'] as num? ?? 0).toDouble(),
+      totalChargedAmount: (json['totalChargedAmount'] as num? ?? 0).toDouble(),
+      varianceAmount: (json['varianceAmount'] as num? ?? 0).toDouble(),
+      paymentMethod: ExpensePaymentMethod.fromApi(
+        json['paymentMethod'] as String? ?? 'CASH',
+      ),
+      mobileMoneyChannel: (json['mobileMoneyChannel'] as String?) == null
+          ? null
+          : ExpenseMobileMoneyChannel.fromApi(
+              json['mobileMoneyChannel'] as String,
+            ),
+      mobileMoneyNetwork: (json['mobileMoneyNetwork'] as String?) == null
+          ? null
+          : ExpenseMobileMoneyNetwork.fromApi(
+              json['mobileMoneyNetwork'] as String,
+            ),
+      recordedAt: DateTime.parse(json['recordedAt'] as String).toLocal(),
+      recordedBy: (json['recordedBy'] as Map<String, dynamic>?) == null
+          ? null
+          : CreatedBySummary.fromJson(
+              json['recordedBy'] as Map<String, dynamic>,
+            ),
+      expense: (json['expense'] as Map<String, dynamic>?) == null
+          ? null
+          : TodoRecordingExpenseSummary.fromJson(
+              json['expense'] as Map<String, dynamic>,
+            ),
+    );
+  }
+
+  final String id;
+  final String todoId;
+  final String? expenseId;
+  final String occurrenceDate;
+  final double plannedAmount;
+  final double baseAmount;
+  final double feeAmount;
+  final double totalChargedAmount;
+  final double varianceAmount;
+  final ExpensePaymentMethod paymentMethod;
+  final ExpenseMobileMoneyChannel? mobileMoneyChannel;
+  final ExpenseMobileMoneyNetwork? mobileMoneyNetwork;
+  final DateTime recordedAt;
+  final CreatedBySummary? recordedBy;
+  final TodoRecordingExpenseSummary? expense;
+}
+
 class TodoItem {
   const TodoItem({
     required this.id,
@@ -146,6 +250,7 @@ class TodoItem {
     required this.recordedOccurrenceDates,
     required this.remainingAmount,
     required this.recordingCount,
+    required this.recordings,
     required this.coverImageUrl,
     required this.imageCount,
     required this.images,
@@ -159,6 +264,11 @@ class TodoItem {
         .cast<Map<String, dynamic>>()
         .map(TodoImageItem.fromJson)
         .toList(growable: false);
+    final recordings =
+        (json['recordings'] as List<dynamic>? ?? const <dynamic>[])
+            .cast<Map<String, dynamic>>()
+            .map(TodoRecordingItem.fromJson)
+            .toList(growable: false);
 
     return TodoItem(
       id: json['id'] as String,
@@ -183,7 +293,9 @@ class TodoItem {
               .map((value) => value as String)
               .toList(growable: false),
       remainingAmount: (json['remainingAmount'] as num?)?.toDouble(),
-      recordingCount: (json['recordingCount'] as num? ?? 0).toInt(),
+      recordingCount: (json['recordingCount'] as num? ?? recordings.length)
+          .toInt(),
+      recordings: recordings,
       coverImageUrl: json['coverImageUrl'] as String?,
       imageCount: (json['imageCount'] as num).toInt(),
       images: images,
@@ -208,6 +320,7 @@ class TodoItem {
   final List<String> recordedOccurrenceDates;
   final double? remainingAmount;
   final int recordingCount;
+  final List<TodoRecordingItem> recordings;
   final String? coverImageUrl;
   final int imageCount;
   final List<TodoImageItem> images;
