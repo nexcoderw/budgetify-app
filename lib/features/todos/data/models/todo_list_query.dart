@@ -4,7 +4,7 @@ class TodoListQuery {
   const TodoListQuery({
     this.frequency,
     this.priority,
-    this.done,
+    this.status,
     this.search,
     this.dateFrom,
     this.dateTo,
@@ -14,7 +14,7 @@ class TodoListQuery {
 
   final TodoFrequency? frequency;
   final TodoPriority? priority;
-  final bool? done;
+  final TodoStatus? status;
   final String? search;
   final String? dateFrom;
   final String? dateTo;
@@ -24,7 +24,7 @@ class TodoListQuery {
   TodoListQuery copyWith({
     TodoFrequency? frequency,
     TodoPriority? priority,
-    bool? done,
+    TodoStatus? status,
     String? search,
     String? dateFrom,
     String? dateTo,
@@ -34,7 +34,7 @@ class TodoListQuery {
     return TodoListQuery(
       frequency: frequency ?? this.frequency,
       priority: priority ?? this.priority,
-      done: done ?? this.done,
+      status: status ?? this.status,
       search: search ?? this.search,
       dateFrom: dateFrom ?? this.dateFrom,
       dateTo: dateTo ?? this.dateTo,
@@ -49,7 +49,7 @@ class TodoListQuery {
     return <String, dynamic>{
       if (frequency != null) 'frequency': frequency!.apiValue,
       if (priority != null) 'priority': priority!.apiValue,
-      if (done != null) 'done': done,
+      if (status != null) 'status': status!.apiValue,
       if (normalizedSearch != null && normalizedSearch.length >= 3)
         'search': normalizedSearch,
       if (dateFrom != null && dateFrom!.isNotEmpty) 'dateFrom': dateFrom,
