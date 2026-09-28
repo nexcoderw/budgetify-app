@@ -6,8 +6,8 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
-import '../../../../core/widgets/app_toast.dart';
 import '../widgets/send_money_category_sheet.dart';
+import 'select_recipient_page.dart';
 
 class SendMoneyPage extends StatefulWidget {
   const SendMoneyPage({super.key});
@@ -147,10 +147,13 @@ class _SendMoneyPageState extends State<SendMoneyPage>
       return;
     }
 
-    AppToast.info(
-      context,
-      title: category,
-      description: 'Recipient selection will be connected next.',
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => SelectRecipientPage(
+          amount: _formattedAmount,
+          category: category,
+        ),
+      ),
     );
   }
 
