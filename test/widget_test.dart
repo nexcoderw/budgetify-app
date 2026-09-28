@@ -152,10 +152,14 @@ void main() {
     await tester.tap(find.byTooltip('Profile'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Identity and account controls'), findsOneWidget);
-    expect(find.text('jane@example.com'), findsOneWidget);
+    expect(find.text('Personal details'), findsOneWidget);
     expect(find.text('Save changes'), findsOneWidget);
-    expect(find.text('Log out'), findsOneWidget);
+    expect(find.byTooltip('Log out'), findsOneWidget);
+    expect(find.text('Delete my account'), findsNothing);
+
+    await tester.tap(find.text('Delete account'));
+    await tester.pumpAndSettle();
+
     expect(find.text('Delete my account'), findsOneWidget);
   });
 
