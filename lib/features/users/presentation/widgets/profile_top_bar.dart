@@ -53,7 +53,7 @@ class ProfileTopBar extends StatelessWidget {
         const SizedBox(width: 14),
         _TopBarAction(
           tooltip: 'Log out',
-          icon: HugeIcons.strokeRoundedPower,
+          materialIcon: Icons.power_settings_new_rounded,
           color: AppColors.danger,
           isLoading: isLoggingOut,
           onPressed: onLogout,
@@ -66,20 +66,34 @@ class ProfileTopBar extends StatelessWidget {
 class _TopBarAction extends StatelessWidget {
   const _TopBarAction({
     required this.tooltip,
-    required this.icon,
     required this.onPressed,
+    this.icon,
+    this.materialIcon,
     this.color = AppColors.textPrimary,
     this.isLoading = false,
-  });
+  }) : assert(
+         (icon != null) != (materialIcon != null),
+         'Provide exactly one icon source.',
+       );
 
   final String tooltip;
   final dynamic icon;
+  final IconData? materialIcon;
   final VoidCallback? onPressed;
   final Color color;
   final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
+    final actionIcon = materialIcon != null
+        ? Icon(materialIcon, size: 21, color: color)
+        : HugeIcon(
+            icon: icon,
+            size: 20,
+            color: color,
+            strokeWidth: 1.9,
+          );
+
     return Semantics(
       button: true,
       enabled: onPressed != null && !isLoading,
@@ -109,12 +123,7 @@ class _TopBarAction extends StatelessWidget {
                           color: color,
                         ),
                       )
-                    : HugeIcon(
-                        icon: icon,
-                        size: 20,
-                        color: color,
-                        strokeWidth: 1.9,
-                      ),
+                    : actionIcon,
               ),
             ),
           ),
