@@ -166,7 +166,9 @@ class AuthService implements AuthServiceContract {
     try {
       final activeSession = await _resolveActiveSession(session);
 
-      return _authApiService.fetchCurrentUser(activeSession.accessToken);
+      return _usersApiService.fetchCurrentUser(
+        accessToken: activeSession.accessToken,
+      );
     } on ApiException {
       await clearSession();
       rethrow;
