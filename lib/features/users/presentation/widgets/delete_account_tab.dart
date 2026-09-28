@@ -53,12 +53,20 @@ class DeleteAccountTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          AppButton(
-            label: isScheduled ? 'Deletion scheduled' : 'Delete my account',
-            icon: HugeIcons.strokeRoundedDelete02,
-            variant: AppButtonVariant.ghost,
-            isLoading: isDeleting,
-            onPressed: enabled && !isScheduled ? onDelete : null,
+          Align(
+            alignment: Alignment.center,
+            child: SizedBox(
+              width: 240,
+              child: AppButton(
+                label: isScheduled
+                    ? 'Deletion scheduled'
+                    : 'Delete my account',
+                icon: HugeIcons.strokeRoundedDelete02,
+                variant: AppButtonVariant.ghost,
+                isLoading: isDeleting,
+                onPressed: enabled && !isScheduled ? onDelete : null,
+              ),
+            ),
           ),
         ],
       ),
