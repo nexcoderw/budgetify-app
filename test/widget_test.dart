@@ -147,7 +147,7 @@ void main() {
     expect(find.text('Budgetify'), findsOneWidget);
     expect(find.text('Jane D.'), findsOneWidget);
     expect(find.text('Enter amount'), findsOneWidget);
-    expect(find.text('Continue'), findsOneWidget);
+    expect(find.text('Send money'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Profile'));
     await tester.pumpAndSettle();
