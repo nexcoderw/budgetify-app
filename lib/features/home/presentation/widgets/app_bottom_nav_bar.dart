@@ -93,7 +93,6 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
   Widget build(BuildContext context) {
     final isCompact = MediaQuery.sizeOf(context).width < 760;
     final content = Row(
-      mainAxisSize: MainAxisSize.min,
       children: widget.destinations
           .map(
             (destination) => _buildAnimatedItem(
@@ -108,8 +107,9 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
       label: 'Primary navigation',
       child: Center(
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 620),
-          padding: const EdgeInsets.all(4),
+          width: double.infinity,
+          constraints: const BoxConstraints(maxWidth: 380),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
             color: const Color(0xFF101925).withValues(alpha: 0.97),
@@ -129,16 +129,7 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
               ),
             ],
           ),
-          child: isCompact
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(26),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    child: content,
-                  ),
-                )
-              : content,
+          child: content,
         ),
       ),
     );
@@ -150,19 +141,21 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
   }) {
     final controller = _pressControllers[destination.section]!;
 
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: 1 - (controller.value * 0.08),
-          child: child,
-        );
-      },
-      child: _NavigationItem(
-        destination: destination,
-        selected: destination.section == widget.currentSection,
-        compact: compact,
-        onTap: () => _handleTap(destination.section),
+    return Expanded(
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: 1 - (controller.value * 0.08),
+            child: child,
+          );
+        },
+        child: _NavigationItem(
+          destination: destination,
+          selected: destination.section == widget.currentSection,
+          compact: compact,
+          onTap: () => _handleTap(destination.section),
+        ),
       ),
     );
   }
@@ -199,9 +192,8 @@ class _NavigationItem extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 260),
             curve: Curves.easeOutCubic,
-            width: compact ? (selected ? 70 : 58) : (selected ? 88 : 72),
-            height: compact ? 56 : 60,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+            height: compact ? 58 : 62,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(25),
               gradient: selected
