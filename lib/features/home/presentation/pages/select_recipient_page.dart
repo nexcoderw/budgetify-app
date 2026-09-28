@@ -427,9 +427,9 @@ class _ContactsPermissionPrompt extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 9),
-          const ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 360),
-            child: Text(
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: const Text(
               'Allow access to show names and phone numbers from your device. Nothing is uploaded.',
               textAlign: TextAlign.center,
               style: TextStyle(
