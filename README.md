@@ -1,22 +1,18 @@
 # Budgetify App
 
-Budgetify App is the Flutter client for the Budgetify platform. It is designed
-for users who want the same account, finance data, and planning flows available
-from a mobile-first experience.
+Budgetify App is the mobile-first Flutter client for the Budgetify platform.
 
 ## What This Project Is
 
 - A Flutter application connected to the Budgetify API
 - Built for cross-platform delivery
-- Focused on fast authentication, finance logging, and personal planning flows
+- Focused on secure authentication and money transfers
 
 ## Current Product Areas
 
 - Authentication
-- Home shell
-- Income flows
-- Todo flows
-- User profile flows
+- Send Money
+- Transfer History
 
 The app uses the same backend domain model as the web client and is intended to
 stay consistent with the Budgetify design system.
@@ -29,7 +25,6 @@ stay consistent with the Budgetify design system.
 - flutter_secure_storage
 - google_sign_in
 - http
-- image_picker
 - toastification
 
 ## Supported Targets
@@ -85,6 +80,18 @@ flutter build apk
 flutter build ios
 flutter build web
 ```
+
+## Development Rules
+
+Read `AGENTS.md` before making changes. Detailed project rules are documented
+in:
+
+- `folder-structure.md`
+- `coding-standards.md`
+- `security.md`
+- `environment.md`
+- `testing.md`
+- `git.md`
 
 ## Configuration Notes
 
