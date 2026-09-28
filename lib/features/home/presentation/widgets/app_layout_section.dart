@@ -1,6 +1,8 @@
 import 'package:hugeicons/hugeicons.dart';
 
 enum AppLayoutSection {
+  sendMoney,
+  history,
   dashboard,
   income,
   expense,
@@ -25,8 +27,8 @@ class AppNavDestination {
 const List<AppNavDestination> defaultAppNavDestinations = [
   AppNavDestination(
     section: AppLayoutSection.dashboard,
-    label: 'Send',
-    icon: HugeIcons.strokeRoundedMoneySendSquare,
+    label: 'Dashboard',
+    icon: HugeIcons.strokeRoundedDashboardSquare02,
   ),
   AppNavDestination(
     section: AppLayoutSection.income,
@@ -52,5 +54,18 @@ const List<AppNavDestination> defaultAppNavDestinations = [
     section: AppLayoutSection.loans,
     label: 'Loans',
     icon: HugeIcons.strokeRoundedWallet03,
+  ),
+];
+
+const List<AppNavDestination> bottomAppNavDestinations = [
+  AppNavDestination(
+    section: AppLayoutSection.sendMoney,
+    label: 'Send Money',
+    icon: HugeIcons.strokeRoundedMoneySendSquare,
+  ),
+  AppNavDestination(
+    section: AppLayoutSection.history,
+    label: 'History',
+    icon: HugeIcons.strokeRoundedTransactionHistory,
   ),
 ];
