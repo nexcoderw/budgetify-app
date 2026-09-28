@@ -16,12 +16,12 @@ import '../../../savings/application/saving_service.dart';
 import '../../../todos/application/todo_service.dart';
 import '../../../todos/presentation/pages/todo_page.dart';
 import '../widgets/app_layout.dart';
-import 'dashboard/dashboard_page.dart';
 import 'expense_page.dart';
 import 'income_page.dart';
 import 'loan_page.dart';
 import 'profile_page.dart';
 import 'saving_page.dart';
+import 'send_money_page.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key, required this.authService, required this.user});
@@ -98,15 +98,7 @@ class _LandingPageState extends State<LandingPage> {
   Widget _sectionContent() {
     switch (_currentSection) {
       case AppLayoutSection.dashboard:
-        return DashboardPage(
-          user: _currentUser,
-          incomeService: _incomeService,
-          expenseService: _expenseService,
-          savingService: _savingService,
-          loanService: _loanService,
-          todoService: _todoService,
-          partnershipService: _partnershipService,
-        );
+        return SendMoneyPage(user: _currentUser);
       case AppLayoutSection.income:
         return IncomePage(incomeService: _incomeService);
       case AppLayoutSection.expense:
