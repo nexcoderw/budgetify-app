@@ -86,12 +86,12 @@ flutter build web
 Read `AGENTS.md` before making changes. Detailed project rules are documented
 in:
 
-- `folder-structure.md`
-- `coding-standards.md`
-- `security.md`
-- `environment.md`
-- `testing.md`
-- `git.md`
+- `.agents/folder-structure.md`
+- `.agents/coding-standards.md`
+- `.agents/security.md`
+- `.agents/environment.md`
+- `.agents/testing.md`
+- `.agents/git.md`
 
 ## Configuration Notes
 
