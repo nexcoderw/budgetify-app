@@ -9,7 +9,7 @@ Future<String?> showSendMoneyCategorySheet(
 }) {
   final screenHeight = MediaQuery.sizeOf(context).height;
   final heightFactor = screenHeight < 600
-      ? 0.88
+      ? 0.96
       : screenHeight < 760
       ? 0.68
       : 0.56;
@@ -42,6 +42,8 @@ class _SendMoneyCategorySheet extends StatefulWidget {
 
 class _SendMoneyCategorySheetState
     extends State<_SendMoneyCategorySheet> {
+  static const int _categoriesPerPage = 6;
+
   static const _categories = [
     _MoneyCategory(
       label: 'Transport',
@@ -89,7 +91,25 @@ class _SendMoneyCategorySheetState
     ),
   ];
 
+  late final PageController _pageController;
+
   String? _selectedCategory;
+  int _currentPage = 0;
+
+  int get _pageCount =>
+      (_categories.length / _categoriesPerPage).ceil();
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   void _selectCategory(String category) {
     if (_selectedCategory == category) {
@@ -110,6 +130,8 @@ class _SendMoneyCategorySheetState
 
   @override
   Widget build(BuildContext context) {
+    final isShortScreen = MediaQuery.sizeOf(context).height < 600;
+
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
       child: DecoratedBox(
@@ -164,58 +186,69 @@ class _SendMoneyCategorySheetState
                 ),
               ),
               SizedBox(
-                height: 116,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
+                height: isShortScreen ? 170 : 198,
+                child: PageView.builder(
+                  controller: _pageController,
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: _categories.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 10),
-                  itemBuilder: (context, index) {
-                    final category = _categories[index];
+                  itemCount: _pageCount,
+                  onPageChanged: (page) {
+                    setState(() => _currentPage = page);
+                  },
+                  itemBuilder: (context, pageIndex) {
+                    final firstIndex = pageIndex * _categoriesPerPage;
+                    final remainingCategories =
+                        _categories.length - firstIndex;
+                    final itemCount =
+                        remainingCategories < _categoriesPerPage
+                        ? remainingCategories
+                        : _categoriesPerPage;
 
-                    return _CategoryCard(
-                      category: category,
-                      isSelected: _selectedCategory == category.label,
-                      onTap: () => _selectCategory(category.label),
+                    return GridView.builder(
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: itemCount,
+                      gridDelegate:
+                          SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                            mainAxisExtent: isShortScreen ? 80 : 94,
+                          ),
+                      itemBuilder: (context, index) {
+                        final category =
+                            _categories[firstIndex + index];
+
+                        return _CategoryCard(
+                          category: category,
+                          isSelected:
+                              _selectedCategory == category.label,
+                          onTap: () =>
+                              _selectCategory(category.label),
+                        );
+                      },
                     );
                   },
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 10, 20, 0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.swipe_rounded,
-                      size: 16,
-                      color: AppColors.textSecondary,
-                    ),
-                    SizedBox(width: 7),
-                    Text(
-                      'Swipe to see more',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                child: _CategoryPageIndicator(
+                  currentPage: _currentPage,
+                  pageCount: _pageCount,
                 ),
               ),
               const Spacer(),
               Align(
                 alignment: Alignment.center,
                 child: SizedBox(
-                  width: 240,
+                  width: 172,
                   child: AppButton(
                     label: 'Continue',
                     iconWidget: const Icon(
-                      Icons.arrow_forward_rounded,
+                      Icons.check_rounded,
                       color: AppColors.background,
                     ),
-                    size: AppButtonSize.md,
+                    size: AppButtonSize.sm,
                     onPressed:
                         _selectedCategory == null ? null : _continue,
                   ),
@@ -278,6 +311,53 @@ class _AmountBadge extends StatelessWidget {
   }
 }
 
+class _CategoryPageIndicator extends StatelessWidget {
+  const _CategoryPageIndicator({
+    required this.currentPage,
+    required this.pageCount,
+  });
+
+  final int currentPage;
+  final int pageCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+
+    return Semantics(
+      label: 'Category page ${currentPage + 1} of $pageCount. Swipe for more.',
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (var index = 0; index < pageCount; index++) ...[
+            if (index > 0) const SizedBox(width: 6),
+            AnimatedContainer(
+              duration: disableAnimations
+                  ? Duration.zero
+                  : const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              width: currentPage == index ? 18 : 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: currentPage == index
+                    ? AppColors.primary
+                    : AppColors.textSecondary.withValues(alpha: 0.30),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ],
+          const SizedBox(width: 12),
+          const Icon(
+            Icons.swipe_rounded,
+            size: 15,
+            color: AppColors.textSecondary,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CategoryCard extends StatelessWidget {
   const _CategoryCard({
     required this.category,
@@ -298,17 +378,17 @@ class _CategoryCard extends StatelessWidget {
       selected: isSelected,
       label: category.label,
       child: AnimatedScale(
-        scale: isSelected ? 1 : 0.96,
+        scale: isSelected ? 1 : 0.98,
         duration: disableAnimations
             ? Duration.zero
             : const Duration(milliseconds: 180),
         curve: Curves.easeOutCubic,
         child: Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(20),
             splashColor: AppColors.primary.withValues(alpha: 0.10),
             highlightColor: AppColors.primary.withValues(alpha: 0.05),
             child: AnimatedContainer(
@@ -316,13 +396,12 @@ class _CategoryCard extends StatelessWidget {
                   ? Duration.zero
                   : const Duration(milliseconds: 180),
               curve: Curves.easeOutCubic,
-              width: 104,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
               decoration: BoxDecoration(
                 color: isSelected
                     ? AppColors.primary.withValues(alpha: 0.15)
                     : AppColors.surface,
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: isSelected
                       ? AppColors.primary.withValues(alpha: 0.52)
@@ -336,8 +415,8 @@ class _CategoryCard extends StatelessWidget {
                     duration: disableAnimations
                         ? Duration.zero
                         : const Duration(milliseconds: 180),
-                    width: 44,
-                    height: 44,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: isSelected
@@ -347,19 +426,19 @@ class _CategoryCard extends StatelessWidget {
                     alignment: Alignment.center,
                     child: Icon(
                       category.icon,
-                      size: 21,
+                      size: 19,
                       color: isSelected
                           ? AppColors.background
                           : AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 9),
+                  const SizedBox(height: 6),
                   Text(
                     category.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w700,
                       color: isSelected
                           ? AppColors.textPrimary
