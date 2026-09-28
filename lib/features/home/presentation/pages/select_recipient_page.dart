@@ -7,7 +7,9 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_input.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../data/models/device_contact.dart';
+import '../../data/models/transaction_models.dart';
 import '../../data/services/device_contacts_service.dart';
+import 'transaction_review_page.dart';
 
 class SelectRecipientPage extends StatefulWidget {
   const SelectRecipientPage({
@@ -52,7 +54,15 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
   String _searchQuery = '';
 
   bool get _hasManualNumber {
-    return _phoneController.text.replaceAll(RegExp(r'\D'), '').length >= 7;
+    final value = _phoneController.text.trim();
+
+    if (value.isEmpty) {
+      return false;
+    }
+
+    final type = inferTransactionRecipientType(value);
+
+    return isValidTransactionRecipient(value, type);
   }
 
   List<DeviceContact> get _filteredContacts {
@@ -288,29 +298,41 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
     });
   }
 
-  void _continueWithRecipient() {
+  Future<void> _continueWithRecipient() async {
     final selectedContact = _selectedContact;
 
-    final phoneNumber = _mode == _RecipientMode.contacts
+    final receiverIdentifier = _mode == _RecipientMode.contacts
         ? selectedContact?.phoneNumber ?? ''
         : _phoneController.text.trim();
 
-    if (phoneNumber.replaceAll(RegExp(r'\D'), '').length < 7) {
+    final recipientType = _mode == _RecipientMode.contacts
+        ? TransactionRecipientType.phone
+        : inferTransactionRecipientType(receiverIdentifier);
+
+    if (!isValidTransactionRecipient(receiverIdentifier, recipientType)) {
       AppToast.error(
         context,
-        title: 'Invalid phone number',
-        description: 'Enter at least 7 digits.',
+        title: 'Invalid recipient',
+        description: recipientType == TransactionRecipientType.phone
+            ? 'Enter a valid Rwanda phone number.'
+            : 'Enter a valid bank account number.',
       );
 
       return;
     }
 
-    AppToast.info(
-      context,
-      title: _mode == _RecipientMode.contacts
-          ? selectedContact?.name ?? phoneNumber
-          : phoneNumber,
-      description: 'Transfer review will be connected next.',
+    final amount = int.parse(widget.amount.replaceAll(',', ''));
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => TransactionReviewPage(
+          amount: amount,
+          category: widget.category,
+          recipientIdentifier: receiverIdentifier,
+          recipientType: recipientType,
+          recipientName: selectedContact?.name,
+        ),
+      ),
     );
   }
 
@@ -702,7 +724,7 @@ class _RecipientModeSelector extends StatelessWidget {
           ),
           Expanded(
             child: _RecipientModeButton(
-              label: 'Phone number',
+              label: 'Number / account',
               icon: Icons.dialpad_rounded,
               isSelected: mode == _RecipientMode.phoneNumber,
               onPressed: onPhonePressed,
@@ -1474,11 +1496,11 @@ class _ManualRecipientEntry extends StatelessWidget {
         AppInput(
           controller: phoneController,
           focusNode: phoneFocusNode,
-          label: 'Recipient phone number',
-          hintText: '0788 123 456',
+          label: 'Phone number or bank account',
+          hintText: '0788 123 456 or account number',
           keyboardType: TextInputType.phone,
           textInputAction: TextInputAction.done,
-          maxLength: 15,
+          maxLength: 34,
           enableSuggestions: false,
           autocorrect: false,
           inputFormatters: [
