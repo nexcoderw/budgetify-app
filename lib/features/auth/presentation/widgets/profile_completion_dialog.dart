@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_modal_dialog.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../application/auth_service_contract.dart';
@@ -319,19 +320,12 @@ class _ProfileCompletionDialogState extends State<ProfileCompletionDialog>
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
-                    child: AppModalActionButton(
+                    child: AppButton(
                       label: 'Save and continue',
-                      isPrimary: true,
+                      icon: HugeIcons.strokeRoundedCheckmarkCircle02,
+                      size: AppButtonSize.lg,
                       isLoading: _isSaving,
                       onPressed: _submit,
-                      primaryColor: AppColors.primary,
-                      primaryForegroundColor: AppColors.background,
-                      leading: HugeIcon(
-                        icon: HugeIcons.strokeRoundedCheckmarkCircle02,
-                        size: 18,
-                        color: AppColors.primary,
-                        strokeWidth: 1.8,
-                      ),
                     ),
                   ),
                 ],
