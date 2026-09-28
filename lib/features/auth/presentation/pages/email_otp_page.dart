@@ -6,6 +6,7 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_input.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/glass_panel.dart';
 import '../../application/auth_service_contract.dart';
@@ -688,9 +689,10 @@ class _OtpFieldsRowState extends State<_OtpFieldsRow> {
           height: 1,
           child: Opacity(
             opacity: 0,
-            child: TextField(
+            child: AppInput(
               controller: _controller,
               focusNode: _focusNode,
+              variant: AppInputVariant.bare,
               autofillHints: const [AutofillHints.oneTimeCode],
               enableSuggestions: false,
               autocorrect: false,
@@ -700,12 +702,6 @@ class _OtpFieldsRowState extends State<_OtpFieldsRow> {
                 FilteringTextInputFormatter.digitsOnly,
                 LengthLimitingTextInputFormatter(6),
               ],
-              decoration: const InputDecoration(
-                isCollapsed: true,
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-                counterText: '',
-              ),
             ),
           ),
         ),
