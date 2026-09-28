@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:budgetify/app/app.dart';
+import 'package:budgetify/core/widgets/app_input.dart';
 import 'package:budgetify/features/auth/application/auth_service_contract.dart';
 import 'package:budgetify/features/auth/data/models/auth_session.dart';
 import 'package:budgetify/features/auth/data/models/auth_user.dart';
@@ -184,8 +185,17 @@ void main() {
 
       expect(find.text('Complete your profile'), findsOneWidget);
 
-      await tester.enterText(find.byType(TextFormField).at(0), 'Alice');
-      await tester.enterText(find.byType(TextFormField).at(1), 'Mutoni');
+      final firstNameInput = find.descendant(
+        of: find.byType(AppInput).at(0),
+        matching: find.byType(EditableText),
+      );
+      final lastNameInput = find.descendant(
+        of: find.byType(AppInput).at(1),
+        matching: find.byType(EditableText),
+      );
+
+      await tester.enterText(firstNameInput, 'Alice');
+      await tester.enterText(lastNameInput, 'Mutoni');
       await tester.tap(find.text('Save and continue'));
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 1200));
