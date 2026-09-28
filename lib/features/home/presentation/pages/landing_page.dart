@@ -16,7 +16,9 @@ import '../../../savings/application/saving_service.dart';
 import '../../../todos/application/todo_service.dart';
 import '../../../todos/presentation/pages/todo_page.dart';
 import '../widgets/app_layout.dart';
+import 'dashboard/dashboard_page.dart';
 import 'expense_page.dart';
+import 'history_page.dart';
 import 'income_page.dart';
 import 'loan_page.dart';
 import 'profile_page.dart';
@@ -46,7 +48,7 @@ class _LandingPageState extends State<LandingPage> {
   late AuthUser _currentUser;
   bool _isLoggingOut = false;
   bool _isInviteAcceptanceOpen = false;
-  AppLayoutSection _currentSection = AppLayoutSection.dashboard;
+  AppLayoutSection _currentSection = AppLayoutSection.sendMoney;
 
   @override
   void initState() {
@@ -97,8 +99,20 @@ class _LandingPageState extends State<LandingPage> {
 
   Widget _sectionContent() {
     switch (_currentSection) {
-      case AppLayoutSection.dashboard:
+      case AppLayoutSection.sendMoney:
         return SendMoneyPage(user: _currentUser);
+      case AppLayoutSection.history:
+        return const HistoryPage();
+      case AppLayoutSection.dashboard:
+        return DashboardPage(
+          user: _currentUser,
+          incomeService: _incomeService,
+          expenseService: _expenseService,
+          savingService: _savingService,
+          loanService: _loanService,
+          todoService: _todoService,
+          partnershipService: _partnershipService,
+        );
       case AppLayoutSection.income:
         return IncomePage(incomeService: _incomeService);
       case AppLayoutSection.expense:
