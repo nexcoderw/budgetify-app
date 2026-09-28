@@ -145,8 +145,8 @@ void main() {
 
     expect(find.text('Budgetify'), findsOneWidget);
     expect(find.text('Jane D.'), findsOneWidget);
-    expect(find.text('Send money'), findsOneWidget);
-    expect(find.text('Review transfer'), findsOneWidget);
+    expect(find.text('Enter amount'), findsOneWidget);
+    expect(find.text('Continue'), findsOneWidget);
   });
 
   testWidgets(
@@ -185,7 +185,7 @@ void main() {
       expect(authService.lastUpdatedFirstName, 'Alice');
       expect(authService.lastUpdatedLastName, 'Mutoni');
       expect(find.text('Alice M.'), findsOneWidget);
-      expect(find.text('Send money'), findsOneWidget);
+      expect(find.text('Enter amount'), findsOneWidget);
     },
   );
 }

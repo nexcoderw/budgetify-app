@@ -82,6 +82,7 @@ class _AppButtonState extends State<AppButton>
 
   @override
   Widget build(BuildContext context) {
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
     final metrics = _ButtonMetrics.fromSize(widget.size);
     final palette = _ButtonPalette.fromVariant(
       widget.variant,
@@ -89,8 +90,10 @@ class _AppButtonState extends State<AppButton>
     );
     final isInteractive = widget.onPressed != null && !widget.isLoading;
     final button = AnimatedScale(
-      scale: _isPressed ? 0.975 : 1,
-      duration: const Duration(milliseconds: 110),
+      scale: disableAnimations || !_isPressed ? 1 : 0.975,
+      duration: disableAnimations
+          ? Duration.zero
+          : const Duration(milliseconds: 110),
       curve: Curves.easeOutCubic,
       child: AnimatedOpacity(
         opacity: widget.onPressed == null ? 0.5 : 1,

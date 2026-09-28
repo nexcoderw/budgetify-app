@@ -1,342 +1,730 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/glass_panel.dart';
-import '../../../auth/data/models/auth_user.dart';
 
-class SendMoneyPage extends StatelessWidget {
-  const SendMoneyPage({super.key, required this.user});
-
-  final AuthUser user;
+class SendMoneyPage extends StatefulWidget {
+  const SendMoneyPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final isCompact = MediaQuery.sizeOf(context).width < 700;
-    final firstName = _firstName(user);
+  State<SendMoneyPage> createState() => _SendMoneyPageState();
+}
 
-    return GlassPanel(
-      padding: EdgeInsets.all(isCompact ? 22 : 32),
-      borderRadius: BorderRadius.circular(34),
-      blur: 28,
-      opacity: 0.14,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.primary.withValues(alpha: 0.16),
-                  border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: const Center(
-                  child: HugeIcon(
-                    icon: HugeIcons.strokeRoundedMoneySendSquare,
-                    size: 21,
-                    color: AppColors.primary,
-                    strokeWidth: 1.8,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 13,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(999),
-                  color: Colors.white.withValues(alpha: 0.05),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.09),
-                  ),
-                ),
-                child: const Text(
-                  'RWF',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 28),
-          Text(
-            'Send money',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontSize: isCompact ? 30 : 38,
-              color: AppColors.textPrimary,
-              letterSpacing: -1,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Choose who to pay and prepare a transfer from your Budgetify balance, $firstName.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontSize: 13,
-              height: 1.55,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 30),
-          const _SectionLabel(label: 'Recent people'),
-          const SizedBox(height: 14),
-          const SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _RecipientAvatar(initials: '+', label: 'New'),
-                SizedBox(width: 18),
-                _RecipientAvatar(initials: 'AM', label: 'Aline'),
-                SizedBox(width: 18),
-                _RecipientAvatar(initials: 'DK', label: 'David'),
-                SizedBox(width: 18),
-                _RecipientAvatar(initials: 'NM', label: 'Nadia'),
-              ],
-            ),
-          ),
-          const SizedBox(height: 30),
-          const _SectionLabel(label: 'Transfer details'),
-          const SizedBox(height: 14),
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(isCompact ? 20 : 24),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(28),
-              color: const Color(0xFF111923),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Amount',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '0',
-                      style: Theme.of(context).textTheme.headlineLarge
-                          ?.copyWith(
-                            fontSize: isCompact ? 44 : 52,
-                            height: 1,
-                            color: AppColors.textPrimary,
-                            letterSpacing: -1.8,
-                          ),
-                    ),
-                    const SizedBox(width: 10),
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 5),
-                      child: Text(
-                        'RWF',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 22),
-                const Divider(color: AppColors.border, height: 1),
-                const SizedBox(height: 18),
-                const _TransferRow(
-                  icon: HugeIcons.strokeRoundedWallet01,
-                  label: 'From',
-                  value: 'Budgetify balance',
-                ),
-                const SizedBox(height: 14),
-                const _TransferRow(
-                  icon: HugeIcons.strokeRoundedUserCircle,
-                  label: 'To',
-                  value: 'Choose a recipient',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          const AppButton(
-            label: 'Review transfer',
-            icon: HugeIcons.strokeRoundedArrowRight01,
-            size: AppButtonSize.lg,
-            onPressed: null,
-          ),
-          const SizedBox(height: 10),
-          const Center(
-            child: Text(
-              'Transfer actions will be connected in the next release.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+class _SendMoneyPageState extends State<SendMoneyPage>
+    with SingleTickerProviderStateMixin {
+  static const int _maximumDigits = 12;
 
-  String _firstName(AuthUser user) {
-    final name = user.firstName?.trim();
-    if (name != null && name.isNotEmpty) {
-      return name;
+  late final AnimationController _entranceController;
+  late final Animation<double> _entranceOpacity;
+  late final Animation<Offset> _entranceOffset;
+
+  String _amountDigits = '';
+  bool _lastChangeWasDelete = false;
+
+  bool get _hasAmount => _amountDigits.isNotEmpty && _amountDigits != '0';
+
+  String get _formattedAmount {
+    final value = _amountDigits.isEmpty ? '0' : _amountDigits;
+    final buffer = StringBuffer();
+
+    for (var index = 0; index < value.length; index++) {
+      final remaining = value.length - index;
+
+      buffer.write(value[index]);
+
+      if (remaining > 1 && remaining % 3 == 1) {
+        buffer.write(',');
+      }
     }
 
-    return user.email.split('@').first;
+    return buffer.toString();
   }
-}
 
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.label});
+  @override
+  void initState() {
+    super.initState();
 
-  final String label;
+    _entranceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 360),
+    );
+
+    final entranceCurve = CurvedAnimation(
+      parent: _entranceController,
+      curve: Curves.easeOutCubic,
+    );
+
+    _entranceOpacity = entranceCurve;
+
+    _entranceOffset = Tween<Offset>(
+      begin: const Offset(0, 0.018),
+      end: Offset.zero,
+    ).animate(entranceCurve);
+
+    _entranceController.forward();
+  }
+
+  @override
+  void dispose() {
+    _entranceController.dispose();
+    super.dispose();
+  }
+
+  void _appendDigits(String digits) {
+    if (_amountDigits.length >= _maximumDigits) {
+      HapticFeedback.heavyImpact();
+      return;
+    }
+
+    final remaining = _maximumDigits - _amountDigits.length;
+
+    final acceptedLength =
+        digits.length < remaining ? digits.length : remaining;
+
+    final acceptedDigits = digits.substring(0, acceptedLength);
+
+    if (acceptedDigits.isEmpty) {
+      return;
+    }
+
+    final nextValue = '$_amountDigits$acceptedDigits'.replaceFirst(
+      RegExp(r'^0+(?=\d)'),
+      '',
+    );
+
+    HapticFeedback.selectionClick();
+
+    setState(() {
+      _lastChangeWasDelete = false;
+      _amountDigits = nextValue;
+    });
+  }
+
+  void _deleteDigit() {
+    if (_amountDigits.isEmpty) {
+      HapticFeedback.selectionClick();
+      return;
+    }
+
+    HapticFeedback.selectionClick();
+
+    setState(() {
+      _lastChangeWasDelete = true;
+      _amountDigits = _amountDigits.substring(
+        0,
+        _amountDigits.length - 1,
+      );
+    });
+  }
+
+  void _clearAmount() {
+    if (_amountDigits.isEmpty) {
+      return;
+    }
+
+    HapticFeedback.mediumImpact();
+
+    setState(() {
+      _lastChangeWasDelete = true;
+      _amountDigits = '';
+    });
+  }
+
+  void _continue() {
+    AppToast.info(
+      context,
+      title: 'Amount ready',
+      description: 'Recipient selection will be connected in the next step.',
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-        fontSize: 13,
-        fontWeight: FontWeight.w700,
-        color: AppColors.textPrimary,
+    final mediaQuery = MediaQuery.of(context);
+    final disableAnimations = mediaQuery.disableAnimations;
+    final width = mediaQuery.size.width;
+
+    final isCompact = width < 420;
+
+    final content = Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: GlassPanel(
+          padding: EdgeInsets.all(isCompact ? 16 : 20),
+          borderRadius: BorderRadius.circular(isCompact ? 30 : 36),
+          blur: 28,
+          opacity: 0.11,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _SendMoneyHeader(compact: isCompact),
+
+              SizedBox(height: isCompact ? 20 : 26),
+
+              _AmountDisplay(
+                amount: _formattedAmount,
+                changeWasDelete: _lastChangeWasDelete,
+                disableAnimations: disableAnimations,
+                onClear: _hasAmount ? _clearAmount : null,
+                compact: isCompact,
+              ),
+
+              SizedBox(height: isCompact ? 20 : 24),
+
+              _AmountKeypad(
+                compact: isCompact,
+                onDigitPressed: _appendDigits,
+                onDeletePressed: _deleteDigit,
+                onDeleteLongPress: _clearAmount,
+              ),
+
+              SizedBox(height: isCompact ? 20 : 24),
+
+              AppButton(
+                label: 'Continue',
+                icon: HugeIcons.strokeRoundedArrowRight01,
+                size: AppButtonSize.lg,
+                onPressed: _hasAmount ? _continue : null,
+              ),
+
+              const SizedBox(height: 12),
+
+              const _NextStepHint(),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (disableAnimations) {
+      return content;
+    }
+
+    return FadeTransition(
+      opacity: _entranceOpacity,
+      child: SlideTransition(
+        position: _entranceOffset,
+        child: content,
       ),
     );
   }
 }
 
-class _RecipientAvatar extends StatelessWidget {
-  const _RecipientAvatar({required this.initials, required this.label});
-
-  final String initials;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 58,
-      child: Column(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: initials == '+'
-                  ? AppColors.primary.withValues(alpha: 0.17)
-                  : const Color(0xFF293545),
-              border: Border.all(
-                color: initials == '+'
-                    ? AppColors.primary.withValues(alpha: 0.35)
-                    : Colors.white.withValues(alpha: 0.08),
-              ),
-            ),
-            child: Center(
-              child: Text(
-                initials,
-                style: TextStyle(
-                  fontSize: initials == '+' ? 22 : 13,
-                  fontWeight: FontWeight.w700,
-                  color: initials == '+'
-                      ? AppColors.primary
-                      : AppColors.textPrimary,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TransferRow extends StatelessWidget {
-  const _TransferRow({
-    required this.icon,
-    required this.label,
-    required this.value,
+class _SendMoneyHeader extends StatelessWidget {
+  const _SendMoneyHeader({
+    required this.compact,
   });
 
-  final dynamic icon;
-  final String label;
-  final String value;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white.withValues(alpha: 0.06),
-          ),
-          child: Center(
-            child: HugeIcon(
-              icon: icon,
-              size: 18,
-              color: AppColors.primary,
-              strokeWidth: 1.8,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                label,
-                style: const TextStyle(
+                'SEND MONEY',
+                style: TextStyle(
                   fontSize: 10,
-                  color: AppColors.textSecondary,
+                  height: 1,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                  color: AppColors.primary.withValues(alpha: 0.92),
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 10),
               Text(
-                value,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                'How much?',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontSize: compact ? 25 : 28,
+                      height: 1.05,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.8,
+                      color: AppColors.textPrimary,
+                    ),
+              ),
+              const SizedBox(height: 7),
+              const Text(
+                'Enter the amount you want to send.',
+                style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  height: 1.5,
+                  color: AppColors.textSecondary,
                 ),
               ),
             ],
           ),
         ),
-        const HugeIcon(
-          icon: HugeIcons.strokeRoundedArrowRight01,
-          size: 17,
-          color: AppColors.textSecondary,
-          strokeWidth: 1.7,
-        ),
+
+        const SizedBox(width: 18),
+
+        const _CurrencyBadge(),
       ],
+    );
+  }
+}
+
+class _CurrencyBadge extends StatelessWidget {
+  const _CurrencyBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(7, 7, 12, 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.045),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.08),
+        ),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _CurrencyMark(),
+          SizedBox(width: 8),
+          Text(
+            'RWF',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CurrencyMark extends StatelessWidget {
+  const _CurrencyMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 26,
+      height: 26,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.primary.withValues(alpha: 0.95),
+      ),
+      alignment: Alignment.center,
+      child: const Text(
+        'R',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+          color: AppColors.background,
+        ),
+      ),
+    );
+  }
+}
+
+class _AmountDisplay extends StatelessWidget {
+  const _AmountDisplay({
+    required this.amount,
+    required this.changeWasDelete,
+    required this.disableAnimations,
+    required this.onClear,
+    required this.compact,
+  });
+
+  final String amount;
+  final bool changeWasDelete;
+  final bool disableAnimations;
+  final VoidCallback? onClear;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final amountWidget = FittedBox(
+      key: ValueKey(amount),
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text(
+        amount,
+        maxLines: 1,
+        style: TextStyle(
+          fontSize: compact ? 56 : 68,
+          height: 1,
+          fontWeight: FontWeight.w700,
+          letterSpacing: compact ? -2.4 : -3.2,
+          color: AppColors.textPrimary,
+        ),
+      ),
+    );
+
+    return GlassPanel(
+      padding: EdgeInsets.fromLTRB(
+        compact ? 20 : 24,
+        compact ? 20 : 24,
+        compact ? 20 : 24,
+        18,
+      ),
+      borderRadius: BorderRadius.circular(28),
+      blur: 20,
+      opacity: 0.09,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'AMOUNT',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.4,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              if (onClear != null)
+                _ClearButton(
+                  onPressed: onClear!,
+                ),
+            ],
+          ),
+
+          SizedBox(height: compact ? 20 : 24),
+
+          SizedBox(
+            height: compact ? 60 : 72,
+            width: double.infinity,
+            child: disableAnimations
+                ? amountWidget
+                : AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 140),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      final verticalOffset =
+                          changeWasDelete ? -0.08 : 0.08;
+
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: Offset(0, verticalOffset),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: amountWidget,
+                  ),
+          ),
+
+          const SizedBox(height: 10),
+
+          Row(
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Rwandan francs',
+                style: TextStyle(
+                  fontSize: 11,
+                  height: 1.3,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ClearButton extends StatelessWidget {
+  const _ClearButton({
+    required this.onPressed,
+  });
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Clear amount',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(999),
+          splashColor: AppColors.primary.withValues(alpha: 0.10),
+          highlightColor: AppColors.primary.withValues(alpha: 0.05),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 7,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.045),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.07),
+              ),
+            ),
+            child: const Text(
+              'Clear',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AmountKeypad extends StatelessWidget {
+  const _AmountKeypad({
+    required this.compact,
+    required this.onDigitPressed,
+    required this.onDeletePressed,
+    required this.onDeleteLongPress,
+  });
+
+  final bool compact;
+  final ValueChanged<String> onDigitPressed;
+  final VoidCallback onDeletePressed;
+  final VoidCallback onDeleteLongPress;
+
+  @override
+  Widget build(BuildContext context) {
+    const rows = [
+      ['1', '2', '3'],
+      ['4', '5', '6'],
+      ['7', '8', '9'],
+    ];
+
+    return Container(
+      padding: EdgeInsets.all(compact ? 8 : 10),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.045),
+        ),
+      ),
+      child: Column(
+        children: [
+          for (final row in rows) ...[
+            _KeypadRow(
+              values: row,
+              compact: compact,
+              onPressed: onDigitPressed,
+            ),
+            SizedBox(height: compact ? 7 : 8),
+          ],
+
+          Row(
+            children: [
+              Expanded(
+                child: _AmountKey(
+                  label: '00',
+                  compact: compact,
+                  onPressed: () => onDigitPressed('00'),
+                ),
+              ),
+
+              SizedBox(width: compact ? 7 : 8),
+
+              Expanded(
+                child: _AmountKey(
+                  label: '0',
+                  compact: compact,
+                  onPressed: () => onDigitPressed('0'),
+                ),
+              ),
+
+              SizedBox(width: compact ? 7 : 8),
+
+              Expanded(
+                child: _AmountKey(
+                  label: 'Delete',
+                  compact: compact,
+                  icon: HugeIcons.strokeRoundedDelete02,
+                  onPressed: onDeletePressed,
+                  onLongPress: onDeleteLongPress,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _KeypadRow extends StatelessWidget {
+  const _KeypadRow({
+    required this.values,
+    required this.compact,
+    required this.onPressed,
+  });
+
+  final List<String> values;
+  final bool compact;
+  final ValueChanged<String> onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var index = 0; index < values.length; index++) ...[
+          if (index > 0)
+            SizedBox(
+              width: compact ? 7 : 8,
+            ),
+          Expanded(
+            child: _AmountKey(
+              label: values[index],
+              compact: compact,
+              onPressed: () => onPressed(values[index]),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _AmountKey extends StatefulWidget {
+  const _AmountKey({
+    required this.label,
+    required this.compact,
+    required this.onPressed,
+    this.icon,
+    this.onLongPress,
+  });
+
+  final String label;
+  final bool compact;
+  final VoidCallback onPressed;
+  final dynamic icon;
+  final VoidCallback? onLongPress;
+
+  @override
+  State<_AmountKey> createState() => _AmountKeyState();
+}
+
+class _AmountKeyState extends State<_AmountKey> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+
+    return Semantics(
+      button: true,
+      label: widget.label,
+      hint: widget.onLongPress == null
+          ? null
+          : 'Hold to clear the amount',
+      child: AnimatedScale(
+        scale: disableAnimations || !_isPressed ? 1 : 0.96,
+        duration: disableAnimations
+            ? Duration.zero
+            : const Duration(milliseconds: 85),
+        curve: Curves.easeOut,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          child: InkWell(
+            onTap: widget.onPressed,
+            onLongPress: widget.onLongPress,
+            onHighlightChanged: (value) {
+              if (_isPressed != value) {
+                setState(() {
+                  _isPressed = value;
+                });
+              }
+            },
+            borderRadius: BorderRadius.circular(20),
+            splashColor: AppColors.primary.withValues(alpha: 0.10),
+            highlightColor: AppColors.primary.withValues(alpha: 0.045),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 100),
+              height: widget.compact ? 55 : 61,
+              decoration: BoxDecoration(
+                color: _isPressed
+                    ? AppColors.primary.withValues(alpha: 0.085)
+                    : Colors.white.withValues(alpha: 0.035),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _isPressed
+                      ? AppColors.primary.withValues(alpha: 0.28)
+                      : Colors.white.withValues(alpha: 0.055),
+                ),
+              ),
+              alignment: Alignment.center,
+              child: widget.icon == null
+                  ? Text(
+                      widget.label,
+                      style: TextStyle(
+                        fontSize: widget.compact ? 19 : 20,
+                        height: 1,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    )
+                  : HugeIcon(
+                      icon: widget.icon,
+                      size: 20,
+                      strokeWidth: 1.8,
+                      color: AppColors.textSecondary,
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NextStepHint extends StatelessWidget {
+  const _NextStepHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Text(
+      'You’ll choose the recipient in the next step.',
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: 10,
+        height: 1.5,
+        fontWeight: FontWeight.w500,
+        color: AppColors.textSecondary,
+      ),
     );
   }
 }

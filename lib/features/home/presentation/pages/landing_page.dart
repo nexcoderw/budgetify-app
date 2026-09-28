@@ -58,7 +58,7 @@ class _LandingPageState extends State<LandingPage> {
       return const HistoryPage();
     }
 
-    return SendMoneyPage(user: _currentUser);
+    return const SendMoneyPage();
   }
 
   void _selectSection(AppLayoutSection section) {
