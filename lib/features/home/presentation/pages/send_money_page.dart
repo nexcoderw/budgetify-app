@@ -715,6 +715,7 @@ class _AmountKeyState extends State<_AmountKey> {
   Widget build(BuildContext context) {
     final disableAnimations =
         MediaQuery.disableAnimationsOf(context);
+    final keySize = widget.compact ? 55.0 : 61.0;
 
     return Semantics(
       button: true,
@@ -722,72 +723,70 @@ class _AmountKeyState extends State<_AmountKey> {
       hint: widget.onLongPress == null
           ? null
           : 'Hold to clear the amount',
-      child: AnimatedScale(
-        scale: disableAnimations || !_isPressed
-            ? 1
-            : 0.96,
-        duration: disableAnimations
-            ? Duration.zero
-            : const Duration(
-                milliseconds: 85,
-              ),
-        curve: Curves.easeOut,
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(
-            20,
-          ),
-          child: InkWell(
-            onTap: widget.onPressed,
-            onLongPress: widget.onLongPress,
-            onHighlightChanged: (value) {
-              if (_isPressed != value) {
-                setState(() {
-                  _isPressed = value;
-                });
-              }
-            },
-            borderRadius: BorderRadius.circular(
-              20,
-            ),
-            splashColor: AppColors.primary.withValues(
-              alpha: 0.10,
-            ),
-            highlightColor: Colors.transparent,
-            child: AnimatedContainer(
-              duration: const Duration(
-                milliseconds: 100,
-              ),
-              height: widget.compact ? 55 : 61,
-              decoration: BoxDecoration(
-                color: _isPressed
-                    ? AppColors.primary.withValues(
-                        alpha: 0.10,
-                      )
-                    : Colors.white.withValues(
-                        alpha: 0.04,
-                      ),
-                borderRadius: BorderRadius.circular(
-                  20,
+      child: Center(
+        child: AnimatedScale(
+          scale: disableAnimations || !_isPressed
+              ? 1
+              : 0.96,
+          duration: disableAnimations
+              ? Duration.zero
+              : const Duration(
+                  milliseconds: 85,
                 ),
+          curve: Curves.easeOut,
+          child: Material(
+            color: Colors.transparent,
+            shape: const CircleBorder(),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: widget.onPressed,
+              onLongPress: widget.onLongPress,
+              onHighlightChanged: (value) {
+                if (_isPressed != value) {
+                  setState(() {
+                    _isPressed = value;
+                  });
+                }
+              },
+              customBorder: const CircleBorder(),
+              splashColor: AppColors.primary.withValues(
+                alpha: 0.10,
               ),
-              alignment: Alignment.center,
-              child: widget.icon == null
-                  ? Text(
-                      widget.label,
-                      style: TextStyle(
-                        fontSize: widget.compact ? 19 : 20,
-                        height: 1,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+              highlightColor: Colors.transparent,
+              child: AnimatedContainer(
+                duration: const Duration(
+                  milliseconds: 100,
+                ),
+                width: keySize,
+                height: keySize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _isPressed
+                      ? AppColors.primary.withValues(
+                          alpha: 0.10,
+                        )
+                      : Colors.white.withValues(
+                          alpha: 0.04,
+                        ),
+                ),
+                alignment: Alignment.center,
+                child: widget.icon == null
+                    ? Text(
+                        widget.label,
+                        style: TextStyle(
+                          fontSize: widget.compact ? 19 : 20,
+                          height: 1,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      )
+                    : HugeIcon(
+                        icon: widget.icon,
+                        size: 20,
+                        strokeWidth: 1.8,
+                        color: AppColors.textSecondary,
                       ),
-                    )
-                  : HugeIcon(
-                      icon: widget.icon,
-                      size: 20,
-                      strokeWidth: 1.8,
-                      color: AppColors.textSecondary,
-                    ),
+              ),
             ),
           ),
         ),
