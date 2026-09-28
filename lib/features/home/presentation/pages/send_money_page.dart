@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/glass_panel.dart';
 import '../../../auth/data/models/auth_user.dart';
 
@@ -171,18 +172,11 @@ class SendMoneyPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: null,
-              icon: const HugeIcon(
-                icon: HugeIcons.strokeRoundedArrowRight01,
-                size: 18,
-                color: AppColors.background,
-                strokeWidth: 2,
-              ),
-              label: const Text('Review transfer'),
-            ),
+          const AppButton(
+            label: 'Review transfer',
+            icon: HugeIcons.strokeRoundedArrowRight01,
+            size: AppButtonSize.lg,
+            onPressed: null,
           ),
           const SizedBox(height: 10),
           const Center(
