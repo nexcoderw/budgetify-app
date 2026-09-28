@@ -156,12 +156,7 @@ class _SendMoneyPageState extends State<SendMoneyPage>
         constraints: const BoxConstraints(
           maxWidth: 520,
         ),
-        child: _GlassSurface(
-          radius: isCompact ? 30 : 36,
-          blur: 28,
-          color: Colors.white.withValues(
-            alpha: 0.055,
-          ),
+        child: Padding(
           padding: EdgeInsets.all(
             isCompact ? 16 : 20,
           ),
