@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -5,7 +7,6 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_toast.dart';
-import '../../../../core/widgets/glass_panel.dart';
 
 class SendMoneyPage extends StatefulWidget {
   const SendMoneyPage({super.key});
@@ -114,6 +115,7 @@ class _SendMoneyPageState extends State<SendMoneyPage>
 
     setState(() {
       _lastChangeWasDelete = true;
+
       _amountDigits = _amountDigits.substring(
         0,
         _amountDigits.length - 1,
@@ -146,26 +148,32 @@ class _SendMoneyPageState extends State<SendMoneyPage>
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
     final disableAnimations = mediaQuery.disableAnimations;
-    final width = mediaQuery.size.width;
-
-    final isCompact = width < 420;
+    final isCompact = mediaQuery.size.width < 420;
 
     final content = Align(
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
-        child: GlassPanel(
-          padding: EdgeInsets.all(isCompact ? 16 : 20),
-          borderRadius: BorderRadius.circular(isCompact ? 30 : 36),
+        constraints: const BoxConstraints(
+          maxWidth: 520,
+        ),
+        child: _GlassSurface(
+          radius: isCompact ? 30 : 36,
           blur: 28,
-          opacity: 0.11,
+          color: Colors.white.withValues(
+            alpha: 0.055,
+          ),
+          padding: EdgeInsets.all(
+            isCompact ? 16 : 20,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _SendMoneyHeader(compact: isCompact),
-
-              SizedBox(height: isCompact ? 20 : 26),
-
+              _SendMoneyHeader(
+                compact: isCompact,
+              ),
+              SizedBox(
+                height: isCompact ? 22 : 28,
+              ),
               _AmountDisplay(
                 amount: _formattedAmount,
                 changeWasDelete: _lastChangeWasDelete,
@@ -173,27 +181,27 @@ class _SendMoneyPageState extends State<SendMoneyPage>
                 onClear: _hasAmount ? _clearAmount : null,
                 compact: isCompact,
               ),
-
-              SizedBox(height: isCompact ? 20 : 24),
-
+              SizedBox(
+                height: isCompact ? 20 : 24,
+              ),
               _AmountKeypad(
                 compact: isCompact,
                 onDigitPressed: _appendDigits,
                 onDeletePressed: _deleteDigit,
                 onDeleteLongPress: _clearAmount,
               ),
-
-              SizedBox(height: isCompact ? 20 : 24),
-
+              SizedBox(
+                height: isCompact ? 20 : 24,
+              ),
               AppButton(
                 label: 'Continue',
                 icon: HugeIcons.strokeRoundedArrowRight01,
                 size: AppButtonSize.lg,
                 onPressed: _hasAmount ? _continue : null,
               ),
-
-              const SizedBox(height: 12),
-
+              const SizedBox(
+                height: 12,
+              ),
               const _NextStepHint(),
             ],
           ),
@@ -238,13 +246,20 @@ class _SendMoneyHeader extends StatelessWidget {
                   height: 1,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.5,
-                  color: AppColors.primary.withValues(alpha: 0.92),
+                  color: AppColors.primary.withValues(
+                    alpha: 0.92,
+                  ),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(
+                height: 10,
+              ),
               Text(
                 'How much?',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineMedium
+                    ?.copyWith(
                       fontSize: compact ? 25 : 28,
                       height: 1.05,
                       fontWeight: FontWeight.w700,
@@ -252,7 +267,9 @@ class _SendMoneyHeader extends StatelessWidget {
                       color: AppColors.textPrimary,
                     ),
               ),
-              const SizedBox(height: 7),
+              const SizedBox(
+                height: 7,
+              ),
               const Text(
                 'Enter the amount you want to send.',
                 style: TextStyle(
@@ -264,9 +281,9 @@ class _SendMoneyHeader extends StatelessWidget {
             ],
           ),
         ),
-
-        const SizedBox(width: 18),
-
+        const SizedBox(
+          width: 18,
+        ),
         const _CurrencyBadge(),
       ],
     );
@@ -279,19 +296,27 @@ class _CurrencyBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(7, 7, 12, 7),
+      padding: const EdgeInsets.fromLTRB(
+        7,
+        7,
+        12,
+        7,
+      ),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.045),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
+        color: Colors.white.withValues(
+          alpha: 0.055,
+        ),
+        borderRadius: BorderRadius.circular(
+          999,
         ),
       ),
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           _CurrencyMark(),
-          SizedBox(width: 8),
+          SizedBox(
+            width: 8,
+          ),
           Text(
             'RWF',
             style: TextStyle(
@@ -317,7 +342,9 @@ class _CurrencyMark extends StatelessWidget {
       height: 26,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppColors.primary.withValues(alpha: 0.95),
+        color: AppColors.primary.withValues(
+          alpha: 0.95,
+        ),
       ),
       alignment: Alignment.center,
       child: const Text(
@@ -350,7 +377,9 @@ class _AmountDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final amountWidget = FittedBox(
-      key: ValueKey(amount),
+      key: ValueKey(
+        amount,
+      ),
       fit: BoxFit.scaleDown,
       alignment: Alignment.centerLeft,
       child: Text(
@@ -366,16 +395,18 @@ class _AmountDisplay extends StatelessWidget {
       ),
     );
 
-    return GlassPanel(
+    return _GlassSurface(
+      radius: 28,
+      blur: 20,
+      color: Colors.white.withValues(
+        alpha: 0.04,
+      ),
       padding: EdgeInsets.fromLTRB(
         compact ? 20 : 24,
         compact ? 20 : 24,
         compact ? 20 : 24,
         18,
       ),
-      borderRadius: BorderRadius.circular(28),
-      blur: 20,
-      opacity: 0.09,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -398,19 +429,24 @@ class _AmountDisplay extends StatelessWidget {
                 ),
             ],
           ),
-
-          SizedBox(height: compact ? 20 : 24),
-
+          SizedBox(
+            height: compact ? 20 : 24,
+          ),
           SizedBox(
             height: compact ? 60 : 72,
             width: double.infinity,
             child: disableAnimations
                 ? amountWidget
                 : AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 140),
+                    duration: const Duration(
+                      milliseconds: 140,
+                    ),
                     switchInCurve: Curves.easeOutCubic,
                     switchOutCurve: Curves.easeInCubic,
-                    transitionBuilder: (child, animation) {
+                    transitionBuilder: (
+                      child,
+                      animation,
+                    ) {
                       final verticalOffset =
                           changeWasDelete ? -0.08 : 0.08;
 
@@ -418,9 +454,14 @@ class _AmountDisplay extends StatelessWidget {
                         opacity: animation,
                         child: SlideTransition(
                           position: Tween<Offset>(
-                            begin: Offset(0, verticalOffset),
+                            begin: Offset(
+                              0,
+                              verticalOffset,
+                            ),
                             end: Offset.zero,
-                          ).animate(animation),
+                          ).animate(
+                            animation,
+                          ),
                           child: child,
                         ),
                       );
@@ -428,9 +469,9 @@ class _AmountDisplay extends StatelessWidget {
                     child: amountWidget,
                   ),
           ),
-
-          const SizedBox(height: 10),
-
+          const SizedBox(
+            height: 10,
+          ),
           Row(
             children: [
               Container(
@@ -441,7 +482,9 @@ class _AmountDisplay extends StatelessWidget {
                   color: AppColors.primary,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(
+                width: 8,
+              ),
               const Text(
                 'Rwandan francs',
                 style: TextStyle(
@@ -475,19 +518,26 @@ class _ClearButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(999),
-          splashColor: AppColors.primary.withValues(alpha: 0.10),
-          highlightColor: AppColors.primary.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(
+            999,
+          ),
+          splashColor: AppColors.primary.withValues(
+            alpha: 0.10,
+          ),
+          highlightColor: AppColors.primary.withValues(
+            alpha: 0.05,
+          ),
           child: Container(
             padding: const EdgeInsets.symmetric(
               horizontal: 12,
               vertical: 7,
             ),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.045),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.07),
+              color: Colors.white.withValues(
+                alpha: 0.055,
+              ),
+              borderRadius: BorderRadius.circular(
+                999,
               ),
             ),
             child: const Text(
@@ -527,12 +577,15 @@ class _AmountKeypad extends StatelessWidget {
     ];
 
     return Container(
-      padding: EdgeInsets.all(compact ? 8 : 10),
+      padding: EdgeInsets.all(
+        compact ? 8 : 10,
+      ),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.045),
+        color: Colors.black.withValues(
+          alpha: 0.10,
+        ),
+        borderRadius: BorderRadius.circular(
+          28,
         ),
       ),
       child: Column(
@@ -543,31 +596,40 @@ class _AmountKeypad extends StatelessWidget {
               compact: compact,
               onPressed: onDigitPressed,
             ),
-            SizedBox(height: compact ? 7 : 8),
+            SizedBox(
+              height: compact ? 7 : 8,
+            ),
           ],
-
           Row(
             children: [
               Expanded(
                 child: _AmountKey(
                   label: '00',
                   compact: compact,
-                  onPressed: () => onDigitPressed('00'),
+                  onPressed: () {
+                    onDigitPressed(
+                      '00',
+                    );
+                  },
                 ),
               ),
-
-              SizedBox(width: compact ? 7 : 8),
-
+              SizedBox(
+                width: compact ? 7 : 8,
+              ),
               Expanded(
                 child: _AmountKey(
                   label: '0',
                   compact: compact,
-                  onPressed: () => onDigitPressed('0'),
+                  onPressed: () {
+                    onDigitPressed(
+                      '0',
+                    );
+                  },
                 ),
               ),
-
-              SizedBox(width: compact ? 7 : 8),
-
+              SizedBox(
+                width: compact ? 7 : 8,
+              ),
               Expanded(
                 child: _AmountKey(
                   label: 'Delete',
@@ -600,7 +662,11 @@ class _KeypadRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        for (var index = 0; index < values.length; index++) ...[
+        for (
+          var index = 0;
+          index < values.length;
+          index++
+        ) ...[
           if (index > 0)
             SizedBox(
               width: compact ? 7 : 8,
@@ -609,7 +675,11 @@ class _KeypadRow extends StatelessWidget {
             child: _AmountKey(
               label: values[index],
               compact: compact,
-              onPressed: () => onPressed(values[index]),
+              onPressed: () {
+                onPressed(
+                  values[index],
+                );
+              },
             ),
           ),
         ],
@@ -642,7 +712,8 @@ class _AmountKeyState extends State<_AmountKey> {
 
   @override
   Widget build(BuildContext context) {
-    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    final disableAnimations =
+        MediaQuery.disableAnimationsOf(context);
 
     return Semantics(
       button: true,
@@ -651,14 +722,20 @@ class _AmountKeyState extends State<_AmountKey> {
           ? null
           : 'Hold to clear the amount',
       child: AnimatedScale(
-        scale: disableAnimations || !_isPressed ? 1 : 0.96,
+        scale: disableAnimations || !_isPressed
+            ? 1
+            : 0.96,
         duration: disableAnimations
             ? Duration.zero
-            : const Duration(milliseconds: 85),
+            : const Duration(
+                milliseconds: 85,
+              ),
         curve: Curves.easeOut,
         child: Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(
+            20,
+          ),
           child: InkWell(
             onTap: widget.onPressed,
             onLongPress: widget.onLongPress,
@@ -669,21 +746,28 @@ class _AmountKeyState extends State<_AmountKey> {
                 });
               }
             },
-            borderRadius: BorderRadius.circular(20),
-            splashColor: AppColors.primary.withValues(alpha: 0.10),
-            highlightColor: AppColors.primary.withValues(alpha: 0.045),
+            borderRadius: BorderRadius.circular(
+              20,
+            ),
+            splashColor: AppColors.primary.withValues(
+              alpha: 0.10,
+            ),
+            highlightColor: Colors.transparent,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 100),
+              duration: const Duration(
+                milliseconds: 100,
+              ),
               height: widget.compact ? 55 : 61,
               decoration: BoxDecoration(
                 color: _isPressed
-                    ? AppColors.primary.withValues(alpha: 0.085)
-                    : Colors.white.withValues(alpha: 0.035),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: _isPressed
-                      ? AppColors.primary.withValues(alpha: 0.28)
-                      : Colors.white.withValues(alpha: 0.055),
+                    ? AppColors.primary.withValues(
+                        alpha: 0.10,
+                      )
+                    : Colors.white.withValues(
+                        alpha: 0.04,
+                      ),
+                borderRadius: BorderRadius.circular(
+                  20,
                 ),
               ),
               alignment: Alignment.center,
@@ -724,6 +808,44 @@ class _NextStepHint extends StatelessWidget {
         height: 1.5,
         fontWeight: FontWeight.w500,
         color: AppColors.textSecondary,
+      ),
+    );
+  }
+}
+
+class _GlassSurface extends StatelessWidget {
+  const _GlassSurface({
+    required this.child,
+    required this.radius,
+    required this.blur,
+    required this.color,
+    this.padding,
+  });
+
+  final Widget child;
+  final double radius;
+  final double blur;
+  final Color color;
+  final EdgeInsetsGeometry? padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderRadius = BorderRadius.circular(
+      radius,
+    );
+
+    return ClipRRect(
+      borderRadius: borderRadius,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: blur,
+          sigmaY: blur,
+        ),
+        child: Container(
+          padding: padding,
+          color: color,
+          child: child,
+        ),
       ),
     );
   }
