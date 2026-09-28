@@ -136,10 +136,10 @@ class _SendMoneyPageState extends State<SendMoneyPage>
     });
   }
 
-  void _continue() {
+  void _sendMoney() {
     AppToast.info(
       context,
-      title: 'Amount ready',
+      title: 'Send money',
       description: 'Recipient selection will be connected in the next step.',
     );
   }
@@ -188,11 +188,17 @@ class _SendMoneyPageState extends State<SendMoneyPage>
               SizedBox(
                 height: isCompact ? 20 : 24,
               ),
-              AppButton(
-                label: 'Continue',
-                icon: HugeIcons.strokeRoundedArrowRight01,
-                size: AppButtonSize.lg,
-                onPressed: _hasAmount ? _continue : null,
+              Align(
+                alignment: Alignment.center,
+                child: SizedBox(
+                  width: 240,
+                  child: AppButton(
+                    label: 'Send money',
+                    icon: HugeIcons.strokeRoundedMoneySendCircle,
+                    size: AppButtonSize.md,
+                    onPressed: _hasAmount ? _sendMoney : null,
+                  ),
+                ),
               ),
               const SizedBox(
                 height: 12,
