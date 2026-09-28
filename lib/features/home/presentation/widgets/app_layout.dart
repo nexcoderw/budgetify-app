@@ -15,8 +15,6 @@ class AppLayout extends StatelessWidget {
     required this.currentSection,
     required this.child,
     required this.onSectionSelected,
-    required this.onLogout,
-    this.isLoggingOut = false,
     this.scrollChild = true,
   });
 
@@ -24,8 +22,6 @@ class AppLayout extends StatelessWidget {
   final AppLayoutSection currentSection;
   final Widget child;
   final ValueChanged<AppLayoutSection> onSectionSelected;
-  final VoidCallback? onLogout;
-  final bool isLoggingOut;
   final bool scrollChild;
 
   @override
@@ -49,11 +45,7 @@ class AppLayout extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    AppNavbar(
-                      user: user,
-                      onProfileTap: () =>
-                          onSectionSelected(AppLayoutSection.profile),
-                    ),
+                    AppNavbar(user: user),
                     SizedBox(height: isCompact ? 18 : 24),
                     Expanded(
                       child: scrollChild
@@ -77,7 +69,7 @@ class AppLayout extends StatelessWidget {
                               ),
                             ),
                     ),
-                    SizedBox(height: isCompact ? 22 : 28),
+                    SizedBox(height: isCompact ? 14 : 20),
                     AppBottomNavBar(
                       currentSection: currentSection,
                       destinations: bottomAppNavDestinations,
