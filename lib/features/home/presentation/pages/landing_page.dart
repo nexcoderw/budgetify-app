@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../auth/application/auth_service_contract.dart';
 import '../../../auth/data/models/auth_user.dart';
+import '../../../users/presentation/pages/profile_page.dart';
 import '../widgets/app_layout.dart';
 import 'history_page.dart';
 import 'send_money_page.dart';
@@ -41,6 +42,7 @@ class _LandingPageState extends State<LandingPage> {
       user: _currentUser,
       currentSection: _currentSection,
       onSectionSelected: _selectSection,
+      onAvatarTap: _openProfile,
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 260),
         switchInCurve: Curves.easeOutCubic,
@@ -68,6 +70,45 @@ class _LandingPageState extends State<LandingPage> {
 
     setState(() {
       _currentSection = section;
+    });
+  }
+
+  Future<void> _openProfile() async {
+    await Navigator.of(context).push<void>(
+      PageRouteBuilder<void>(
+        pageBuilder: (context, animation, secondaryAnimation) => ProfilePage(
+          authService: widget.authService,
+          user: _currentUser,
+          onUserChanged: _updateCurrentUser,
+        ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+
+          return FadeTransition(
+            opacity: curved,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.025, 0),
+                end: Offset.zero,
+              ).animate(curved),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _updateCurrentUser(AuthUser user) {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _currentUser = user;
     });
   }
 }
