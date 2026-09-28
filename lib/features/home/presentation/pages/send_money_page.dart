@@ -112,9 +112,7 @@ class SendMoneyPage extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(28),
               color: const Color(0xFF111923),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.09),
-              ),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,12 +131,13 @@ class SendMoneyPage extends StatelessWidget {
                   children: [
                     Text(
                       '0',
-                      style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        fontSize: isCompact ? 44 : 52,
-                        height: 1,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -1.8,
-                      ),
+                      style: Theme.of(context).textTheme.headlineLarge
+                          ?.copyWith(
+                            fontSize: isCompact ? 44 : 52,
+                            height: 1,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -1.8,
+                          ),
                     ),
                     const SizedBox(width: 10),
                     const Padding(
@@ -190,10 +189,7 @@ class SendMoneyPage extends StatelessWidget {
             child: Text(
               'Transfer actions will be connected in the next release.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11,
-                color: AppColors.textSecondary,
-              ),
+              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
             ),
           ),
         ],
