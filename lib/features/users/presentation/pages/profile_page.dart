@@ -4,6 +4,7 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_input.dart';
 import '../../../../core/widgets/app_modal_dialog.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../auth/application/auth_service_contract.dart';
@@ -581,31 +582,31 @@ class _ProfileForm extends StatelessWidget {
         key: formKey,
         child: Column(
           children: [
-            TextFormField(
+            AppInput(
               controller: firstNameController,
               enabled: enabled,
+              label: 'First name',
+              leadingIcon: HugeIcons.strokeRoundedUser02,
+              textCapitalization: TextCapitalization.words,
+              keyboardType: TextInputType.name,
               textInputAction: TextInputAction.next,
               autofillHints: const [AutofillHints.givenName],
               maxLength: 60,
-              decoration: const InputDecoration(
-                labelText: 'First name',
-                counterText: '',
-              ),
               validator: (value) => _validateName(value, 'First name'),
             ),
             const SizedBox(height: 12),
-            TextFormField(
+            AppInput(
               controller: lastNameController,
               enabled: enabled,
+              label: 'Last name',
+              leadingIcon: HugeIcons.strokeRoundedUserSquare,
+              textCapitalization: TextCapitalization.words,
+              keyboardType: TextInputType.name,
               textInputAction: TextInputAction.done,
               autofillHints: const [AutofillHints.familyName],
               maxLength: 60,
-              decoration: const InputDecoration(
-                labelText: 'Last name',
-                counterText: '',
-              ),
               validator: (value) => _validateName(value, 'Last name'),
-              onFieldSubmitted: (_) {
+              onSubmitted: (_) {
                 if (canSave) {
                   onSave();
                 }
