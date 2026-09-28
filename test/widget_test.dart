@@ -147,6 +147,15 @@ void main() {
     expect(find.text('Jane D.'), findsOneWidget);
     expect(find.text('Enter amount'), findsOneWidget);
     expect(find.text('Continue'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Profile'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Identity and account controls'), findsOneWidget);
+    expect(find.text('jane@example.com'), findsOneWidget);
+    expect(find.text('Save changes'), findsOneWidget);
+    expect(find.text('Log out'), findsOneWidget);
+    expect(find.text('Delete my account'), findsOneWidget);
   });
 
   testWidgets(
