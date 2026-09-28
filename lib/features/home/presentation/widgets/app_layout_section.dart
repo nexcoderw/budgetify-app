@@ -25,8 +25,8 @@ class AppNavDestination {
 const List<AppNavDestination> defaultAppNavDestinations = [
   AppNavDestination(
     section: AppLayoutSection.dashboard,
-    label: 'Dashboard',
-    icon: HugeIcons.strokeRoundedDashboardSquare02,
+    label: 'Send',
+    icon: HugeIcons.strokeRoundedMoneySendSquare,
   ),
   AppNavDestination(
     section: AppLayoutSection.income,
