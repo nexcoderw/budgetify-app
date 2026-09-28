@@ -5,13 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/glass_panel.dart';
 import '../../application/auth_service_contract.dart';
 import '../../data/models/email_initiate_response.dart';
 import '../auth_post_auth_navigation.dart';
 import '../widgets/auth_layout.dart';
-import '../widgets/auth_loading_button.dart';
 import '../widgets/profile_completion_dialog.dart';
 
 class EmailOtpPage extends StatefulWidget {
@@ -255,7 +255,7 @@ class _OtpFormState extends State<_OtpForm>
             opacity: _fadeAt(0.0, 0.5),
             child: SlideTransition(
               position: _slideAt(0.0, 0.5),
-              child: _BackButton(),
+              child: const _BackButton(),
             ),
           ),
 
@@ -362,19 +362,13 @@ class _OtpFormState extends State<_OtpForm>
             opacity: _fadeAt(0.28, 0.78),
             child: SlideTransition(
               position: _slideAt(0.28, 0.78),
-              child: AuthLoadingButton(
+              child: AppButton(
                 label: widget.isRegister
                     ? 'Verify & create account'
                     : 'Verify & sign in',
-                loadingLabel: 'Verifying code…',
                 isLoading: widget.isVerifying,
-                fontSize: 14,
-                leading: HugeIcon(
-                  icon: HugeIcons.strokeRoundedCheckmarkCircle02,
-                  size: 18,
-                  color: AppColors.background,
-                  strokeWidth: 1.8,
-                ),
+                size: AppButtonSize.md,
+                icon: HugeIcons.strokeRoundedCheckmarkCircle02,
                 onPressed: widget.isCodeComplete ? widget.onVerify : null,
               ),
             ),
@@ -496,56 +490,18 @@ class _DeliverySummaryCard extends StatelessWidget {
 
 // ── Back button ──────────────────────────────────────────────────────────────
 
-class _BackButton extends StatefulWidget {
-  @override
-  State<_BackButton> createState() => _BackButtonState();
-}
-
-class _BackButtonState extends State<_BackButton> {
-  bool _pressed = false;
+class _BackButton extends StatelessWidget {
+  const _BackButton();
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => Navigator.of(context).pop(),
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) => setState(() => _pressed = false),
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.96 : 1.0,
-        duration: const Duration(milliseconds: 120),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: const Center(
-                child: HugeIcon(
-                  icon: HugeIcons.strokeRoundedArrowLeft01,
-                  size: 16,
-                  color: AppColors.textSecondary,
-                  strokeWidth: 1.8,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              'Back',
-              style: TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-                fontFamily: 'DMSans',
-              ),
-            ),
-          ],
-        ),
-      ),
+    return AppButton(
+      label: 'Back',
+      icon: HugeIcons.strokeRoundedArrowLeft01,
+      size: AppButtonSize.sm,
+      variant: AppButtonVariant.ghost,
+      fullWidth: false,
+      onPressed: () => Navigator.of(context).pop(),
     );
   }
 }
@@ -868,7 +824,7 @@ class _ResendRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canResend = countdown == 0 && !isResending;
+    final canResend = countdown == 0;
 
     return Center(
       child: Wrap(
@@ -885,7 +841,7 @@ class _ResendRow extends StatelessWidget {
           ),
           if (!canResend)
             Text(
-              countdown > 0 ? 'Resend in ${countdown}s' : 'Resending…',
+              'Resend in ${countdown}s',
               style: const TextStyle(
                 fontSize: 12,
                 color: AppColors.textSecondary,
@@ -893,55 +849,16 @@ class _ResendRow extends StatelessWidget {
               ),
             )
           else
-            _ResendButton(onTap: onResend),
-        ],
-      ),
-    );
-  }
-}
-
-class _ResendButton extends StatefulWidget {
-  const _ResendButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  State<_ResendButton> createState() => _ResendButtonState();
-}
-
-class _ResendButtonState extends State<_ResendButton> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: widget.onTap,
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) => setState(() => _pressed = false),
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedOpacity(
-        opacity: _pressed ? 0.6 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const HugeIcon(
+            AppButton(
+              label: 'Resend code',
               icon: HugeIcons.strokeRoundedReload,
-              size: 13,
-              color: AppColors.primary,
-              strokeWidth: 1.8,
+              size: AppButtonSize.sm,
+              variant: AppButtonVariant.ghost,
+              isLoading: isResending,
+              fullWidth: false,
+              onPressed: onResend,
             ),
-            const SizedBox(width: 5),
-            Text(
-              'Resend code',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontSize: 12,
-                color: AppColors.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
