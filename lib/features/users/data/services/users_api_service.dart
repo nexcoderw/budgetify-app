@@ -12,6 +12,15 @@ class UsersApiService {
   final ApiClient _apiClient;
   final UsersApiRoutes _routes;
 
+  Future<AuthUser> fetchCurrentUser({required String accessToken}) async {
+    final json = await _apiClient.getJson(
+      _routes.me,
+      headers: <String, String>{'Authorization': 'Bearer $accessToken'},
+    );
+
+    return AuthUser.fromJson(json);
+  }
+
   Future<AuthUser> updateCurrentUserNames({
     required String accessToken,
     required String firstName,
