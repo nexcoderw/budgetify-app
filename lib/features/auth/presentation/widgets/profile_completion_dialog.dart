@@ -5,6 +5,7 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_input.dart';
 import '../../../../core/widgets/app_modal_dialog.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../application/auth_service_contract.dart';
@@ -198,12 +199,14 @@ class _ProfileCompletionDialogState extends State<ProfileCompletionDialog>
                       if (isCompact) {
                         return Column(
                           children: [
-                            _NameField(
+                            AppInput(
                               controller: _firstNameController,
                               focusNode: _firstNameFocusNode,
                               label: 'First name',
                               hintText: 'Alice',
-                              icon: HugeIcons.strokeRoundedUser02,
+                              leadingIcon: HugeIcons.strokeRoundedUser02,
+                              textCapitalization: TextCapitalization.words,
+                              keyboardType: TextInputType.name,
                               textInputAction: TextInputAction.next,
                               onSubmitted: (_) {
                                 _lastNameFocusNode.requestFocus();
@@ -212,12 +215,14 @@ class _ProfileCompletionDialogState extends State<ProfileCompletionDialog>
                                   _validateName(value, 'first name'),
                             ),
                             const SizedBox(height: 12),
-                            _NameField(
+                            AppInput(
                               controller: _lastNameController,
                               focusNode: _lastNameFocusNode,
                               label: 'Last name',
                               hintText: 'Mutoni',
-                              icon: HugeIcons.strokeRoundedUserSquare,
+                              leadingIcon: HugeIcons.strokeRoundedUserSquare,
+                              textCapitalization: TextCapitalization.words,
+                              keyboardType: TextInputType.name,
                               textInputAction: TextInputAction.done,
                               onSubmitted: (_) => _submit(),
                               validator: (value) =>
@@ -230,12 +235,14 @@ class _ProfileCompletionDialogState extends State<ProfileCompletionDialog>
                       return Row(
                         children: [
                           Expanded(
-                            child: _NameField(
+                            child: AppInput(
                               controller: _firstNameController,
                               focusNode: _firstNameFocusNode,
                               label: 'First name',
                               hintText: 'Alice',
-                              icon: HugeIcons.strokeRoundedUser02,
+                              leadingIcon: HugeIcons.strokeRoundedUser02,
+                              textCapitalization: TextCapitalization.words,
+                              keyboardType: TextInputType.name,
                               textInputAction: TextInputAction.next,
                               onSubmitted: (_) {
                                 _lastNameFocusNode.requestFocus();
@@ -246,12 +253,14 @@ class _ProfileCompletionDialogState extends State<ProfileCompletionDialog>
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: _NameField(
+                            child: AppInput(
                               controller: _lastNameController,
                               focusNode: _lastNameFocusNode,
                               label: 'Last name',
                               hintText: 'Mutoni',
-                              icon: HugeIcons.strokeRoundedUserSquare,
+                              leadingIcon: HugeIcons.strokeRoundedUserSquare,
+                              textCapitalization: TextCapitalization.words,
+                              keyboardType: TextInputType.name,
                               textInputAction: TextInputAction.done,
                               onSubmitted: (_) => _submit(),
                               validator: (value) =>
@@ -414,141 +423,6 @@ class _ProfileHeader extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _NameField extends StatefulWidget {
-  const _NameField({
-    required this.controller,
-    required this.focusNode,
-    required this.label,
-    required this.hintText,
-    required this.icon,
-    required this.textInputAction,
-    required this.onSubmitted,
-    required this.validator,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final String label;
-  final String hintText;
-  final List<List<dynamic>> icon;
-  final TextInputAction textInputAction;
-  final ValueChanged<String> onSubmitted;
-  final String? Function(String?) validator;
-
-  @override
-  State<_NameField> createState() => _NameFieldState();
-}
-
-class _NameFieldState extends State<_NameField> {
-  bool _isFocused = false;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.focusNode.addListener(_handleFocusChange);
-  }
-
-  @override
-  void dispose() {
-    widget.focusNode.removeListener(_handleFocusChange);
-    super.dispose();
-  }
-
-  void _handleFocusChange() {
-    if (_isFocused == widget.focusNode.hasFocus) {
-      return;
-    }
-
-    setState(() => _isFocused = widget.focusNode.hasFocus);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutCubic,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: _isFocused
-            ? [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.16),
-                  blurRadius: 18,
-                  spreadRadius: 0,
-                ),
-              ]
-            : null,
-      ),
-      child: TextFormField(
-        controller: widget.controller,
-        focusNode: widget.focusNode,
-        textCapitalization: TextCapitalization.words,
-        keyboardType: TextInputType.name,
-        textInputAction: widget.textInputAction,
-        style: const TextStyle(
-          fontSize: 14,
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w500,
-        ),
-        validator: widget.validator,
-        onFieldSubmitted: widget.onSubmitted,
-        decoration: InputDecoration(
-          labelText: widget.label,
-          hintText: widget.hintText,
-          labelStyle: TextStyle(
-            color: _isFocused ? AppColors.primary : AppColors.textSecondary,
-            fontSize: 13,
-          ),
-          hintStyle: const TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 14,
-          ),
-          prefixIcon: Padding(
-            padding: const EdgeInsets.only(left: 18, right: 12),
-            child: HugeIcon(
-              icon: widget.icon,
-              size: 18,
-              color: _isFocused ? AppColors.primary : AppColors.textSecondary,
-              strokeWidth: 1.8,
-            ),
-          ),
-          prefixIconConstraints: const BoxConstraints(
-            minWidth: 0,
-            minHeight: 0,
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 18,
-            vertical: 18,
-          ),
-          filled: true,
-          fillColor: AppColors.surfaceElevated,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(22),
-            borderSide: const BorderSide(color: AppColors.border),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(22),
-            borderSide: const BorderSide(color: AppColors.border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(22),
-            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(22),
-            borderSide: const BorderSide(color: AppColors.danger, width: 1.2),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(22),
-            borderSide: const BorderSide(color: AppColors.danger, width: 1.5),
-          ),
-          errorStyle: const TextStyle(fontSize: 11, color: AppColors.danger),
-        ),
-      ),
     );
   }
 }
