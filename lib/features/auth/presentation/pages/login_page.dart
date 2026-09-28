@@ -7,13 +7,13 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/glass_panel.dart';
 import '../../application/auth_service_contract.dart';
 import '../../data/services/google_identity_service.dart';
 import '../auth_post_auth_navigation.dart';
 import '../widgets/auth_layout.dart';
-import '../widgets/auth_loading_button.dart';
 import '../widgets/profile_completion_dialog.dart';
 import 'email_otp_page.dart';
 import 'web_render_button_stub.dart'
@@ -509,17 +509,11 @@ class _LoginFormState extends State<_LoginForm>
               opacity: _fadeAt(0.2, 0.75),
               child: SlideTransition(
                 position: _slideAt(0.2, 0.75),
-                child: AuthLoadingButton(
+                child: AppButton(
                   label: 'Continue with email',
-                  loadingLabel: 'Sending code…',
                   isLoading: widget.isEmailSubmitting,
-                  fontSize: 14,
-                  leading: HugeIcon(
-                    icon: HugeIcons.strokeRoundedSent,
-                    size: 18,
-                    color: AppColors.background,
-                    strokeWidth: 1.8,
-                  ),
+                  size: AppButtonSize.md,
+                  icon: HugeIcons.strokeRoundedSent,
                   onPressed: _submit,
                 ),
               ),
@@ -548,15 +542,14 @@ class _LoginFormState extends State<_LoginForm>
                       ? _WebSignInButton(
                           isSubmitting: widget.isGoogleSubmitting,
                         )
-                      : AuthLoadingButton(
+                      : AppButton(
                           label: 'Continue with Google',
-                          loadingLabel: 'Connecting to Google…',
                           isLoading: widget.isGoogleSubmitting,
-                          fontSize: 14,
-                          leading: Image.asset(
+                          size: AppButtonSize.md,
+                          variant: AppButtonVariant.secondary,
+                          iconWidget: Image.asset(
                             'assets/images/google.png',
-                            width: 18,
-                            height: 18,
+                            fit: BoxFit.contain,
                           ),
                           onPressed: () {
                             unawaited(widget.onGoogleSubmit!());
