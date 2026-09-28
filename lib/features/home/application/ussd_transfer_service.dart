@@ -39,7 +39,7 @@ class UssdTransferService {
     required int amount,
   }) async {
     if (!isSupported) {
-      throw const PlatformException(
+      throw PlatformException(
         code: 'unsupported_platform',
         message:
             'Direct USSD transfers are currently available on Android only.',
