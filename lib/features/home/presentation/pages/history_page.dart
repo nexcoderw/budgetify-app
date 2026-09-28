@@ -43,9 +43,7 @@ class HistoryPage extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(28),
               color: const Color(0xFF111923),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.09),
-              ),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
             ),
             child: const Column(
               children: [
