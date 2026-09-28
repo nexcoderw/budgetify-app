@@ -80,7 +80,7 @@ class AppLayout extends StatelessWidget {
                     SizedBox(height: isCompact ? 22 : 28),
                     AppBottomNavBar(
                       currentSection: currentSection,
-                      destinations: defaultAppNavDestinations,
+                      destinations: bottomAppNavDestinations,
                       onSectionSelected: onSectionSelected,
                     ),
                   ],
