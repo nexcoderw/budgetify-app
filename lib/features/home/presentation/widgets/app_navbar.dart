@@ -2,172 +2,206 @@ import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/glass_panel.dart';
 import '../../../auth/data/models/auth_user.dart';
 
 class AppNavbar extends StatelessWidget {
-  const AppNavbar({super.key, required this.user, required this.onProfileTap});
+  const AppNavbar({
+    super.key,
+    required this.user,
+    required this.onProfileTap,
+    this.onMenuTap,
+    this.onNotificationTap,
+  });
 
   final AuthUser user;
   final VoidCallback onProfileTap;
+  final VoidCallback? onMenuTap;
+  final VoidCallback? onNotificationTap;
 
   @override
   Widget build(BuildContext context) {
-    final isCompact = MediaQuery.sizeOf(context).width < 760;
+    return Row(
+      children: [
+        _NavbarAction(
+          tooltip: 'Menu',
+          icon: HugeIcons.strokeRoundedMenu01,
+          onTap: onMenuTap,
+        ),
+        const Spacer(),
+        _NavbarAction(
+          tooltip: 'Notifications',
+          icon: HugeIcons.strokeRoundedNotification02,
+          onTap: onNotificationTap,
+        ),
+        const SizedBox(width: 10),
+        _UserAvatar(user: user, onTap: onProfileTap),
+      ],
+    );
+  }
+}
 
-    return GlassPanel(
-      borderRadius: BorderRadius.circular(28),
-      blur: 24,
-      opacity: 0.12,
-      padding: EdgeInsets.symmetric(
-        horizontal: isCompact ? 14 : 18,
-        vertical: isCompact ? 14 : 16,
-      ),
-      child: Row(
-        children: [
-          Flexible(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                GlassPanel(
-                  padding: const EdgeInsets.all(8),
-                  blur: 18,
-                  opacity: 0.1,
-                  borderRadius: BorderRadius.circular(18),
-                  child: Image.asset(
-                    'assets/branding/appstore.png',
-                    width: 26,
-                    height: 26,
-                    fit: BoxFit.contain,
-                  ),
+class _NavbarAction extends StatelessWidget {
+  const _NavbarAction({
+    required this.tooltip,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String tooltip;
+  final dynamic icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: tooltip,
+      child: Tooltip(
+        message: tooltip,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(18),
+            child: Ink(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                color: const Color(0xFF111923).withValues(alpha: 0.9),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.1),
                 ),
-                const SizedBox(width: 12),
-                Flexible(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Budgetify',
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontSize: isCompact ? 22 : 24,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Clear financial tracking for everyday decisions.',
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
+              ),
+              child: Center(
+                child: HugeIcon(
+                  icon: icon,
+                  size: 21,
+                  color: AppColors.textPrimary,
+                  strokeWidth: 1.8,
                 ),
-              ],
+              ),
             ),
           ),
-          const SizedBox(width: 12),
-          _UserIdentity(user: user, onTap: onProfileTap),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _UserIdentity extends StatelessWidget {
-  const _UserIdentity({required this.user, required this.onTap});
+class _UserAvatar extends StatelessWidget {
+  const _UserAvatar({required this.user, required this.onTap});
 
   final AuthUser user;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final isCompact = MediaQuery.sizeOf(context).width < 560;
-    final firstName = _resolveFirstName();
-    final lastInitial = _resolveLastInitial();
-    final displayName = lastInitial == null
-        ? firstName
-        : '$firstName $lastInitial.';
+    final avatarUrl = user.avatarUrl?.trim();
+    final initials = _resolveInitials();
 
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: GlassBadge(
-        padding: EdgeInsets.symmetric(
-          horizontal: isCompact ? 10 : 12,
-          vertical: 8,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircleAvatar(
-              radius: 15,
-              backgroundColor: Colors.white.withValues(alpha: 0.08),
-              backgroundImage: user.avatarUrl == null
-                  ? null
-                  : NetworkImage(user.avatarUrl!),
-              child: user.avatarUrl == null
-                  ? const HugeIcon(
-                      icon: HugeIcons.strokeRoundedUserCircle,
-                      size: 16,
-                      color: AppColors.textPrimary,
-                      strokeWidth: 1.7,
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 10),
-            ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: isCompact ? 90 : 150),
-              child: Text(
-                displayName,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+    return Semantics(
+      button: true,
+      label: 'Open profile',
+      child: Tooltip(
+        message: 'Profile',
+        child: Material(
+          color: Colors.transparent,
+          shape: const CircleBorder(),
+          child: InkWell(
+            onTap: onTap,
+            customBorder: const CircleBorder(),
+            child: Ink(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primary.withValues(alpha: 0.18),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.42),
+                  width: 1.2,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.22),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: ClipOval(
+                child: avatarUrl == null || avatarUrl.isEmpty
+                    ? _InitialsAvatar(initials: initials)
+                    : Image.network(
+                        avatarUrl,
+                        width: 46,
+                        height: 46,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) =>
+                            _InitialsAvatar(initials: initials),
+                      ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  String _resolveFirstName() {
+  String _resolveInitials() {
     final firstName = user.firstName?.trim();
+    final lastName = user.lastName?.trim();
+
     if (firstName != null && firstName.isNotEmpty) {
-      return firstName;
+      final firstInitial = _firstCharacter(firstName);
+      if (lastName != null && lastName.isNotEmpty) {
+        return '$firstInitial${_firstCharacter(lastName)}'.toUpperCase();
+      }
+      return firstInitial.toUpperCase();
     }
 
     final fullName = user.fullName?.trim();
     if (fullName != null && fullName.isNotEmpty) {
-      return fullName.split(RegExp(r'\s+')).first;
+      final parts = fullName
+          .split(RegExp(r'\s+'))
+          .where((part) => part.isNotEmpty)
+          .toList(growable: false);
+      if (parts.length > 1) {
+        return '${_firstCharacter(parts.first)}${_firstCharacter(parts.last)}'
+            .toUpperCase();
+      }
+      return _firstCharacter(parts.first).toUpperCase();
     }
 
-    return user.email.split('@').first;
+    final emailName = user.email.split('@').first.trim();
+    return emailName.isEmpty ? '?' : _firstCharacter(emailName).toUpperCase();
   }
 
-  String? _resolveLastInitial() {
-    final lastName = user.lastName?.trim();
-    if (lastName != null && lastName.isNotEmpty) {
-      return lastName.substring(0, 1).toUpperCase();
-    }
+  String _firstCharacter(String value) {
+    return String.fromCharCode(value.runes.first);
+  }
+}
 
-    final fullName = user.fullName?.trim();
-    if (fullName == null || fullName.isEmpty) {
-      return null;
-    }
+class _InitialsAvatar extends StatelessWidget {
+  const _InitialsAvatar({required this.initials});
 
-    final parts = fullName.split(RegExp(r'\s+'));
-    if (parts.length < 2 || parts.last.isEmpty) {
-      return null;
-    }
+  final String initials;
 
-    return parts.last.substring(0, 1).toUpperCase();
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: AppColors.primary.withValues(alpha: 0.12),
+      child: Center(
+        child: Text(
+          initials,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.4,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ),
+    );
   }
 }
