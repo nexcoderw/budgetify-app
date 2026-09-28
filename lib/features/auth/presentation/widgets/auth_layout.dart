@@ -54,7 +54,8 @@ class _AuthHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final isCompact = width < 600;
-    final logoSize = isCompact ? 30.0 : 30.0;
+    final logoWidth = isCompact ? 38.0 : 42.0;
+    final logoHeight = isCompact ? 30.0 : 33.0;
     final logoPadding = isCompact ? 6.0 : 7.0;
     final titleSize = isCompact ? 24.0 : 26.0;
 
@@ -66,10 +67,11 @@ class _AuthHeader extends StatelessWidget {
           opacity: 0.12,
           borderRadius: BorderRadius.circular(18),
           child: Image.asset(
-            'assets/branding/appstore.png',
-            width: logoSize,
-            height: logoSize,
+            'assets/branding/png/tight/logo-color-beige-512.png',
+            width: logoWidth,
+            height: logoHeight,
             fit: BoxFit.contain,
+            semanticLabel: 'Budgetify logo',
           ),
         ),
         const SizedBox(width: 14),
