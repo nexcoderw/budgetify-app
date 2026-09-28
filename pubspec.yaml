@@ -33,7 +33,7 @@ flutter:
 
   assets:
     - .env
-    - assets/branding/
+    - assets/branding/png/tight/logo-color-beige-512.png
     - assets/images/
     - assets/icons/
     - assets/icons/language/
@@ -88,7 +88,10 @@ flutter:
           weight: 900
           style: italic
 
-# ✅ THIS MUST BE OUTSIDE EVERYTHING
 flutter_launcher_icons:
+  android: true
   ios: true
-  image_path: "assets/branding/appstore.png"
+  image_path: "assets/branding/png/background/logo-color-beige-on-black-2048.png"
+  adaptive_icon_background: "#0B0D10"
+  adaptive_icon_foreground: "assets/branding/png/square/logo-color-beige-square-1024.png"
+  remove_alpha_ios: true
