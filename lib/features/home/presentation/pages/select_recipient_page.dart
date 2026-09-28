@@ -356,10 +356,13 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
                   const SizedBox(
                     height: 18,
                   ),
-                  _RecipientModeSelector(
-                    mode: _mode,
-                    onContactsPressed: _showContacts,
-                    onPhonePressed: _showManualEntry,
+                  FractionallySizedBox(
+                    widthFactor: mediaQuery.size.width < 600 ? 0.88 : 0.66,
+                    child: _RecipientModeSelector(
+                      mode: _mode,
+                      onContactsPressed: _showContacts,
+                      onPhonePressed: _showManualEntry,
+                    ),
                   ),
                   const SizedBox(
                     height: 18,
@@ -681,15 +684,11 @@ class _RecipientModeSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 48,
-      padding: const EdgeInsets.all(
-        4,
-      ),
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(
-          18,
-        ),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -700,9 +699,6 @@ class _RecipientModeSelector extends StatelessWidget {
               isSelected: mode == _RecipientMode.contacts,
               onPressed: onContactsPressed,
             ),
-          ),
-          const SizedBox(
-            width: 4,
           ),
           Expanded(
             child: _RecipientModeButton(
@@ -734,60 +730,55 @@ class _RecipientModeButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    final foregroundColor = isSelected
+        ? AppColors.primary
+        : AppColors.textSecondary;
 
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(
-        14,
-      ),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(
-          14,
-        ),
-        child: AnimatedContainer(
-          duration: disableAnimations
-              ? Duration.zero
-              : const Duration(
-                  milliseconds: 170,
-                ),
-          curve: Curves.easeOutCubic,
-          decoration: BoxDecoration(
-            color: isSelected
-                ? AppColors.primary
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(
-              14,
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(999),
+          child: AnimatedContainer(
+            duration: disableAnimations
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            height: 48,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppColors.primary.withValues(alpha: 0.11)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(999),
             ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 17,
-                color: isSelected
-                    ? AppColors.background
-                    : AppColors.textSecondary,
-              ),
-              const SizedBox(
-                width: 8,
-              ),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: isSelected
-                        ? AppColors.background
-                        : AppColors.textSecondary,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 17,
+                  color: foregroundColor,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w600,
+                      color: foregroundColor,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
