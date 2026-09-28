@@ -105,9 +105,16 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
-            color: const Color(0xFF101925).withValues(alpha: 0.97),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.surfaceElevated.withValues(alpha: 0.98),
+                AppColors.backgroundSecondary.withValues(alpha: 0.98),
+              ],
+            ),
             border: Border.all(
-              color: const Color(0xFF31506E).withValues(alpha: 0.58),
+              color: AppColors.primaryMuted.withValues(alpha: 0.42),
             ),
             boxShadow: [
               BoxShadow(
@@ -116,7 +123,7 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
                 offset: const Offset(0, 14),
               ),
               BoxShadow(
-                color: const Color(0xFF2A74B8).withValues(alpha: 0.09),
+                color: AppColors.primary.withValues(alpha: 0.10),
                 blurRadius: 22,
                 spreadRadius: -4,
               ),
@@ -185,21 +192,24 @@ class _NavigationItem extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(999),
               gradient: selected
-                  ? const LinearGradient(
+                  ? LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [Color(0xFF3B4A5D), Color(0xFF273444)],
+                      colors: [
+                        AppColors.primary.withValues(alpha: 0.26),
+                        AppColors.primaryMuted.withValues(alpha: 0.18),
+                      ],
                     )
                   : null,
               border: Border.all(
                 color: selected
-                    ? Colors.white.withValues(alpha: 0.12)
+                    ? AppColors.primary.withValues(alpha: 0.24)
                     : Colors.transparent,
               ),
               boxShadow: selected
                   ? [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.28),
+                        color: AppColors.primary.withValues(alpha: 0.10),
                         blurRadius: 12,
                         offset: const Offset(0, 5),
                       ),
