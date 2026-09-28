@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/glass_panel.dart';
 import 'app_layout_section.dart';
 
 class AppBottomNavBar extends StatefulWidget {
@@ -28,242 +27,237 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
   @override
   void initState() {
     super.initState();
-    for (final dest in widget.destinations) {
-      _pressControllers[dest.section] = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 100),
-        reverseDuration: const Duration(milliseconds: 500),
+    _createControllers(widget.destinations);
+  }
+
+  @override
+  void didUpdateWidget(covariant AppBottomNavBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final currentSections = widget.destinations
+        .map((destination) => destination.section)
+        .toSet();
+
+    for (final destination in widget.destinations) {
+      _pressControllers.putIfAbsent(
+        destination.section,
+        () => _newController(),
       );
+    }
+
+    final removedSections = _pressControllers.keys
+        .where((section) => !currentSections.contains(section))
+        .toList(growable: false);
+    for (final section in removedSections) {
+      _pressControllers.remove(section)?.dispose();
     }
   }
 
   @override
   void dispose() {
-    for (final ctrl in _pressControllers.values) {
-      ctrl.dispose();
+    for (final controller in _pressControllers.values) {
+      controller.dispose();
     }
     super.dispose();
   }
 
-  void _handleTap(AppLayoutSection section) {
-    if (section == widget.currentSection) return;
-    final ctrl = _pressControllers[section];
-    if (ctrl != null) {
-      ctrl.forward().then((_) => ctrl.animateBack(0, curve: Curves.elasticOut));
+  void _createControllers(List<AppNavDestination> destinations) {
+    for (final destination in destinations) {
+      _pressControllers[destination.section] = _newController();
     }
+  }
+
+  AnimationController _newController() {
+    return AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 90),
+      reverseDuration: const Duration(milliseconds: 360),
+    );
+  }
+
+  void _handleTap(AppLayoutSection section) {
+    if (section == widget.currentSection) {
+      return;
+    }
+
+    final controller = _pressControllers[section];
+    if (controller != null) {
+      controller
+          .forward()
+          .then((_) => controller.animateBack(0, curve: Curves.easeOutBack));
+    }
+
     widget.onSectionSelected(section);
   }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final maxWidth = constraints.maxWidth;
-        final isPhoneNav = maxWidth < 640;
-        final isTinyPhone = maxWidth < 390;
-        final isComfortable = maxWidth >= 900;
-
-        Widget buildAnimatedItem(
-          AppNavDestination destination, {
-          bool expand = false,
-          bool stacked = false,
-          bool dense = false,
-        }) {
-          final isSelected = destination.section == widget.currentSection;
-          final pressCtrl = _pressControllers[destination.section]!;
-
-          final child = AnimatedBuilder(
-            animation: pressCtrl,
-            builder: (context, child) {
-              final scale = 1.0 - pressCtrl.value * 0.07;
-              return Transform.scale(scale: scale, child: child);
-            },
-            child: _NavItem(
-              destination: destination,
-              isSelected: isSelected,
-              stacked: stacked,
-              dense: dense,
-              onTap: () => _handleTap(destination.section),
+    final isCompact = MediaQuery.sizeOf(context).width < 760;
+    final content = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: widget.destinations
+          .map(
+            (destination) => _buildAnimatedItem(
+              destination,
+              compact: isCompact,
             ),
-          );
+          )
+          .toList(growable: false),
+    );
 
-          if (!expand) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: child,
-            );
-          }
-
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: child,
+    return Semantics(
+      label: 'Primary navigation',
+      child: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 620),
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(30),
+            color: const Color(0xFF101925).withValues(alpha: 0.97),
+            border: Border.all(
+              color: const Color(0xFF31506E).withValues(alpha: 0.58),
             ),
-          );
-        }
-
-        final navContent = isPhoneNav
-            ? SizedBox(
-                width: double.infinity,
-                child: Row(
-                  children: widget.destinations
-                      .map(
-                        (destination) => buildAnimatedItem(
-                          destination,
-                          expand: true,
-                          stacked: true,
-                          dense: isTinyPhone,
-                        ),
-                      )
-                      .toList(growable: false),
-                ),
-              )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: widget.destinations
-                    .map(
-                      (destination) => buildAnimatedItem(
-                        destination,
-                        stacked: false,
-                        dense: false,
-                      ),
-                    )
-                    .toList(growable: false),
-              );
-
-        return GlassPanel(
-          borderRadius: BorderRadius.circular(isPhoneNav ? 28 : 32),
-          blur: 30,
-          opacity: 0.10,
-          padding: EdgeInsets.symmetric(
-            horizontal: isPhoneNav ? 4 : (isComfortable ? 10 : 8),
-            vertical: isPhoneNav ? 7 : 11,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.36),
+                blurRadius: 24,
+                offset: const Offset(0, 14),
+              ),
+              BoxShadow(
+                color: const Color(0xFF2A74B8).withValues(alpha: 0.09),
+                blurRadius: 22,
+                spreadRadius: -4,
+              ),
+            ],
           ),
-          child: navContent,
+          child: isCompact
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(26),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: content,
+                  ),
+                )
+              : content,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnimatedItem(
+    AppNavDestination destination, {
+    required bool compact,
+  }) {
+    final controller = _pressControllers[destination.section]!;
+
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: 1 - (controller.value * 0.08),
+          child: child,
         );
       },
+      child: _NavigationItem(
+        destination: destination,
+        selected: destination.section == widget.currentSection,
+        compact: compact,
+        onTap: () => _handleTap(destination.section),
+      ),
     );
   }
 }
 
-class _NavItem extends StatelessWidget {
-  const _NavItem({
+class _NavigationItem extends StatelessWidget {
+  const _NavigationItem({
     required this.destination,
-    required this.isSelected,
-    required this.stacked,
-    required this.dense,
+    required this.selected,
+    required this.compact,
     required this.onTap,
   });
 
   final AppNavDestination destination;
-  final bool isSelected;
-  final bool stacked;
-  final bool dense;
+  final bool selected;
+  final bool compact;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final iconSize = stacked
-        ? (dense ? 17.0 : 18.0)
-        : (isSelected ? 19.0 : 18.0);
-    final labelColor = isSelected
+    final foreground = selected
         ? AppColors.textPrimary
-        : AppColors.textSecondary.withValues(alpha: stacked ? 0.88 : 0.8);
+        : AppColors.textSecondary.withValues(alpha: 0.76);
 
-    final icon = AnimatedScale(
-      scale: isSelected ? 1.12 : 1.0,
-      duration: const Duration(milliseconds: 320),
-      curve: Curves.easeOutBack,
-      child: HugeIcon(
-        icon: destination.icon,
-        size: iconSize,
-        color: isSelected
-            ? AppColors.primary
-            : AppColors.textSecondary.withValues(alpha: 0.8),
-        strokeWidth: isSelected ? 1.6 : 1.9,
-      ),
-    );
-
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 320),
-        curve: Curves.easeOutCubic,
-        constraints: BoxConstraints(
-          minHeight: stacked ? (dense ? 58 : 62) : 50,
-          minWidth: stacked ? 0 : 52,
-        ),
-        padding: EdgeInsets.symmetric(
-          horizontal: stacked ? (dense ? 4 : 6) : (isSelected ? 16 : 13),
-          vertical: stacked ? (dense ? 8 : 9) : 13,
-        ),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(stacked ? 20 : 26),
-          color: isSelected
-              ? AppColors.primary.withValues(alpha: 0.17)
-              : Colors.transparent,
-          border: Border.all(
-            color: isSelected
-                ? AppColors.primary.withValues(alpha: 0.32)
-                : Colors.transparent,
-            width: 1,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.22),
-                    blurRadius: 16,
-                    spreadRadius: -2,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
-        ),
-        child: stacked
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  icon,
-                  SizedBox(height: dense ? 5 : 6),
-                  Text(
-                    destination.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: dense ? 9 : 10,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w600,
-                      color: labelColor,
-                      height: 1.1,
-                      letterSpacing: dense ? -0.1 : 0,
-                    ),
-                  ),
-                ],
-              )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  icon,
-                  const SizedBox(width: 8),
-                  AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOutCubic,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w600,
-                      color: labelColor,
-                      letterSpacing: 0.1,
-                    ),
-                    child: Text(destination.label),
-                  ),
-                ],
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: destination.label,
+      child: Tooltip(
+        message: destination.label,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(25),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutCubic,
+            width: compact ? (selected ? 70 : 58) : (selected ? 88 : 72),
+            height: compact ? 56 : 60,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(25),
+              gradient: selected
+                  ? const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF3B4A5D), Color(0xFF273444)],
+                    )
+                  : null,
+              border: Border.all(
+                color: selected
+                    ? Colors.white.withValues(alpha: 0.12)
+                    : Colors.transparent,
               ),
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.28),
+                        blurRadius: 12,
+                        offset: const Offset(0, 5),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedScale(
+                  scale: selected ? 1.08 : 1,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutBack,
+                  child: HugeIcon(
+                    icon: destination.icon,
+                    size: selected ? 19 : 18,
+                    color: foreground,
+                    strokeWidth: selected ? 2 : 1.8,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  destination.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: compact ? 9 : 10,
+                    height: 1,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                    color: foreground,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
