@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_toast.dart';
 
 class AuthFooterLinks extends StatelessWidget {
@@ -14,24 +15,31 @@ class AuthFooterLinks extends StatelessWidget {
         alignment: WrapAlignment.center,
         crossAxisAlignment: WrapCrossAlignment.center,
         spacing: 8,
-        runSpacing: 4,
+        runSpacing: 8,
         children: [
-          _FooterLink(
+          AppButton(
             label: 'Terms & Conditions',
-            onTap: () => _showPlaceholder(context, 'Terms & Conditions'),
-            style: TextStyle(fontSize: 12, color: AppColors.textPrimary),
+            icon: HugeIcons.strokeRoundedCheckmarkCircle02,
+            size: AppButtonSize.sm,
+            variant: AppButtonVariant.ghost,
+            fullWidth: false,
+            onPressed: () => _showPlaceholder(context, 'Terms & Conditions'),
           ),
-          const Text('•', style: TextStyle(color: AppColors.textPrimary)),
-          _FooterLink(
+          AppButton(
             label: 'Privacy Policy',
-            onTap: () => _showPlaceholder(context, 'Privacy Policy'),
-            style: TextStyle(fontSize: 12, color: AppColors.textPrimary),
+            icon: HugeIcons.strokeRoundedUserCircle,
+            size: AppButtonSize.sm,
+            variant: AppButtonVariant.ghost,
+            fullWidth: false,
+            onPressed: () => _showPlaceholder(context, 'Privacy Policy'),
           ),
-          const Text('•', style: TextStyle(color: AppColors.textPrimary)),
-          _FooterLink(
+          AppButton(
             label: 'Contact Us',
-            onTap: () => _showPlaceholder(context, 'Contact Us'),
-            style: TextStyle(fontSize: 12, color: AppColors.textPrimary),
+            icon: HugeIcons.strokeRoundedMail01,
+            size: AppButtonSize.sm,
+            variant: AppButtonVariant.ghost,
+            fullWidth: false,
+            onPressed: () => _showPlaceholder(context, 'Contact Us'),
           ),
         ],
       ),
@@ -44,26 +52,6 @@ class AuthFooterLinks extends StatelessWidget {
       title: label,
       description:
           '$label content can be connected once those pages are ready.',
-    );
-  }
-}
-
-class _FooterLink extends StatelessWidget {
-  const _FooterLink({
-    required this.label,
-    required this.onTap,
-    required this.style,
-  });
-
-  final String label;
-  final VoidCallback onTap;
-  final TextStyle style;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: onTap,
-      child: Text(label, style: style),
     );
   }
 }
