@@ -84,12 +84,18 @@ class PersonalDetailsTab extends StatelessWidget {
               },
             ),
             const SizedBox(height: 20),
-            AppButton(
-              label: 'Save changes',
-              icon: HugeIcons.strokeRoundedFloppyDisk,
-              size: AppButtonSize.md,
-              isLoading: isSaving,
-              onPressed: canSave ? onSave : null,
+            Align(
+              alignment: Alignment.center,
+              child: SizedBox(
+                width: 240,
+                child: AppButton(
+                  label: 'Save changes',
+                  icon: HugeIcons.strokeRoundedFloppyDisk,
+                  size: AppButtonSize.md,
+                  isLoading: isSaving,
+                  onPressed: canSave ? onSave : null,
+                ),
+              ),
             ),
           ],
         ),
