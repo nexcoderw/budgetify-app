@@ -8,6 +8,7 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_input.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/glass_panel.dart';
 import '../../application/auth_service_contract.dart';
@@ -489,13 +490,39 @@ class _LoginFormState extends State<_LoginForm>
               opacity: _fadeAt(0.1, 0.65),
               child: SlideTransition(
                 position: _slideAt(0.1, 0.65),
-                child: _EmailField(
+                child: AppInput(
                   controller: _emailController,
                   focusNode: _emailFocusNode,
-                  hasText: _hasEmail,
-                  onClear: () {
-                    _emailController.clear();
-                    _emailFocusNode.requestFocus();
+                  hintText: 'Your email address',
+                  leadingIcon: HugeIcons.strokeRoundedMail01,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.done,
+                  autocorrect: false,
+                  borderRadius: 28,
+                  textStyle: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w400,
+                  ),
+                  suffixIcon: _hasEmail
+                      ? _ClearButton(
+                          onTap: () {
+                            _emailController.clear();
+                            _emailFocusNode.requestFocus();
+                          },
+                        )
+                      : null,
+                  validator: (value) {
+                    final email = value?.trim() ?? '';
+                    if (email.isEmpty) {
+                      return 'Please enter your email address';
+                    }
+                    if (!RegExp(
+                      r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                    ).hasMatch(email)) {
+                      return 'Please enter a valid email address';
+                    }
+                    return null;
                   },
                   onSubmitted: (_) => _submit(),
                 ),
@@ -559,138 +586,6 @@ class _LoginFormState extends State<_LoginForm>
               ),
             ],
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Email input field ────────────────────────────────────────────────────────
-
-class _EmailField extends StatefulWidget {
-  const _EmailField({
-    required this.controller,
-    required this.focusNode,
-    required this.hasText,
-    required this.onClear,
-    required this.onSubmitted,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final bool hasText;
-  final VoidCallback onClear;
-  final ValueChanged<String> onSubmitted;
-
-  @override
-  State<_EmailField> createState() => _EmailFieldState();
-}
-
-class _EmailFieldState extends State<_EmailField> {
-  bool _isFocused = false;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.focusNode.addListener(_onFocusChange);
-  }
-
-  @override
-  void dispose() {
-    widget.focusNode.removeListener(_onFocusChange);
-    super.dispose();
-  }
-
-  void _onFocusChange() {
-    setState(() => _isFocused = widget.focusNode.hasFocus);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOutCubic,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: _isFocused
-            ? [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.18),
-                  blurRadius: 16,
-                  spreadRadius: 0,
-                ),
-              ]
-            : [],
-      ),
-      child: TextFormField(
-        controller: widget.controller,
-        focusNode: widget.focusNode,
-        keyboardType: TextInputType.emailAddress,
-        textInputAction: TextInputAction.done,
-        autocorrect: false,
-        onFieldSubmitted: widget.onSubmitted,
-        style: const TextStyle(
-          fontSize: 14,
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w400,
-        ),
-        validator: (value) {
-          final v = value?.trim() ?? '';
-          if (v.isEmpty) return 'Please enter your email address';
-          if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v)) {
-            return 'Please enter a valid email address';
-          }
-          return null;
-        },
-        decoration: InputDecoration(
-          hintText: 'Your email address',
-          hintStyle: const TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 14,
-          ),
-          prefixIcon: Padding(
-            padding: const EdgeInsets.only(left: 18, right: 12),
-            child: HugeIcon(
-              icon: HugeIcons.strokeRoundedMail01,
-              size: 18,
-              color: _isFocused ? AppColors.primary : AppColors.textSecondary,
-              strokeWidth: 1.8,
-            ),
-          ),
-          prefixIconConstraints: const BoxConstraints(
-            minWidth: 0,
-            minHeight: 0,
-          ),
-          suffixIcon: widget.hasText
-              ? _ClearButton(onTap: widget.onClear)
-              : null,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 17,
-          ),
-          filled: true,
-          fillColor: AppColors.surfaceElevated,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(28),
-            borderSide: const BorderSide(color: AppColors.border),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(28),
-            borderSide: const BorderSide(color: AppColors.border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(28),
-            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(28),
-            borderSide: const BorderSide(color: AppColors.danger, width: 1.2),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(28),
-            borderSide: const BorderSide(color: AppColors.danger, width: 1.5),
-          ),
-          errorStyle: const TextStyle(fontSize: 11, color: AppColors.danger),
         ),
       ),
     );
