@@ -8,15 +8,15 @@ class AppNavbar extends StatelessWidget {
   const AppNavbar({
     super.key,
     required this.user,
-    required this.onProfileTap,
     this.onMenuTap,
     this.onNotificationTap,
+    this.onAvatarTap,
   });
 
   final AuthUser user;
-  final VoidCallback onProfileTap;
   final VoidCallback? onMenuTap;
   final VoidCallback? onNotificationTap;
+  final VoidCallback? onAvatarTap;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +34,7 @@ class AppNavbar extends StatelessWidget {
           onTap: onNotificationTap,
         ),
         const SizedBox(width: 10),
-        _UserAvatar(user: user, onTap: onProfileTap),
+        _UserAvatar(user: user, onTap: onAvatarTap),
       ],
     );
   }
@@ -62,16 +62,14 @@ class _NavbarAction extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(18),
+            customBorder: const CircleBorder(),
             child: Ink(
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
+                shape: BoxShape.circle,
                 color: const Color(0xFF111923).withValues(alpha: 0.9),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.1),
-                ),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
               ),
               child: Center(
                 child: HugeIcon(
@@ -93,7 +91,7 @@ class _UserAvatar extends StatelessWidget {
   const _UserAvatar({required this.user, required this.onTap});
 
   final AuthUser user;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
