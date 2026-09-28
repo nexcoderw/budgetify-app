@@ -15,6 +15,7 @@ class AppLayout extends StatelessWidget {
     required this.currentSection,
     required this.child,
     required this.onSectionSelected,
+    required this.onAvatarTap,
     this.scrollChild = true,
   });
 
@@ -22,6 +23,7 @@ class AppLayout extends StatelessWidget {
   final AppLayoutSection currentSection;
   final Widget child;
   final ValueChanged<AppLayoutSection> onSectionSelected;
+  final VoidCallback onAvatarTap;
   final bool scrollChild;
 
   @override
@@ -58,6 +60,7 @@ class AppLayout extends StatelessWidget {
                 children: [
                   AppNavbar(
                     user: user,
+                    onAvatarTap: onAvatarTap,
                   ),
 
                   SizedBox(
