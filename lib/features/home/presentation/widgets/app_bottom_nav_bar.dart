@@ -81,9 +81,9 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
 
     final controller = _pressControllers[section];
     if (controller != null) {
-      controller
-          .forward()
-          .then((_) => controller.animateBack(0, curve: Curves.easeOutBack));
+      controller.forward().then(
+        (_) => controller.animateBack(0, curve: Curves.easeOutBack),
+      );
     }
 
     widget.onSectionSelected(section);
@@ -91,15 +91,10 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
 
   @override
   Widget build(BuildContext context) {
-    final isCompact = MediaQuery.sizeOf(context).width < 760;
     final content = Row(
+      mainAxisSize: MainAxisSize.min,
       children: widget.destinations
-          .map(
-            (destination) => _buildAnimatedItem(
-              destination,
-              compact: isCompact,
-            ),
-          )
+          .map((destination) => _buildAnimatedItem(destination))
           .toList(growable: false),
     );
 
@@ -107,11 +102,9 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
       label: 'Primary navigation',
       child: Center(
         child: Container(
-          width: double.infinity,
-          constraints: const BoxConstraints(maxWidth: 380),
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+          padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(999),
             color: const Color(0xFF101925).withValues(alpha: 0.97),
             border: Border.all(
               color: const Color(0xFF31506E).withValues(alpha: 0.58),
@@ -135,13 +128,11 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
     );
   }
 
-  Widget _buildAnimatedItem(
-    AppNavDestination destination, {
-    required bool compact,
-  }) {
+  Widget _buildAnimatedItem(AppNavDestination destination) {
     final controller = _pressControllers[destination.section]!;
 
-    return Expanded(
+    return SizedBox(
+      width: 88,
       child: AnimatedBuilder(
         animation: controller,
         builder: (context, child) {
@@ -153,7 +144,6 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
         child: _NavigationItem(
           destination: destination,
           selected: destination.section == widget.currentSection,
-          compact: compact,
           onTap: () => _handleTap(destination.section),
         ),
       ),
@@ -165,13 +155,11 @@ class _NavigationItem extends StatelessWidget {
   const _NavigationItem({
     required this.destination,
     required this.selected,
-    required this.compact,
     required this.onTap,
   });
 
   final AppNavDestination destination;
   final bool selected;
-  final bool compact;
   final VoidCallback onTap;
 
   @override
@@ -188,14 +176,14 @@ class _NavigationItem extends StatelessWidget {
         message: destination.label,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(25),
+          borderRadius: BorderRadius.circular(999),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 260),
             curve: Curves.easeOutCubic,
-            height: compact ? 58 : 62,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            height: 52,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(25),
+              borderRadius: BorderRadius.circular(999),
               gradient: selected
                   ? const LinearGradient(
                       begin: Alignment.topLeft,
@@ -240,7 +228,7 @@ class _NavigationItem extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: compact ? 9 : 10,
+                    fontSize: 9,
                     height: 1,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                     color: foreground,
