@@ -27,56 +27,60 @@ class AppLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
+
     final isCompact = size.width < 760;
+    final isLarge = size.width >= 1200;
 
     return Scaffold(
-      body: DecoratedBox(
-        decoration: const _AppBackgroundDecoration(),
-        child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1320),
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  isCompact ? 16 : 24,
-                  18,
-                  isCompact ? 16 : 24,
-                  isCompact ? 6 : 8,
-                ),
-                child: Column(
-                  children: [
-                    AppNavbar(user: user),
-                    SizedBox(height: isCompact ? 18 : 24),
-                    Expanded(
-                      child: scrollChild
-                          ? Align(
-                              alignment: Alignment.topCenter,
-                              child: SingleChildScrollView(
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 1040,
-                                  ),
-                                  child: child,
-                                ),
-                              ),
-                            )
-                          : Center(
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 1040,
-                                ),
-                                child: child,
-                              ),
-                            ),
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: 1320,
+            ),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                isCompact
+                    ? 16
+                    : isLarge
+                        ? 32
+                        : 24,
+                isCompact ? 14 : 20,
+                isCompact
+                    ? 16
+                    : isLarge
+                        ? 32
+                        : 24,
+                isCompact ? 8 : 12,
+              ),
+              child: Column(
+                children: [
+                  AppNavbar(
+                    user: user,
+                  ),
+
+                  SizedBox(
+                    height: isCompact ? 20 : 28,
+                  ),
+
+                  Expanded(
+                    child: _AppContent(
+                      scrollChild: scrollChild,
+                      child: child,
                     ),
-                    SizedBox(height: isCompact ? 14 : 20),
-                    AppBottomNavBar(
-                      currentSection: currentSection,
-                      destinations: bottomAppNavDestinations,
-                      onSectionSelected: onSectionSelected,
-                    ),
-                  ],
-                ),
+                  ),
+
+                  SizedBox(
+                    height: isCompact ? 16 : 22,
+                  ),
+
+                  AppBottomNavBar(
+                    currentSection: currentSection,
+                    destinations: bottomAppNavDestinations,
+                    onSectionSelected: onSectionSelected,
+                  ),
+                ],
               ),
             ),
           ),
@@ -86,41 +90,39 @@ class AppLayout extends StatelessWidget {
   }
 }
 
-class _AppBackgroundDecoration extends Decoration {
-  const _AppBackgroundDecoration();
+class _AppContent extends StatelessWidget {
+  const _AppContent({
+    required this.scrollChild,
+    required this.child,
+  });
+
+  final bool scrollChild;
+  final Widget child;
 
   @override
-  BoxPainter createBoxPainter([VoidCallback? onChanged]) {
-    return _AppBackgroundPainter();
-  }
-}
+  Widget build(BuildContext context) {
+    const constraints = BoxConstraints(
+      maxWidth: 1040,
+    );
 
-class _AppBackgroundPainter extends BoxPainter {
-  @override
-  void paint(Canvas canvas, Offset offset, ImageConfiguration configuration) {
-    final size = configuration.size;
-    if (size == null) {
-      return;
+    if (!scrollChild) {
+      return Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: constraints,
+          child: child,
+        ),
+      );
     }
 
-    final rect = offset & size;
-    final paint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [AppColors.background, Color(0xFF0E131A), Color(0xFF161E28)],
-      ).createShader(rect);
-    canvas.drawRect(rect, paint);
-
-    canvas.drawCircle(
-      Offset(offset.dx + size.width * 0.16, offset.dy + size.height * 0.18),
-      size.shortestSide * 0.18,
-      Paint()..color = AppColors.primary.withValues(alpha: 0.08),
-    );
-    canvas.drawCircle(
-      Offset(offset.dx + size.width * 0.86, offset.dy + size.height * 0.76),
-      size.shortestSide * 0.24,
-      Paint()..color = Colors.white.withValues(alpha: 0.04),
+    return SingleChildScrollView(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: constraints,
+          child: child,
+        ),
+      ),
     );
   }
 }
