@@ -62,27 +62,32 @@ class DeviceContactsService {
       withPhoto: false,
     );
     final results = <DeviceContact>[];
-    final seenNumbers = <String>{};
+    final seenContactNumbers = <String>{};
 
-    for (final contact in contacts) {
+    for (var contactIndex = 0; contactIndex < contacts.length; contactIndex++) {
+      final contact = contacts[contactIndex];
       final displayName = contact.displayName.trim();
       final resolvedName = displayName.isEmpty
           ? 'Unknown contact'
           : displayName;
+      final contactIdentity = contact.id.isEmpty
+          ? 'contact-$contactIndex'
+          : contact.id;
 
       for (var index = 0; index < contact.phones.length; index++) {
         final phoneNumber = contact.phones[index].number.trim();
         final normalizedNumber = phoneNumber.replaceAll(RegExp(r'\D'), '');
+        final contactNumberKey = '$contactIdentity:$normalizedNumber';
 
         if (phoneNumber.isEmpty ||
             normalizedNumber.isEmpty ||
-            !seenNumbers.add(normalizedNumber)) {
+            !seenContactNumbers.add(contactNumberKey)) {
           continue;
         }
 
         results.add(
           DeviceContact(
-            id: '${contact.id.isEmpty ? 'contact-${results.length}' : contact.id}-$index',
+            id: '$contactIdentity-$index',
             name: resolvedName,
             phoneNumber: phoneNumber,
           ),
