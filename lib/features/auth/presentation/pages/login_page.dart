@@ -174,11 +174,21 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  Future<void> _submitEmail(String email) async {
+  Future<bool> _checkPasswordStatus(String email) async {
+    final status = await widget.authService.getPasswordStatus(email);
+    return status.hasPassword;
+  }
+
+  Future<void> _startPasswordSetup(
+    String email, {
+    required bool isRecovery,
+  }) async {
     setState(() => _isEmailSubmitting = true);
 
     try {
-      final response = await widget.authService.initiateEmailAuth(email);
+      final challenge = await widget.authService.requestPasswordChallenge(
+        email,
+      );
 
       if (!mounted) return;
 
@@ -187,7 +197,8 @@ class _LoginPageState extends State<LoginPage> {
           pageBuilder: (context, animation, secondaryAnimation) => EmailOtpPage(
             authService: widget.authService,
             email: email,
-            initiateResponse: response,
+            challenge: challenge,
+            isRecovery: isRecovery,
           ),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             final curved = CurvedAnimation(
@@ -211,7 +222,50 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) {
         AppToast.error(
           context,
-          title: 'Could not send code',
+          title: 'Could not verify email',
+          description: _readableError(error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isEmailSubmitting = false);
+    }
+  }
+
+  Future<void> _submitPassword(String email, String password) async {
+    setState(() => _isEmailSubmitting = true);
+
+    try {
+      final session = await widget.authService.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
+      if (!mounted) return;
+
+      final resolvedUser = await ProfileCompletionDialog.showIfRequired(
+        context,
+        authService: widget.authService,
+        user: session.user,
+      );
+
+      if (!mounted) return;
+
+      AppToast.success(
+        context,
+        title: 'Signed in successfully',
+        description: 'Welcome, ${resolvedUser.fullName ?? resolvedUser.email}.',
+      );
+
+      await openPostAuthDestination(
+        context: context,
+        authService: widget.authService,
+        user: resolvedUser,
+      );
+    } catch (error) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          title: 'Sign-in failed',
           description: _readableError(error),
         );
       }
@@ -230,7 +284,9 @@ class _LoginPageState extends State<LoginPage> {
       child: _LoginForm(
         isEmailSubmitting: _isEmailSubmitting,
         isGoogleSubmitting: _isSubmitting,
-        onEmailSubmit: _submitEmail,
+        onCheckPasswordStatus: _checkPasswordStatus,
+        onPasswordSubmit: _submitPassword,
+        onStartPasswordSetup: _startPasswordSetup,
         onGoogleSubmit: kIsWeb ? null : _submit,
       ),
     );
@@ -346,13 +402,18 @@ class _LoginForm extends StatefulWidget {
   const _LoginForm({
     required this.isEmailSubmitting,
     required this.isGoogleSubmitting,
-    required this.onEmailSubmit,
+    required this.onCheckPasswordStatus,
+    required this.onPasswordSubmit,
+    required this.onStartPasswordSetup,
     required this.onGoogleSubmit,
   });
 
   final bool isEmailSubmitting;
   final bool isGoogleSubmitting;
-  final Future<void> Function(String email) onEmailSubmit;
+  final Future<bool> Function(String email) onCheckPasswordStatus;
+  final Future<void> Function(String email, String password) onPasswordSubmit;
+  final Future<void> Function(String email, {required bool isRecovery})
+  onStartPasswordSetup;
 
   /// Null on web — Google sign-in is triggered by the rendered button widget.
   final Future<void> Function()? onGoogleSubmit;
@@ -365,9 +426,15 @@ class _LoginFormState extends State<_LoginForm>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
   late final AnimationController _entranceController;
+  Timer? _emailCheckTimer;
   bool _hasEmail = false;
+  bool? _hasPassword;
+  bool _isCheckingEmail = false;
+  bool _obscurePassword = true;
 
   bool get _showsGoogleSignIn =>
       kIsWeb || defaultTargetPlatform != TargetPlatform.iOS;
@@ -380,18 +447,17 @@ class _LoginFormState extends State<_LoginForm>
       duration: const Duration(milliseconds: 900),
     )..forward();
 
-    _emailController.addListener(() {
-      final hasText = _emailController.text.isNotEmpty;
-      if (hasText != _hasEmail) {
-        setState(() => _hasEmail = hasText);
-      }
-    });
+    _emailController.addListener(_handleEmailChanged);
   }
 
   @override
   void dispose() {
+    _emailCheckTimer?.cancel();
+    _emailController.removeListener(_handleEmailChanged);
     _emailController.dispose();
+    _passwordController.dispose();
     _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
     _entranceController.dispose();
     super.dispose();
   }
@@ -409,9 +475,81 @@ class _LoginFormState extends State<_LoginForm>
         ),
       );
 
-  void _submit() {
+  bool get _hasValidEmail => RegExp(
+    r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+  ).hasMatch(_emailController.text.trim());
+
+  void _handleEmailChanged() {
+    final hasText = _emailController.text.isNotEmpty;
+    _emailCheckTimer?.cancel();
+
+    setState(() {
+      _hasEmail = hasText;
+      _hasPassword = null;
+      _passwordController.clear();
+    });
+
+    if (!_hasValidEmail) return;
+
+    final checkedEmail = _emailController.text.trim();
+    _emailCheckTimer = Timer(const Duration(milliseconds: 500), () {
+      unawaited(_checkEmailInBackground(checkedEmail));
+    });
+  }
+
+  Future<void> _checkEmailInBackground(String email) async {
+    if (mounted) setState(() => _isCheckingEmail = true);
+
+    try {
+      final hasPassword = await widget.onCheckPasswordStatus(email);
+
+      if (!mounted || email != _emailController.text.trim()) return;
+      setState(() => _hasPassword = hasPassword);
+    } catch (_) {
+      // A foreground submit reports connection errors to the user.
+    } finally {
+      if (mounted && email == _emailController.text.trim()) {
+        setState(() => _isCheckingEmail = false);
+      }
+    }
+  }
+
+  Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    unawaited(widget.onEmailSubmit(_emailController.text.trim()));
+
+    final email = _emailController.text.trim();
+    var hasPassword = _hasPassword;
+
+    if (hasPassword == null) {
+      setState(() => _isCheckingEmail = true);
+      try {
+        hasPassword = await widget.onCheckPasswordStatus(email);
+        if (!mounted) return;
+        setState(() => _hasPassword = hasPassword);
+      } catch (error) {
+        if (mounted) {
+          AppToast.error(
+            context,
+            title: 'Could not check account',
+            description: error.toString(),
+          );
+        }
+        return;
+      } finally {
+        if (mounted) setState(() => _isCheckingEmail = false);
+      }
+    }
+
+    if (hasPassword == true) {
+      if (_passwordController.text.isEmpty) {
+        _passwordFocusNode.requestFocus();
+        return;
+      }
+      await widget.onPasswordSubmit(email, _passwordController.text);
+      return;
+    }
+
+    await widget.onStartPasswordSetup(email, isRecovery: false);
   }
 
   @override
@@ -420,8 +558,14 @@ class _LoginFormState extends State<_LoginForm>
     final horizontalPadding = isCompact ? 0.0 : 12.0;
     final titleSize = isCompact ? 22.0 : 24.0;
     final subtitle = _showsGoogleSignIn
-        ? 'Enter your email to receive a one-time code, or continue with Google.'
-        : 'Enter your email to receive a one-time code and continue securely.';
+        ? 'Use your email and password, or continue with Google.'
+        : 'Use your email and password to continue securely.';
+    final showsPassword = _hasPassword == true;
+    final buttonLabel = _hasPassword == false
+        ? 'Set up password'
+        : showsPassword
+        ? 'Sign in'
+        : 'Continue';
 
     return Padding(
       key: const ValueKey('login-form'),
@@ -476,7 +620,9 @@ class _LoginFormState extends State<_LoginForm>
                   hintText: 'Your email address',
                   leadingIcon: HugeIcons.strokeRoundedMail01,
                   keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.done,
+                  textInputAction: showsPassword
+                      ? TextInputAction.next
+                      : TextInputAction.done,
                   autocorrect: false,
                   borderRadius: 28,
                   textStyle: const TextStyle(
@@ -504,9 +650,83 @@ class _LoginFormState extends State<_LoginForm>
                     }
                     return null;
                   },
-                  onSubmitted: (_) => _submit(),
+                  onSubmitted: (_) {
+                    if (showsPassword) {
+                      _passwordFocusNode.requestFocus();
+                    } else {
+                      unawaited(_submit());
+                    }
+                  },
                 ),
               ),
+            ),
+
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: showsPassword
+                  ? Padding(
+                      key: const ValueKey('password-field'),
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          AppInput(
+                            controller: _passwordController,
+                            focusNode: _passwordFocusNode,
+                            hintText: 'Your password',
+                            leadingIcon: HugeIcons.strokeRoundedCirclePassword,
+                            obscureText: _obscurePassword,
+                            enableSuggestions: false,
+                            autocorrect: false,
+                            autofillHints: const [AutofillHints.password],
+                            maxLength: 128,
+                            textInputAction: TextInputAction.done,
+                            borderRadius: 28,
+                            suffixIcon: IconButton(
+                              onPressed: () {
+                                setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                );
+                              },
+                              tooltip: _obscurePassword
+                                  ? 'Show password'
+                                  : 'Hide password',
+                              icon: HugeIcon(
+                                icon: _obscurePassword
+                                    ? HugeIcons.strokeRoundedView
+                                    : HugeIcons.strokeRoundedViewOff,
+                                size: 18,
+                                color: AppColors.textSecondary,
+                                strokeWidth: 1.8,
+                              ),
+                            ),
+                            validator: (value) {
+                              if (_hasPassword == true &&
+                                  (value?.isEmpty ?? true)) {
+                                return 'Please enter your password';
+                              }
+                              return null;
+                            },
+                            onSubmitted: (_) => unawaited(_submit()),
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: widget.isEmailSubmitting
+                                  ? null
+                                  : () => unawaited(
+                                      widget.onStartPasswordSetup(
+                                        _emailController.text.trim(),
+                                        isRecovery: true,
+                                      ),
+                                    ),
+                              child: const Text('Forgot password?'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(key: ValueKey('no-password-field')),
             ),
 
             const SizedBox(height: 12),
@@ -517,11 +737,11 @@ class _LoginFormState extends State<_LoginForm>
               child: SlideTransition(
                 position: _slideAt(0.2, 0.75),
                 child: AppButton(
-                  label: 'Continue with email',
-                  isLoading: widget.isEmailSubmitting,
+                  label: buttonLabel,
+                  isLoading: widget.isEmailSubmitting || _isCheckingEmail,
                   size: AppButtonSize.md,
                   icon: HugeIcons.strokeRoundedSent,
-                  onPressed: _submit,
+                  onPressed: () => unawaited(_submit()),
                 ),
               ),
             ),
