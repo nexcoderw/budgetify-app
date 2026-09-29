@@ -8,7 +8,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_input.dart';
 import '../../../../core/widgets/app_toast.dart';
-import '../../../../core/widgets/glass_panel.dart';
 import '../../application/auth_service_contract.dart';
 import '../../data/models/email_initiate_response.dart';
 import '../auth_post_auth_navigation.dart';
@@ -36,6 +35,7 @@ class _EmailOtpPageState extends State<EmailOtpPage> {
   bool _isResending = false;
   String _currentOtp = '';
   int _resendCountdown = 60;
+  int _otpGeneration = 0;
   Timer? _resendTimer;
 
   @override
@@ -129,6 +129,10 @@ class _EmailOtpPageState extends State<EmailOtpPage> {
             'A new code was sent to ${widget.initiateResponse.maskedEmail}.',
       );
 
+      setState(() {
+        _currentOtp = '';
+        _otpGeneration++;
+      });
       _startResendTimer();
     } catch (error) {
       if (mounted) {
@@ -157,10 +161,13 @@ class _EmailOtpPageState extends State<EmailOtpPage> {
   @override
   Widget build(BuildContext context) {
     return AuthLayout(
+      headerTrailing: _resendCountdown > 0
+          ? _OtpCountdown(
+              seconds: _resendCountdown,
+            )
+          : null,
       child: _OtpForm(
-        email: widget.email,
-        maskedEmail: widget.initiateResponse.maskedEmail,
-        isRegister: widget.initiateResponse.isRegister,
+        otpGeneration: _otpGeneration,
         isCodeComplete: _currentOtp.length == 6,
         isVerifying: _isVerifying,
         isResending: _isResending,
@@ -173,13 +180,37 @@ class _EmailOtpPageState extends State<EmailOtpPage> {
   }
 }
 
-// ── OTP form panel ───────────────────────────────────────────────────────────
+class _OtpCountdown extends StatelessWidget {
+  const _OtpCountdown({
+    required this.seconds,
+  });
 
-class _OtpForm extends StatefulWidget {
+  final int seconds;
+
+  @override
+  Widget build(BuildContext context) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    final value = '${minutes.toString().padLeft(2, '0')}:'
+        '${remainingSeconds.toString().padLeft(2, '0')}';
+
+    return Semantics(
+      label: '$seconds seconds remaining',
+      child: Text(
+        value,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+class _OtpForm extends StatelessWidget {
   const _OtpForm({
-    required this.email,
-    required this.maskedEmail,
-    required this.isRegister,
+    required this.otpGeneration,
     required this.isCodeComplete,
     required this.isVerifying,
     required this.isResending,
@@ -189,9 +220,7 @@ class _OtpForm extends StatefulWidget {
     required this.onResend,
   });
 
-  final String email;
-  final String maskedEmail;
-  final bool isRegister;
+  final int otpGeneration;
   final bool isCodeComplete;
   final bool isVerifying;
   final bool isResending;
@@ -201,210 +230,82 @@ class _OtpForm extends StatefulWidget {
   final VoidCallback onResend;
 
   @override
-  State<_OtpForm> createState() => _OtpFormState();
-}
-
-class _OtpFormState extends State<_OtpForm>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _entranceController;
-
-  @override
-  void initState() {
-    super.initState();
-    _entranceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 860),
-    )..forward();
-  }
-
-  @override
-  void dispose() {
-    _entranceController.dispose();
-    super.dispose();
-  }
-
-  Animation<double> _fadeAt(double start, double end) => CurvedAnimation(
-    parent: _entranceController,
-    curve: Interval(start, end, curve: Curves.easeOutCubic),
-  );
-
-  Animation<Offset> _slideAt(double start, double end) =>
-      Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
-        CurvedAnimation(
-          parent: _entranceController,
-          curve: Interval(start, end, curve: Curves.easeOutCubic),
-        ),
-      );
-
-  @override
   Widget build(BuildContext context) {
     final isCompact = MediaQuery.sizeOf(context).width < 420;
-    final panelPadding = isCompact ? 18.0 : 26.0;
     final titleSize = isCompact ? 22.0 : 25.0;
+    final hasActiveCode = resendCountdown > 0;
 
-    return GlassPanel(
-      padding: EdgeInsets.all(panelPadding),
-      borderRadius: BorderRadius.circular(30),
-      blur: 24,
-      opacity: 0.14,
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: isCompact ? 0 : 12,
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          FadeTransition(
-            opacity: _fadeAt(0.0, 0.5),
-            child: SlideTransition(
-              position: _slideAt(0.0, 0.5),
-              child: const _BackButton(),
+          Text(
+            'OTP verification',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              fontSize: titleSize,
+              color: AppColors.textPrimary,
             ),
           ),
-          SizedBox(height: isCompact ? 18 : 24),
-          FadeTransition(
-            opacity: _fadeAt(0.08, 0.58),
-            child: SlideTransition(
-              position: _slideAt(0.08, 0.58),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.25),
-                      ),
-                    ),
-                    child: const Center(
-                      child: HugeIcon(
-                        icon: HugeIcons.strokeRoundedMail01,
-                        size: 24,
-                        color: AppColors.primary,
-                        strokeWidth: 1.8,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.isRegister
-                              ? 'Verify your email'
-                              : 'Welcome back',
-                          style: Theme.of(context).textTheme.headlineMedium
-                              ?.copyWith(
-                                fontSize: titleSize,
-                                color: AppColors.textPrimary,
-                              ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          'Enter the six-digit code we sent you.',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
-                            height: 1.45,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          SizedBox(
+            height: isCompact ? 24 : 30,
           ),
-          const SizedBox(height: 20),
-          FadeTransition(
-            opacity: _fadeAt(0.14, 0.64),
-            child: SlideTransition(
-              position: _slideAt(0.14, 0.64),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 13,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.045),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.08),
+          _OtpFieldsRow(
+            key: ValueKey<int>(otpGeneration),
+            onChanged: onOtpChanged,
+          ),
+          const SizedBox(height: 22),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: hasActiveCode
+                ? AppButton(
+                    key: const ValueKey('verify-otp'),
+                    label: 'Verify & sign in',
+                    isLoading: isVerifying,
+                    size: AppButtonSize.md,
+                    icon: HugeIcons.strokeRoundedCheckmarkCircle02,
+                    onPressed: isCodeComplete ? onVerify : null,
+                  )
+                : AppButton(
+                    key: const ValueKey('resend-otp'),
+                    label: 'Resend code',
+                    isLoading: isResending,
+                    size: AppButtonSize.md,
+                    icon: HugeIcons.strokeRoundedReload,
+                    onPressed: isResending ? null : onResend,
+                  ),
+          ),
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.center,
+            child: Semantics(
+              button: true,
+              label: 'Go back to login',
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.textSecondary,
+                  minimumSize: const Size(44, 44),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
                   ),
                 ),
-                child: Row(
-                  children: [
-                    const HugeIcon(
-                      icon: HugeIcons.strokeRoundedMail01,
-                      size: 18,
-                      color: AppColors.primary,
-                      strokeWidth: 1.8,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        widget.maskedEmail,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: 'DMSans',
-                        ),
-                      ),
-                    ),
-                    const Text(
-                      '6 digits',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'DMSans',
-                      ),
-                    ),
-                  ],
+                child: const Text(
+                  'Go back to login',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    decoration: TextDecoration.underline,
+                    decorationColor: AppColors.textSecondary,
+                  ),
                 ),
-              ),
-            ),
-          ),
-          SizedBox(height: isCompact ? 22 : 28),
-          FadeTransition(
-            opacity: _fadeAt(0.18, 0.68),
-            child: SlideTransition(
-              position: _slideAt(0.18, 0.68),
-              child: _OtpFieldsRow(
-                onChanged: widget.onOtpChanged,
-                isCodeComplete: widget.isCodeComplete,
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          FadeTransition(
-            opacity: _fadeAt(0.28, 0.78),
-            child: SlideTransition(
-              position: _slideAt(0.28, 0.78),
-              child: AppButton(
-                label: widget.isRegister
-                    ? 'Verify & create account'
-                    : 'Verify & sign in',
-                isLoading: widget.isVerifying,
-                size: AppButtonSize.md,
-                icon: HugeIcons.strokeRoundedCheckmarkCircle02,
-                onPressed: widget.isCodeComplete ? widget.onVerify : null,
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          FadeTransition(
-            opacity: _fadeAt(0.38, 0.9),
-            child: SlideTransition(
-              position: _slideAt(0.38, 0.9),
-              child: _ResendRow(
-                countdown: widget.resendCountdown,
-                isResending: widget.isResending,
-                onResend: widget.onResend,
               ),
             ),
           ),
@@ -414,31 +315,15 @@ class _OtpFormState extends State<_OtpForm>
   }
 }
 
-// ── Back button ──────────────────────────────────────────────────────────────
-
-class _BackButton extends StatelessWidget {
-  const _BackButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return AppButton(
-      label: 'Back',
-      icon: HugeIcons.strokeRoundedArrowLeft01,
-      size: AppButtonSize.sm,
-      variant: AppButtonVariant.ghost,
-      fullWidth: false,
-      onPressed: () => Navigator.of(context).pop(),
-    );
-  }
-}
-
 // ── OTP input row ────────────────────────────────────────────────────────────
 
 class _OtpFieldsRow extends StatefulWidget {
-  const _OtpFieldsRow({required this.onChanged, required this.isCodeComplete});
+  const _OtpFieldsRow({
+    super.key,
+    required this.onChanged,
+  });
 
   final ValueChanged<String> onChanged;
-  final bool isCodeComplete;
 
   @override
   State<_OtpFieldsRow> createState() => _OtpFieldsRowState();
@@ -519,37 +404,7 @@ class _OtpFieldsRowState extends State<_OtpFieldsRow> {
     final activeIndex = _code.length >= 6 ? 5 : _code.length;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              'Verification code',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontSize: 13,
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const Spacer(),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 160),
-              child: Text(
-                widget.isCodeComplete ? 'Ready' : 'Paste supported',
-                key: ValueKey<bool>(widget.isCodeComplete),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: widget.isCodeComplete
-                      ? AppColors.success
-                      : AppColors.textSecondary,
-                  fontWeight: FontWeight.w500,
-                  fontFamily: 'DMSans',
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: _focusInput,
@@ -573,20 +428,6 @@ class _OtpFieldsRowState extends State<_OtpFieldsRow> {
                 ),
               );
             }),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          widget.isCodeComplete
-              ? 'Code complete. You can continue.'
-              : 'Type or paste the code from your email.',
-          style: TextStyle(
-            fontSize: 11,
-            color: widget.isCodeComplete
-                ? AppColors.success.withValues(alpha: 0.94)
-                : AppColors.textSecondary,
-            fontFamily: 'DMSans',
-            height: 1.45,
           ),
         ),
         SizedBox(
@@ -630,43 +471,17 @@ class _OtpDigitCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = isActive
-        ? AppColors.primary
-        : isFilled
-        ? AppColors.primary.withValues(alpha: 0.42)
-        : AppColors.border;
-
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOutCubic,
       height: height,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            isActive
-                ? AppColors.primary.withValues(alpha: 0.16)
-                : isFilled
-                ? Colors.white.withValues(alpha: 0.07)
+        color: isActive
+            ? AppColors.primary.withValues(alpha: 0.16)
+            : isFilled
+                ? AppColors.surface
                 : AppColors.surfaceElevated,
-            isActive ? Colors.white.withValues(alpha: 0.08) : AppColors.surface,
-          ],
-        ),
-        border: Border.all(color: borderColor, width: isActive ? 1.6 : 1.0),
-        boxShadow: [
-          if (isActive)
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.18),
-              blurRadius: 18,
-            )
-          else if (isFilled)
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.18),
-              blurRadius: 10,
-            ),
-        ],
       ),
       child: Center(
         child: AnimatedSwitcher(
@@ -705,61 +520,6 @@ class _OtpDigitCell extends StatelessWidget {
                   ),
                 ),
         ),
-      ),
-    );
-  }
-}
-
-// ── Resend row ───────────────────────────────────────────────────────────────
-
-class _ResendRow extends StatelessWidget {
-  const _ResendRow({
-    required this.countdown,
-    required this.isResending,
-    required this.onResend,
-  });
-
-  final int countdown;
-  final bool isResending;
-  final VoidCallback onResend;
-
-  @override
-  Widget build(BuildContext context) {
-    final canResend = countdown == 0;
-
-    return Center(
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 4,
-        children: [
-          Text(
-            "Didn't receive the code?",
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          if (!canResend)
-            Text(
-              'Resend in ${countdown}s',
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-                fontFamily: 'DMSans',
-              ),
-            )
-          else
-            AppButton(
-              label: 'Resend code',
-              icon: HugeIcons.strokeRoundedReload,
-              size: AppButtonSize.sm,
-              variant: AppButtonVariant.ghost,
-              isLoading: isResending,
-              fullWidth: false,
-              onPressed: onResend,
-            ),
-        ],
       ),
     );
   }

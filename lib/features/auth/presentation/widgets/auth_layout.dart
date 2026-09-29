@@ -4,9 +4,14 @@ import '../../../../core/theme/app_colors.dart';
 import 'auth_footer_links.dart';
 
 class AuthLayout extends StatelessWidget {
-  const AuthLayout({super.key, required this.child});
+  const AuthLayout({
+    super.key,
+    required this.child,
+    this.headerTrailing,
+  });
 
   final Widget child;
+  final Widget? headerTrailing;
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +36,9 @@ class AuthLayout extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
                 child: Column(
                   children: [
-                    const _AuthHeader(),
+                    _AuthHeader(
+                      trailing: headerTrailing,
+                    ),
                     const SizedBox(height: 24),
                     Expanded(
                       child: SingleChildScrollView(
@@ -80,7 +87,11 @@ class AuthLayout extends StatelessWidget {
 }
 
 class _AuthHeader extends StatelessWidget {
-  const _AuthHeader();
+  const _AuthHeader({
+    this.trailing,
+  });
+
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -114,6 +125,10 @@ class _AuthHeader extends StatelessWidget {
             ),
           ),
         ),
+        if (trailing != null) ...[
+          const SizedBox(width: 16),
+          trailing!,
+        ],
       ],
     );
   }

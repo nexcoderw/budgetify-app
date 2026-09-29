@@ -231,7 +231,7 @@ class _SendMoneyCategorySheetState
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                padding: const EdgeInsets.fromLTRB(10, 5, 10, 0),
                 child: _CategoryPageIndicator(
                   currentPage: _currentPage,
                   pageCount: _pageCount,
@@ -248,7 +248,7 @@ class _SendMoneyCategorySheetState
                       Icons.check_rounded,
                       color: AppColors.background,
                     ),
-                    size: AppButtonSize.sm,
+                    size: AppButtonSize.md,
                     onPressed:
                         _selectedCategory == null ? null : _continue,
                   ),

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:flutter/services.dart';
 
 import '../models/device_contact.dart';
 
@@ -15,6 +16,8 @@ enum DeviceContactsPermission {
 class DeviceContactsService {
   const DeviceContactsService();
 
+  static const _iosContactsChannel = MethodChannel('budgetify/contacts');
+
   bool get isSupported {
     if (kIsWeb) {
       return false;
@@ -29,6 +32,19 @@ class DeviceContactsService {
       return DeviceContactsPermission.unsupported;
     }
 
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      final status = await _iosContactsChannel.invokeMethod<String>(
+        'authorizationStatus',
+      );
+
+      return switch (status) {
+        'granted' => DeviceContactsPermission.granted,
+        'restricted' => DeviceContactsPermission.restricted,
+        'denied' => DeviceContactsPermission.denied,
+        _ => DeviceContactsPermission.notDetermined,
+      };
+    }
+
     return requestPermission();
   }
 
@@ -37,9 +53,10 @@ class DeviceContactsService {
       return DeviceContactsPermission.unsupported;
     }
 
-    final isGranted = await FlutterContacts.requestPermission(
-      readonly: true,
-    );
+    final isGranted = defaultTargetPlatform == TargetPlatform.iOS
+        ? await _iosContactsChannel.invokeMethod<bool>('requestPermission') ??
+              false
+        : await FlutterContacts.requestPermission(readonly: true);
 
     return isGranted
         ? DeviceContactsPermission.granted
@@ -55,6 +72,27 @@ class DeviceContactsService {
 
     if (permission != DeviceContactsPermission.granted) {
       throw StateError('Contact access has not been granted.');
+    }
+
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      final contacts = await _iosContactsChannel.invokeListMethod<dynamic>(
+        'getContacts',
+      );
+
+      return (contacts ?? const [])
+          .map((rawContact) {
+            final contact = Map<Object?, Object?>.from(rawContact as Map);
+
+            return DeviceContact(
+              id: contact['id']?.toString() ?? '',
+              name: contact['name']?.toString() ?? 'Unknown contact',
+              phoneNumber: contact['phoneNumber']?.toString() ?? '',
+            );
+          })
+          .where((contact) {
+            return contact.id.isNotEmpty && contact.phoneNumber.isNotEmpty;
+          })
+          .toList(growable: false);
     }
 
     final contacts = await FlutterContacts.getContacts(
