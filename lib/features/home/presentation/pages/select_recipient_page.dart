@@ -35,11 +35,6 @@ class SelectRecipientPage extends StatefulWidget {
   State<SelectRecipientPage> createState() => _SelectRecipientPageState();
 }
 
-enum _RecipientMode {
-  contacts,
-  phoneNumber,
-}
-
 enum _ContactsView {
   checking,
   permissionPrompt,
@@ -48,37 +43,40 @@ enum _ContactsView {
   unavailable,
 }
 
+class _RecipientSelection {
+  const _RecipientSelection({
+    required this.identifier,
+    required this.recipientType,
+    required this.title,
+    required this.subtitle,
+    this.contactId,
+  });
+
+  final String identifier;
+  final TransactionRecipientType recipientType;
+  final String title;
+  final String subtitle;
+  final String? contactId;
+
+  String get key => '${recipientType.apiValue}:$identifier';
+}
+
 class _SelectRecipientPageState extends State<SelectRecipientPage> {
-  final _phoneController = TextEditingController();
   final _searchController = TextEditingController();
-  final _phoneFocusNode = FocusNode();
 
   late final TransactionService _transactionService;
   late final UssdTransferService _ussdTransferService;
 
-  _RecipientMode _mode = _RecipientMode.contacts;
   _ContactsView _contactsView = _ContactsView.checking;
 
   List<DeviceContact> _contacts = const [];
-  DeviceContact? _selectedContact;
+  _RecipientSelection? _selectedRecipient;
   PaymentTransaction? _pendingTransaction;
 
   String _searchQuery = '';
   String? _activeTransferSignature;
   String? _idempotencyKey;
   bool _isStartingTransfer = false;
-
-  bool get _hasManualNumber {
-    final value = _phoneController.text.trim();
-
-    if (value.isEmpty) {
-      return false;
-    }
-
-    final type = inferTransactionRecipientType(value);
-
-    return isValidTransactionRecipient(value, type);
-  }
 
   List<DeviceContact> get _filteredContacts {
     final query = _searchQuery.trim().toLowerCase();
@@ -89,10 +87,72 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
 
     return _contacts.where((contact) {
       final name = contact.name.toLowerCase();
-      final phone = contact.phoneNumber.toLowerCase();
+      final phone = contact.phoneNumber.replaceAll(RegExp(r'\D'), '');
+      final queryDigits = query.replaceAll(RegExp(r'\D'), '');
+      final comparablePhone = _comparablePhone(contact.phoneNumber);
+      final comparableQuery = _comparablePhone(query);
 
-      return name.contains(query) || phone.contains(query);
+      return name.contains(query) ||
+          (queryDigits.isNotEmpty &&
+              (phone.contains(queryDigits) ||
+                  comparablePhone.contains(comparableQuery)));
     }).toList(growable: false);
+  }
+
+  _RecipientSelection? get _typedRecipient {
+    final value = _searchQuery.trim();
+
+    if (value.isEmpty || !RegExp(r'^[+\d\s()-]+$').hasMatch(value)) {
+      return null;
+    }
+
+    final type = inferTransactionRecipientType(value);
+
+    if (!isValidTransactionRecipient(value, type)) {
+      return null;
+    }
+
+    if (type == TransactionRecipientType.phone &&
+        _contacts.any(
+          (contact) =>
+              _comparablePhone(contact.phoneNumber) ==
+              _comparablePhone(value),
+        )) {
+      return null;
+    }
+
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+    final transferType = inferTransactionTransferType(
+      recipientIdentifier: digits,
+      recipientType: type,
+    );
+
+    final subtitle = switch (type) {
+      TransactionRecipientType.phone => '${transferType.label} phone number',
+      TransactionRecipientType.bankAccount => 'eKash bank account',
+      TransactionRecipientType.momoCode => 'MoMo Pay merchant code',
+    };
+
+    return _RecipientSelection(
+      identifier: digits,
+      recipientType: type,
+      title: digits,
+      subtitle: subtitle,
+    );
+  }
+
+  String _comparablePhone(String value) {
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+
+    if (digits.startsWith('250')) {
+      return digits.substring(3);
+    }
+
+    if (digits.startsWith('0')) {
+      return digits.substring(1);
+    }
+
+    return digits;
   }
 
   @override
@@ -104,7 +164,6 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
     _ussdTransferService =
         widget.ussdTransferService ?? const UssdTransferService();
 
-    _phoneController.addListener(_refreshManualEntry);
     _searchController.addListener(_filterContacts);
 
     _initializePermissionState();
@@ -112,15 +171,9 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
 
   @override
   void dispose() {
-    _phoneController
-      ..removeListener(_refreshManualEntry)
-      ..dispose();
-
     _searchController
       ..removeListener(_filterContacts)
       ..dispose();
-
-    _phoneFocusNode.dispose();
 
     super.dispose();
   }
@@ -140,7 +193,6 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
 
       if (permission == DeviceContactsPermission.notDetermined) {
         setState(() {
-          _mode = _RecipientMode.contacts;
           _contactsView = _ContactsView.permissionPrompt;
         });
 
@@ -148,28 +200,21 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
       }
 
       setState(() {
-        _mode = _RecipientMode.phoneNumber;
         _contactsView = _ContactsView.unavailable;
       });
-
-      _focusPhoneNumber();
     } catch (_) {
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _mode = _RecipientMode.phoneNumber;
         _contactsView = _ContactsView.unavailable;
       });
-
-      _focusPhoneNumber();
     }
   }
 
   Future<void> _requestContacts() async {
     setState(() {
-      _mode = _RecipientMode.contacts;
       _contactsView = _ContactsView.loading;
     });
 
@@ -186,27 +231,21 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
       }
 
       setState(() {
-        _mode = _RecipientMode.phoneNumber;
         _contactsView = _ContactsView.unavailable;
       });
-
-      _focusPhoneNumber();
     } catch (_) {
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _mode = _RecipientMode.phoneNumber;
         _contactsView = _ContactsView.unavailable;
       });
-
-      _focusPhoneNumber();
 
       AppToast.error(
         context,
         title: 'Contacts unavailable',
-        description: 'Enter the recipient phone number instead.',
+        description: 'You can still enter a number or MoMo code above.',
       );
     }
   }
@@ -214,7 +253,6 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
   Future<void> _loadContacts() async {
     if (mounted) {
       setState(() {
-        _mode = _RecipientMode.contacts;
         _contactsView = _ContactsView.loading;
       });
     }
@@ -236,16 +274,13 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
       }
 
       setState(() {
-        _mode = _RecipientMode.phoneNumber;
         _contactsView = _ContactsView.unavailable;
       });
-
-      _focusPhoneNumber();
 
       AppToast.error(
         context,
         title: 'Could not load contacts',
-        description: 'Enter the recipient phone number instead.',
+        description: 'You can still enter a number or MoMo code above.',
       );
     }
   }
@@ -260,11 +295,12 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
 
       setState(() {
         _contacts = contacts;
-        _selectedContact = contacts.any(
-          (contact) => contact.id == _selectedContact?.id,
-        )
-            ? _selectedContact
-            : null;
+        final contactId = _selectedRecipient?.contactId;
+
+        if (contactId != null &&
+            !contacts.any((contact) => contact.id == contactId)) {
+          _selectedRecipient = null;
+        }
       });
     } catch (_) {
       if (!mounted) {
@@ -279,44 +315,6 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
     }
   }
 
-  void _showContacts() {
-    FocusScope.of(context).unfocus();
-
-    HapticFeedback.selectionClick();
-
-    setState(() {
-      _mode = _RecipientMode.contacts;
-    });
-  }
-
-  void _showManualEntry() {
-    HapticFeedback.selectionClick();
-
-    setState(() {
-      _mode = _RecipientMode.phoneNumber;
-    });
-
-    _focusPhoneNumber();
-  }
-
-  void _focusPhoneNumber() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-
-      _phoneFocusNode.requestFocus();
-    });
-  }
-
-  void _refreshManualEntry() {
-    if (!mounted || _mode != _RecipientMode.phoneNumber) {
-      return;
-    }
-
-    setState(() {});
-  }
-
   void _filterContacts() {
     if (!mounted) {
       return;
@@ -324,6 +322,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
 
     setState(() {
       _searchQuery = _searchController.text;
+      _selectedRecipient = null;
     });
   }
 
@@ -339,24 +338,35 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
     HapticFeedback.selectionClick();
 
     setState(() {
-      _selectedContact = contact;
+      _selectedRecipient = _RecipientSelection(
+        identifier: contact.phoneNumber,
+        recipientType: TransactionRecipientType.phone,
+        title: contact.name,
+        subtitle: contact.phoneNumber,
+        contactId: contact.id,
+      );
     });
   }
 
+  void _selectTypedRecipient(_RecipientSelection recipient) {
+    if (_isStartingTransfer) {
+      return;
+    }
+
+    HapticFeedback.selectionClick();
+    setState(() => _selectedRecipient = recipient);
+  }
+
   Future<void> _continueWithRecipient() async {
-    final selectedContact = _selectedContact;
-    final receiverIdentifier = _mode == _RecipientMode.contacts
-        ? selectedContact?.phoneNumber ?? ''
-        : _phoneController.text.trim();
-    final recipientType = _mode == _RecipientMode.contacts
-        ? TransactionRecipientType.phone
-        : inferTransactionRecipientType(
-            receiverIdentifier,
-          );
+    final recipient = _selectedRecipient;
+
+    if (recipient == null) {
+      return;
+    }
 
     await _startTransfer(
-      receiverIdentifier: receiverIdentifier,
-      recipientType: recipientType,
+      receiverIdentifier: recipient.identifier,
+      recipientType: recipient.recipientType,
     );
   }
 
@@ -372,9 +382,14 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
       AppToast.error(
         context,
         title: 'Invalid recipient',
-        description: recipientType == TransactionRecipientType.phone
-            ? 'Enter a valid Rwanda phone number.'
-            : 'Enter a valid bank account number.',
+        description: switch (recipientType) {
+          TransactionRecipientType.phone =>
+            'Enter a valid Rwanda phone number.',
+          TransactionRecipientType.bankAccount =>
+            'Enter a valid bank account number.',
+          TransactionRecipientType.momoCode =>
+            'Enter a valid MoMo merchant code.',
+        },
       );
 
       return;
@@ -553,42 +568,58 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
                   SizedBox(
                     height: isCompact ? 18 : 22,
                   ),
-                  FractionallySizedBox(
-                    widthFactor: mediaQuery.size.width < 600 ? 0.88 : 0.66,
-                    child: _RecipientModeSelector(
-                      mode: _mode,
-                      onContactsPressed: _showContacts,
-                      onPhonePressed: _showManualEntry,
-                    ),
-                  ),
-                  const SizedBox(
-                    height: 14,
-                  ),
-                  Expanded(
-                    child: AnimatedSwitcher(
-                      duration: mediaQuery.disableAnimations
-                          ? Duration.zero
-                          : const Duration(
-                              milliseconds: 180,
+                  AppInput(
+                    controller: _searchController,
+                    hintText: 'Name, phone, account, or MoMo code',
+                    borderRadius: 999,
+                    textInputAction: TextInputAction.search,
+                    enableSuggestions: false,
+                    autocorrect: false,
+                    suffixIcon: _searchController.text.isEmpty
+                        ? const Icon(
+                            Icons.search_rounded,
+                            color: AppColors.textSecondary,
+                          )
+                        : IconButton(
+                            tooltip: 'Clear search',
+                            onPressed: _clearSearch,
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: AppColors.textSecondary,
                             ),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      child: _mode == _RecipientMode.contacts
-                          ? KeyedSubtree(
-                              key: const ValueKey('contacts'),
-                              child: _buildContactsContent(),
-                            )
-                          : KeyedSubtree(
-                              key: const ValueKey('phone-number'),
-                              child: _ManualRecipientEntry(
-                                phoneController: _phoneController,
-                                phoneFocusNode: _phoneFocusNode,
-                                canContinue: _hasManualNumber,
-                                isLoading: _isStartingTransfer,
-                                onContinue: _continueWithRecipient,
+                          ),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: _buildRecipientContent(),
+                  ),
+                  AnimatedSwitcher(
+                    duration: mediaQuery.disableAnimations
+                        ? Duration.zero
+                        : const Duration(milliseconds: 160),
+                    child: _selectedRecipient == null
+                        ? const SizedBox.shrink()
+                        : Padding(
+                            key: ValueKey(_selectedRecipient!.key),
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Center(
+                              child: SizedBox(
+                                width: 220,
+                                child: AppButton(
+                                  label: 'Continue',
+                                  iconWidget: const Icon(
+                                    Icons.phone_in_talk_rounded,
+                                    color: AppColors.background,
+                                  ),
+                                  size: AppButtonSize.md,
+                                  isLoading: _isStartingTransfer,
+                                  onPressed: _isStartingTransfer
+                                      ? null
+                                      : _continueWithRecipient,
+                                ),
                               ),
                             ),
-                    ),
+                          ),
                   ),
                 ],
               ),
@@ -599,29 +630,42 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
     );
   }
 
-  Widget _buildContactsContent() {
+  Widget _buildRecipientContent() {
+    final typedRecipient = _typedRecipient;
+
+    if (typedRecipient != null) {
+      return _RecipientResultsList(
+        contacts: _filteredContacts,
+        typedRecipient: typedRecipient,
+        isSearching: _searchQuery.trim().isNotEmpty,
+        selectedRecipient: _selectedRecipient,
+        isLoading: _isStartingTransfer,
+        onContactSelected: _selectContact,
+        onTypedRecipientSelected: _selectTypedRecipient,
+        onRefresh: _contactsView == _ContactsView.ready
+            ? _refreshContacts
+            : null,
+      );
+    }
+
     return switch (_contactsView) {
       _ContactsView.checking ||
       _ContactsView.loading =>
         const _LoadingContacts(),
       _ContactsView.permissionPrompt => _ContactsPermissionPrompt(
           onAllow: _requestContacts,
-          onUseNumber: _showManualEntry,
         ),
       _ContactsView.unavailable => _ContactsUnavailable(
           onRetry: _requestContacts,
-          onUseNumber: _showManualEntry,
         ),
-      _ContactsView.ready => _ContactsList(
-          searchController: _searchController,
+      _ContactsView.ready => _RecipientResultsList(
           contacts: _filteredContacts,
-          allContactsCount: _contacts.length,
-          selectedContact: _selectedContact,
-          onClearSearch: _clearSearch,
-          onSelected: _selectContact,
-          onContinue: _continueWithRecipient,
+          typedRecipient: null,
+          isSearching: _searchQuery.trim().isNotEmpty,
+          selectedRecipient: _selectedRecipient,
           isLoading: _isStartingTransfer,
-          onUseNumber: _showManualEntry,
+          onContactSelected: _selectContact,
+          onTypedRecipientSelected: _selectTypedRecipient,
           onRefresh: _refreshContacts,
         ),
     };
@@ -669,130 +713,12 @@ class _RecipientTopBar extends StatelessWidget {
   }
 }
 
-class _RecipientModeSelector extends StatelessWidget {
-  const _RecipientModeSelector({
-    required this.mode,
-    required this.onContactsPressed,
-    required this.onPhonePressed,
-  });
-
-  final _RecipientMode mode;
-  final VoidCallback onContactsPressed;
-  final VoidCallback onPhonePressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _RecipientModeButton(
-              label: 'Contacts',
-              icon: Icons.contacts_outlined,
-              isSelected: mode == _RecipientMode.contacts,
-              onPressed: onContactsPressed,
-            ),
-          ),
-          Expanded(
-            child: _RecipientModeButton(
-              label: 'Number / account',
-              icon: Icons.dialpad_rounded,
-              isSelected: mode == _RecipientMode.phoneNumber,
-              onPressed: onPhonePressed,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RecipientModeButton extends StatelessWidget {
-  const _RecipientModeButton({
-    required this.label,
-    required this.icon,
-    required this.isSelected,
-    required this.onPressed,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final disableAnimations = MediaQuery.disableAnimationsOf(context);
-    final foregroundColor = isSelected
-        ? AppColors.primary
-        : AppColors.textSecondary;
-
-    return Semantics(
-      button: true,
-      selected: isSelected,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(999),
-          child: AnimatedContainer(
-            duration: disableAnimations
-                ? Duration.zero
-                : const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
-            height: 48,
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? AppColors.primary.withValues(alpha: 0.11)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  icon,
-                  size: 17,
-                  color: foregroundColor,
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w600,
-                      color: foregroundColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _ContactsPermissionPrompt extends StatelessWidget {
   const _ContactsPermissionPrompt({
     required this.onAllow,
-    required this.onUseNumber,
   });
 
   final VoidCallback onAllow;
-  final VoidCallback onUseNumber;
 
   @override
   Widget build(BuildContext context) {
@@ -907,24 +833,6 @@ class _ContactsPermissionPrompt extends StatelessWidget {
                 onPressed: onAllow,
               ),
             ),
-            const SizedBox(
-              height: 10,
-            ),
-            ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 260,
-              ),
-              child: AppButton(
-                label: 'Enter number instead',
-                iconWidget: const Icon(
-                  Icons.dialpad_rounded,
-                  color: AppColors.textPrimary,
-                ),
-                size: AppButtonSize.sm,
-                variant: AppButtonVariant.secondary,
-                onPressed: onUseNumber,
-              ),
-            ),
           ],
         ),
       ),
@@ -935,11 +843,9 @@ class _ContactsPermissionPrompt extends StatelessWidget {
 class _ContactsUnavailable extends StatelessWidget {
   const _ContactsUnavailable({
     required this.onRetry,
-    required this.onUseNumber,
   });
 
   final VoidCallback onRetry;
-  final VoidCallback onUseNumber;
 
   @override
   Widget build(BuildContext context) {
@@ -981,7 +887,7 @@ class _ContactsUnavailable extends StatelessWidget {
                 maxWidth: 320,
               ),
               child: const Text(
-                'You can try contact access again or continue by entering the phone number manually.',
+                'Try contact access again, or enter a phone number, bank account, or MoMo code above.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
@@ -1007,24 +913,6 @@ class _ContactsUnavailable extends StatelessWidget {
                 onPressed: onRetry,
               ),
             ),
-            const SizedBox(
-              height: 10,
-            ),
-            ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 240,
-              ),
-              child: AppButton(
-                label: 'Enter number',
-                iconWidget: const Icon(
-                  Icons.dialpad_rounded,
-                  color: AppColors.textPrimary,
-                ),
-                size: AppButtonSize.sm,
-                variant: AppButtonVariant.secondary,
-                onPressed: onUseNumber,
-              ),
-            ),
           ],
         ),
       ),
@@ -1032,202 +920,189 @@ class _ContactsUnavailable extends StatelessWidget {
   }
 }
 
-class _ContactsList extends StatelessWidget {
-  const _ContactsList({
-    required this.searchController,
+class _RecipientResultsList extends StatelessWidget {
+  const _RecipientResultsList({
     required this.contacts,
-    required this.allContactsCount,
-    required this.selectedContact,
-    required this.onClearSearch,
-    required this.onSelected,
-    required this.onContinue,
+    required this.typedRecipient,
+    required this.isSearching,
+    required this.selectedRecipient,
     required this.isLoading,
-    required this.onUseNumber,
+    required this.onContactSelected,
+    required this.onTypedRecipientSelected,
     required this.onRefresh,
   });
 
-  final TextEditingController searchController;
   final List<DeviceContact> contacts;
-  final int allContactsCount;
-  final DeviceContact? selectedContact;
-  final VoidCallback onClearSearch;
-  final ValueChanged<DeviceContact> onSelected;
-  final VoidCallback onContinue;
+  final _RecipientSelection? typedRecipient;
+  final bool isSearching;
+  final _RecipientSelection? selectedRecipient;
   final bool isLoading;
-  final VoidCallback onUseNumber;
-  final Future<void> Function() onRefresh;
+  final ValueChanged<DeviceContact> onContactSelected;
+  final ValueChanged<_RecipientSelection> onTypedRecipientSelected;
+  final Future<void> Function()? onRefresh;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AppInput(
-          controller: searchController,
-          hintText: 'Search name or phone number',
-          borderRadius: 999,
-          textInputAction: TextInputAction.search,
-          suffixIcon: searchController.text.isEmpty
-              ? const Icon(
-                  Icons.search_rounded,
-                  color: AppColors.textSecondary,
-                )
-              : IconButton(
-                  tooltip: 'Clear search',
-                  onPressed: onClearSearch,
-                  icon: const Icon(
-                    Icons.close_rounded,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-        ),
-        const SizedBox(
-          height: 16,
-        ),
-        Row(
-          children: [
-            const Text(
-              'All contacts',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(
-              width: 8,
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(
-                  999,
-                ),
-              ),
-              child: Text(
-                contacts.length == allContactsCount
-                    ? '$allContactsCount'
-                    : '${contacts.length} of $allContactsCount',
-                style: const TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
-            const Spacer(),
-            TextButton(
-              onPressed: onUseNumber,
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                ),
-                minimumSize: const Size(
-                  44,
-                  44,
-                ),
-              ),
-              child: const Text(
-                'Enter number',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(
-          height: 6,
-        ),
-        Expanded(
-          child: contacts.isEmpty
-              ? _NoContactResults(
-                  isSearching: searchController.text.trim().isNotEmpty,
-                  onRefresh: onRefresh,
-                )
-              : RefreshIndicator(
-                  color: AppColors.background,
-                  backgroundColor: AppColors.primary,
-                  onRefresh: onRefresh,
-                  child: ListView.separated(
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    physics: const AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics(),
-                    ),
-                    padding: const EdgeInsets.only(bottom: 12),
-                    itemCount: contacts.length,
-                    separatorBuilder: (_, _) => Divider(
-                      height: 1,
-                      indent: 60,
-                      color: AppColors.border.withValues(alpha: 0.65),
-                    ),
-                    itemBuilder: (context, index) {
-                      final contact = contacts[index];
+    final itemCount = contacts.length + (typedRecipient == null ? 0 : 1);
 
-                      return _ContactTile(
-                        contact: contact,
-                        isSelected: selectedContact?.id == contact.id,
-                        onTap: isLoading ? null : () => onSelected(contact),
-                      );
-                    },
+    if (itemCount == 0) {
+      return _NoContactResults(
+        isSearching: isSearching,
+        onRefresh: onRefresh,
+      );
+    }
+
+    final list = ListView.separated(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      padding: const EdgeInsets.only(bottom: 12),
+      itemCount: itemCount,
+      separatorBuilder: (_, _) => Divider(
+        height: 1,
+        indent: 60,
+        color: AppColors.border.withValues(alpha: 0.65),
+      ),
+      itemBuilder: (context, index) {
+        final typed = typedRecipient;
+
+        if (typed != null && index == 0) {
+          return _TypedRecipientTile(
+            recipient: typed,
+            isSelected: selectedRecipient?.key == typed.key,
+            onTap: isLoading
+                ? null
+                : () => onTypedRecipientSelected(typed),
+          );
+        }
+
+        final contactIndex = index - (typed == null ? 0 : 1);
+        final contact = contacts[contactIndex];
+
+        return _ContactTile(
+          contact: contact,
+          isSelected: selectedRecipient?.contactId == contact.id,
+          onTap: isLoading ? null : () => onContactSelected(contact),
+        );
+      },
+    );
+
+    final refresh = onRefresh;
+
+    if (refresh == null) {
+      return list;
+    }
+
+    return RefreshIndicator(
+      color: AppColors.background,
+      backgroundColor: AppColors.primary,
+      onRefresh: refresh,
+      child: list,
+    );
+  }
+}
+
+class _TypedRecipientTile extends StatelessWidget {
+  const _TypedRecipientTile({
+    required this.recipient,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final _RecipientSelection recipient;
+  final bool isSelected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = switch (recipient.recipientType) {
+      TransactionRecipientType.phone => Icons.phone_iphone_rounded,
+      TransactionRecipientType.bankAccount => Icons.account_balance_outlined,
+      TransactionRecipientType.momoCode => Icons.storefront_outlined,
+    };
+
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: '${recipient.title}, ${recipient.subtitle}',
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            minHeight: 58,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppColors.primary.withValues(alpha: 0.13)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.surfaceElevated,
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    icon,
+                    size: 19,
+                    color: isSelected
+                        ? AppColors.background
+                        : AppColors.primary,
                   ),
                 ),
-        ),
-        const SizedBox(
-          height: 10,
-        ),
-        AnimatedSwitcher(
-          duration: const Duration(
-            milliseconds: 160,
-          ),
-          child: selectedContact == null
-              ? const SizedBox(
-                  height: 0,
-                )
-              : Padding(
-                  key: ValueKey(
-                    selectedContact!.id,
-                  ),
-                  padding: const EdgeInsets.only(
-                    bottom: 10,
-                  ),
-                  child: _SelectedContactSummary(
-                    contact: selectedContact!,
-                    isLoading: isLoading,
-                  ),
-                ),
-        ),
-        AnimatedSwitcher(
-          duration: const Duration(
-            milliseconds: 160,
-          ),
-          child: selectedContact == null
-              ? const SizedBox.shrink()
-              : Center(
-                  key: const ValueKey('continue-with-contact'),
-                  child: SizedBox(
-                    width: 220,
-                    child: AppButton(
-                      label: 'Continue',
-                      iconWidget: const Icon(
-                        Icons.phone_in_talk_rounded,
-                        color: AppColors.background,
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        recipient.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                      size: AppButtonSize.md,
-                      isLoading: isLoading,
-                      onPressed: isLoading ? null : onContinue,
-                    ),
+                      const SizedBox(height: 5),
+                      Text(
+                        recipient.subtitle,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                const SizedBox(width: 10),
+                Icon(
+                  isSelected
+                      ? Icons.check_circle_rounded
+                      : Icons.arrow_forward_ios_rounded,
+                  size: isSelected ? 20 : 14,
+                  color: isSelected
+                      ? AppColors.success
+                      : AppColors.textSecondary,
+                ),
+              ],
+            ),
+          ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -1381,223 +1256,6 @@ class _ContactTile extends StatelessWidget {
   }
 }
 
-class _SelectedContactSummary extends StatelessWidget {
-  const _SelectedContactSummary({
-    required this.contact,
-    required this.isLoading,
-  });
-
-  final DeviceContact contact;
-  final bool isLoading;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 13,
-        vertical: 11,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(
-          18,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.primary,
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              contact.initials,
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                color: AppColors.background,
-              ),
-            ),
-          ),
-          const SizedBox(
-            width: 11,
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'SELECTED RECIPIENT',
-                  style: TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(
-                  height: 3,
-                ),
-                Text(
-                  contact.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (isLoading)
-            const SizedBox.square(
-              dimension: 19,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppColors.primary,
-              ),
-            )
-          else
-            const Icon(
-              Icons.check_circle_rounded,
-              size: 19,
-              color: AppColors.success,
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ManualRecipientEntry extends StatelessWidget {
-  const _ManualRecipientEntry({
-    required this.phoneController,
-    required this.phoneFocusNode,
-    required this.canContinue,
-    required this.isLoading,
-    required this.onContinue,
-  });
-
-  final TextEditingController phoneController;
-  final FocusNode phoneFocusNode;
-  final bool canContinue;
-  final bool isLoading;
-  final VoidCallback onContinue;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Text(
-          'RECIPIENT',
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.3,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(
-          height: 10,
-        ),
-        AppInput(
-          controller: phoneController,
-          focusNode: phoneFocusNode,
-          label: 'Phone number or bank account',
-          hintText: '0788 123 456 or account number',
-          borderRadius: 999,
-          keyboardType: TextInputType.phone,
-          textInputAction: TextInputAction.done,
-          maxLength: 34,
-          enableSuggestions: false,
-          autocorrect: false,
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-          ],
-          suffixIcon: const Icon(
-            Icons.dialpad_rounded,
-            color: AppColors.textSecondary,
-          ),
-          onSubmitted: (_) {
-            FocusScope.of(context).unfocus();
-          },
-        ),
-        const SizedBox(
-          height: 14,
-        ),
-        Container(
-          padding: const EdgeInsets.all(
-            14,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(
-              alpha: 0.035,
-            ),
-            borderRadius: BorderRadius.circular(
-              18,
-            ),
-          ),
-          child: const Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                Icons.info_outline_rounded,
-                size: 18,
-                color: AppColors.primary,
-              ),
-              SizedBox(
-                width: 10,
-              ),
-              Expanded(
-                child: Text(
-                  'MTN numbers use MoMo. Airtel numbers and bank accounts use eKash automatically.',
-                  style: TextStyle(
-                    fontSize: 11,
-                    height: 1.5,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const Spacer(),
-        AnimatedSwitcher(
-          duration: const Duration(
-            milliseconds: 160,
-          ),
-          child: !canContinue && !isLoading
-              ? const SizedBox.shrink()
-              : Center(
-                  key: const ValueKey('continue-with-number'),
-                  child: SizedBox(
-                    width: 220,
-                    child: AppButton(
-                      label: 'Continue',
-                      iconWidget: const Icon(
-                        Icons.phone_in_talk_rounded,
-                        color: AppColors.background,
-                      ),
-                      size: AppButtonSize.md,
-                      isLoading: isLoading,
-                      onPressed:
-                          canContinue && !isLoading ? onContinue : null,
-                    ),
-                  ),
-                ),
-        ),
-      ],
-    );
-  }
-}
-
 class _LoadingContacts extends StatelessWidget {
   const _LoadingContacts();
 
@@ -1638,7 +1296,7 @@ class _NoContactResults extends StatelessWidget {
   });
 
   final bool isSearching;
-  final Future<void> Function() onRefresh;
+  final Future<void> Function()? onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -1655,7 +1313,7 @@ class _NoContactResults extends StatelessWidget {
             height: 10,
           ),
           Text(
-            isSearching ? 'No matching contacts' : 'No contacts available',
+            isSearching ? 'No recipient found' : 'No contacts available',
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
@@ -1667,7 +1325,7 @@ class _NoContactResults extends StatelessWidget {
           ),
           Text(
             isSearching
-                ? 'Try another name or phone number.'
+                ? 'Try another name, phone, account, or MoMo code.'
                 : 'Allow full contact access, then refresh this list.',
             textAlign: TextAlign.center,
             style: const TextStyle(
@@ -1675,11 +1333,11 @@ class _NoContactResults extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
-          if (!isSearching) ...[
+          if (!isSearching && onRefresh != null) ...[
             const SizedBox(height: 12),
             TextButton.icon(
               onPressed: () {
-                onRefresh();
+                onRefresh?.call();
               },
               icon: const Icon(Icons.refresh_rounded, size: 18),
               label: const Text('Refresh contacts'),
