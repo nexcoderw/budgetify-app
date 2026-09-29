@@ -149,7 +149,7 @@ void main() {
 
     expect(find.text('Budgetify'), findsOneWidget);
     expect(find.text('Continue with Google'), findsOneWidget);
-    expect(find.text('Terms & Conditions'), findsOneWidget);
+    expect(find.text('T&T'), findsOneWidget);
   });
 
   testWidgets('redirects authenticated users to the landing page', (
@@ -177,9 +177,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1000));
     await tester.pump(const Duration(milliseconds: 1200));
 
-    expect(find.text('Budgetify'), findsOneWidget);
-    expect(find.text('Jane D.'), findsOneWidget);
-    expect(find.text('Enter amount'), findsOneWidget);
+    expect(find.byTooltip('Menu'), findsOneWidget);
+    expect(find.text('JD'), findsOneWidget);
+    expect(find.text('AMOUNT'), findsOneWidget);
     expect(find.text('Send money'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Profile'));
@@ -240,8 +240,8 @@ void main() {
       expect(authService.updateCurrentUserNamesCallCount, 1);
       expect(authService.lastUpdatedFirstName, 'Alice');
       expect(authService.lastUpdatedLastName, 'Mutoni');
-      expect(find.text('Alice M.'), findsOneWidget);
-      expect(find.text('Enter amount'), findsOneWidget);
+      expect(find.text('AM'), findsOneWidget);
+      expect(find.text('AMOUNT'), findsOneWidget);
     },
   );
 }
