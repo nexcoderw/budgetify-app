@@ -2,11 +2,13 @@ import 'auth_service_contract.dart';
 import '../data/models/auth_session.dart';
 import '../data/models/auth_user.dart';
 import '../data/models/email_initiate_response.dart';
+import '../data/models/password_auth_models.dart';
 import '../data/routes/auth_api_routes.dart';
 import '../data/services/auth_api_service.dart';
 import '../data/services/auth_session_storage.dart';
 import '../data/services/email_otp_api_service.dart';
 import '../data/services/google_identity_service.dart';
+import '../data/services/password_auth_api_service.dart';
 import '../../users/data/routes/users_api_routes.dart';
 import '../../users/data/services/users_api_service.dart';
 import '../../../core/config/app_env.dart';
@@ -18,11 +20,13 @@ class AuthService implements AuthServiceContract {
   AuthService({
     required AuthApiService authApiService,
     required EmailOtpApiService emailOtpApiService,
+    required PasswordAuthApiService passwordAuthApiService,
     required UsersApiService usersApiService,
     required AuthSessionStorage sessionStorage,
     required GoogleIdentityService googleIdentityService,
   }) : _authApiService = authApiService,
        _emailOtpApiService = emailOtpApiService,
+       _passwordAuthApiService = passwordAuthApiService,
        _usersApiService = usersApiService,
        _sessionStorage = sessionStorage,
        _googleIdentityService = googleIdentityService;
@@ -35,6 +39,10 @@ class AuthService implements AuthServiceContract {
     return AuthService(
       authApiService: AuthApiService(apiClient: apiClient, routes: authRoutes),
       emailOtpApiService: EmailOtpApiService(
+        apiClient: apiClient,
+        routes: authRoutes,
+      ),
+      passwordAuthApiService: PasswordAuthApiService(
         apiClient: apiClient,
         routes: authRoutes,
       ),
@@ -51,6 +59,7 @@ class AuthService implements AuthServiceContract {
 
   final AuthApiService _authApiService;
   final EmailOtpApiService _emailOtpApiService;
+  final PasswordAuthApiService _passwordAuthApiService;
   final UsersApiService _usersApiService;
   final AuthSessionStorage _sessionStorage;
   final GoogleIdentityService _googleIdentityService;
@@ -89,6 +98,50 @@ class AuthService implements AuthServiceContract {
   Future<AuthSession> verifyEmailOtp(String email, String otp) async {
     final session = await _emailOtpApiService.verifyEmailOtp(email, otp);
     await _sessionStorage.save(session);
+    return session;
+  }
+
+  // ── Password authentication ───────────────────────────────────────────────
+
+  @override
+  Future<PasswordStatus> getPasswordStatus(String email) {
+    return _passwordAuthApiService.getStatus(email);
+  }
+
+  @override
+  Future<PasswordChallenge> requestPasswordChallenge(String email) {
+    return _passwordAuthApiService.requestChallenge(email);
+  }
+
+  @override
+  Future<PasswordSetupGrant> verifyPasswordChallenge(String email, String otp) {
+    return _passwordAuthApiService.verifyChallenge(email, otp);
+  }
+
+  @override
+  Future<void> setPassword({
+    required String grantToken,
+    required String password,
+    required String confirmPassword,
+  }) {
+    return _passwordAuthApiService.setPassword(
+      grantToken: grantToken,
+      password: password,
+      confirmPassword: confirmPassword,
+    );
+  }
+
+  @override
+  Future<AuthSession> signInWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    final session = await _passwordAuthApiService.login(
+      email: email,
+      password: password,
+    );
+    await _sessionStorage.save(session);
+
     return session;
   }
 
