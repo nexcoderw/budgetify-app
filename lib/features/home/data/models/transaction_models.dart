@@ -6,6 +6,10 @@ enum TransactionTransferType {
   momoToEkash(
     apiValue: 'MOMO_TO_EKASH',
     label: 'eKash',
+  ),
+  momoPay(
+    apiValue: 'MOMO_PAY',
+    label: 'MoMo Pay',
   );
 
   const TransactionTransferType({
@@ -19,7 +23,8 @@ enum TransactionTransferType {
 
 enum TransactionRecipientType {
   phone('PHONE'),
-  bankAccount('BANK_ACCOUNT');
+  bankAccount('BANK_ACCOUNT'),
+  momoCode('MOMO_CODE');
 
   const TransactionRecipientType(this.apiValue);
 
@@ -96,6 +101,10 @@ bool isValidTransactionRecipient(
         RegExp(r'^7\d{8}$').hasMatch(digits);
   }
 
+  if (type == TransactionRecipientType.momoCode) {
+    return RegExp(r'^\d{3,12}$').hasMatch(digits);
+  }
+
   return RegExp(r'^\d{6,34}$').hasMatch(digits);
 }
 
@@ -103,6 +112,10 @@ TransactionTransferType inferTransactionTransferType({
   required String recipientIdentifier,
   required TransactionRecipientType recipientType,
 }) {
+  if (recipientType == TransactionRecipientType.momoCode) {
+    return TransactionTransferType.momoPay;
+  }
+
   if (recipientType == TransactionRecipientType.bankAccount) {
     return TransactionTransferType.momoToEkash;
   }
