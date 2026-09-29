@@ -11,6 +11,8 @@ class AuthLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: DecoratedBox(
@@ -33,7 +35,7 @@ class AuthLayout extends StatelessWidget {
                               keyboardDismissBehavior:
                                   ScrollViewKeyboardDismissBehavior.onDrag,
                               padding: EdgeInsets.only(
-                                bottom: MediaQuery.viewInsetsOf(context).bottom,
+                                bottom: keyboardInset,
                               ),
                               child: ConstrainedBox(
                                 constraints: BoxConstraints(
@@ -43,12 +45,21 @@ class AuthLayout extends StatelessWidget {
                                   child: Column(
                                     children: [
                                       Expanded(
-                                        child: Center(
-                                          child: ConstrainedBox(
-                                            constraints: const BoxConstraints(
-                                              maxWidth: 520,
+                                        child: AnimatedPadding(
+                                          duration: const Duration(
+                                            milliseconds: 180,
+                                          ),
+                                          curve: Curves.easeOutCubic,
+                                          padding: EdgeInsets.only(
+                                            bottom: keyboardInset,
+                                          ),
+                                          child: Center(
+                                            child: ConstrainedBox(
+                                              constraints: const BoxConstraints(
+                                                maxWidth: 520,
+                                              ),
+                                              child: child,
                                             ),
-                                            child: child,
                                           ),
                                         ),
                                       ),
