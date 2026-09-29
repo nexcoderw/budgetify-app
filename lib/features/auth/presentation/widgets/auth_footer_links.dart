@@ -8,19 +8,20 @@ class AuthFooterLinks extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      alignment: WrapAlignment.center,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 12,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
         _AuthFooterLink(
           label: 'T&T',
           onTap: () => _showPlaceholder(context, 'Terms & Conditions'),
         ),
+        const SizedBox(width: 12),
         _AuthFooterLink(
           label: 'Privacy Policy',
           onTap: () => _showPlaceholder(context, 'Privacy Policy'),
         ),
+        const SizedBox(width: 12),
         _AuthFooterLink(
           label: 'Contact Us',
           onTap: () => _showPlaceholder(context, 'Contact Us'),
@@ -63,8 +64,6 @@ class _AuthFooterLink extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w500,
-                  decoration: TextDecoration.underline,
-                  decorationColor: AppColors.textSecondary,
                 ),
               ),
             ),
