@@ -15,6 +15,9 @@ enum DeviceContactsPermission {
 class DeviceContactsService {
   const DeviceContactsService();
 
+  static DeviceContactsPermission _lastKnownPermission =
+      DeviceContactsPermission.notDetermined;
+
   bool get isSupported {
     if (kIsWeb) {
       return false;
@@ -29,11 +32,7 @@ class DeviceContactsService {
       return DeviceContactsPermission.unsupported;
     }
 
-    final status = await FlutterContacts.permissions.check(
-      PermissionType.read,
-    );
-
-    return _mapPermission(status);
+    return _lastKnownPermission;
   }
 
   Future<DeviceContactsPermission> requestPermission() async {
@@ -41,11 +40,15 @@ class DeviceContactsService {
       return DeviceContactsPermission.unsupported;
     }
 
-    final status = await FlutterContacts.permissions.request(
-      PermissionType.read,
+    final isGranted = await FlutterContacts.requestPermission(
+      readonly: true,
     );
 
-    return _mapPermission(status);
+    _lastKnownPermission = isGranted
+        ? DeviceContactsPermission.granted
+        : DeviceContactsPermission.denied;
+
+    return _lastKnownPermission;
   }
 
   Future<List<DeviceContact>> getContacts() async {
@@ -53,18 +56,17 @@ class DeviceContactsService {
       return const [];
     }
 
-    final contacts = await FlutterContacts.getAll(
-      properties: const {
-        ContactProperty.name,
-        ContactProperty.phone,
-      },
+    final contacts = await FlutterContacts.getContacts(
+      withProperties: true,
+      withThumbnail: false,
+      withPhoto: false,
     );
     final results = <DeviceContact>[];
     final seenNumbers = <String>{};
 
     for (final contact in contacts) {
-      final displayName = contact.displayName?.trim();
-      final resolvedName = displayName == null || displayName.isEmpty
+      final displayName = contact.displayName.trim();
+      final resolvedName = displayName.isEmpty
           ? 'Unknown contact'
           : displayName;
 
@@ -80,7 +82,7 @@ class DeviceContactsService {
 
         results.add(
           DeviceContact(
-            id: '${contact.id ?? 'contact-${results.length}'}-$index',
+            id: '${contact.id.isEmpty ? 'contact-${results.length}' : contact.id}-$index',
             name: resolvedName,
             phoneNumber: phoneNumber,
           ),
@@ -95,18 +97,5 @@ class DeviceContactsService {
     );
 
     return results;
-  }
-
-  DeviceContactsPermission _mapPermission(PermissionStatus status) {
-    return switch (status) {
-      PermissionStatus.granted || PermissionStatus.limited =>
-        DeviceContactsPermission.granted,
-      PermissionStatus.notDetermined =>
-        DeviceContactsPermission.notDetermined,
-      PermissionStatus.denied => DeviceContactsPermission.denied,
-      PermissionStatus.permanentlyDenied =>
-        DeviceContactsPermission.permanentlyDenied,
-      PermissionStatus.restricted => DeviceContactsPermission.restricted,
-    };
   }
 }
