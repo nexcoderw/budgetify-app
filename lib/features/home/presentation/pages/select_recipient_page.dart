@@ -209,15 +209,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
       setState(() {
         _contacts = contacts;
         _contactsView = _ContactsView.ready;
-
-        if (contacts.isEmpty) {
-          _mode = _RecipientMode.phoneNumber;
-        }
       });
-
-      if (contacts.isEmpty) {
-        _focusPhoneNumber();
-      }
     } catch (_) {
       if (!mounted) {
         return;
@@ -1093,7 +1085,10 @@ class _ContactsList extends StatelessWidget {
         ),
         Expanded(
           child: contacts.isEmpty
-              ? const _NoContactResults()
+              ? _NoContactResults(
+                  isSearching: searchController.text.trim().isNotEmpty,
+                  onRefresh: onRefresh,
+                )
               : RefreshIndicator(
                   color: AppColors.background,
                   backgroundColor: AppColors.primary,
@@ -1544,41 +1539,63 @@ class _LoadingContacts extends StatelessWidget {
 }
 
 class _NoContactResults extends StatelessWidget {
-  const _NoContactResults();
+  const _NoContactResults({
+    required this.isSearching,
+    required this.onRefresh,
+  });
+
+  final bool isSearching;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
+          const Icon(
             Icons.person_search_outlined,
             size: 30,
             color: AppColors.textSecondary,
           ),
-          SizedBox(
+          const SizedBox(
             height: 10,
           ),
           Text(
-            'No matching contacts',
-            style: TextStyle(
+            isSearching ? 'No matching contacts' : 'No contacts available',
+            style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
           ),
-          SizedBox(
+          const SizedBox(
             height: 5,
           ),
           Text(
-            'Try another name or phone number.',
+            isSearching
+                ? 'Try another name or phone number.'
+                : 'Allow full contact access, then refresh this list.',
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 11,
               color: AppColors.textSecondary,
             ),
           ),
+          if (!isSearching) ...[
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () {
+                onRefresh();
+              },
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Refresh contacts'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                minimumSize: const Size(44, 44),
+              ),
+            ),
+          ],
         ],
       ),
     );
