@@ -7,6 +7,7 @@ import 'package:budgetify/features/auth/application/auth_service_contract.dart';
 import 'package:budgetify/features/auth/data/models/auth_session.dart';
 import 'package:budgetify/features/auth/data/models/auth_user.dart';
 import 'package:budgetify/features/auth/data/models/email_initiate_response.dart';
+import 'package:budgetify/features/auth/data/models/password_auth_models.dart';
 
 class _FakeAuthService implements AuthServiceContract {
   _FakeAuthService({this.restoredUser});
@@ -29,6 +30,38 @@ class _FakeAuthService implements AuthServiceContract {
 
   @override
   Future<void> logout() async {}
+
+  @override
+  Future<PasswordStatus> getPasswordStatus(String email) async {
+    return const PasswordStatus(hasPassword: false);
+  }
+
+  @override
+  Future<PasswordChallenge> requestPasswordChallenge(String email) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PasswordSetupGrant> verifyPasswordChallenge(String email, String otp) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> setPassword({
+    required String grantToken,
+    required String password,
+    required String confirmPassword,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<AuthSession> signInWithPassword({
+    required String email,
+    required String password,
+  }) {
+    throw UnimplementedError();
+  }
 
   @override
   Future<AuthUser> requestCurrentUserDeletion() async {
