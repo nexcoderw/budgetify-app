@@ -81,9 +81,15 @@ TransactionRecipientType inferTransactionRecipientType(
       RegExp(r'^2507\d{8}$').hasMatch(digits) ||
       RegExp(r'^7\d{8}$').hasMatch(digits);
 
-  return isPhone
-      ? TransactionRecipientType.phone
-      : TransactionRecipientType.bankAccount;
+  if (isPhone) {
+    return TransactionRecipientType.phone;
+  }
+
+  if (RegExp(r'^\d{3,9}$').hasMatch(digits)) {
+    return TransactionRecipientType.momoCode;
+  }
+
+  return TransactionRecipientType.bankAccount;
 }
 
 bool isValidTransactionRecipient(
