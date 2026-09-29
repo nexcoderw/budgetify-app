@@ -149,16 +149,19 @@ class _AppButtonState extends State<AppButton>
                             children: [
                               _buildIcon(metrics, palette.foreground),
                               SizedBox(width: metrics.gap),
-                              Text(
-                                widget.label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontFamily: 'DMSans',
-                                  fontSize: metrics.fontSize,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -0.1,
-                                  color: palette.foreground,
+                              Flexible(
+                                fit: FlexFit.loose,
+                                child: Text(
+                                  widget.label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: 'DMSans',
+                                    fontSize: metrics.fontSize,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.1,
+                                    color: palette.foreground,
+                                  ),
                                 ),
                               ),
                             ],
