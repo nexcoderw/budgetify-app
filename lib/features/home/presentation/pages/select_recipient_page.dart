@@ -331,7 +331,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
     _searchController.clear();
   }
 
-  Future<void> _selectContact(DeviceContact contact) async {
+  void _selectContact(DeviceContact contact) {
     if (_isStartingTransfer) {
       return;
     }
@@ -341,18 +341,18 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
     setState(() {
       _selectedContact = contact;
     });
-
-    await _startTransfer(
-      receiverIdentifier: contact.phoneNumber,
-      recipientType: TransactionRecipientType.phone,
-    );
   }
 
   Future<void> _continueWithRecipient() async {
-    final receiverIdentifier = _phoneController.text.trim();
-    final recipientType = inferTransactionRecipientType(
-      receiverIdentifier,
-    );
+    final selectedContact = _selectedContact;
+    final receiverIdentifier = _mode == _RecipientMode.contacts
+        ? selectedContact?.phoneNumber ?? ''
+        : _phoneController.text.trim();
+    final recipientType = _mode == _RecipientMode.contacts
+        ? TransactionRecipientType.phone
+        : inferTransactionRecipientType(
+            receiverIdentifier,
+          );
 
     await _startTransfer(
       receiverIdentifier: receiverIdentifier,
@@ -391,7 +391,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
         context,
         title: 'USSD unavailable on this device',
         description:
-            'iPhone does not allow apps to dial * or # USSD codes. Use Budgetify on Android to open the MTN transfer prompt.',
+            'Use Budgetify on an Android phone or iPhone to open the MTN transfer prompt.',
       );
       return;
     }
@@ -627,6 +627,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
           selectedContact: _selectedContact,
           onClearSearch: _clearSearch,
           onSelected: _selectContact,
+          onContinue: _continueWithRecipient,
           isLoading: _isStartingTransfer,
           onUseNumber: _showManualEntry,
           onRefresh: _refreshContacts,
@@ -1148,6 +1149,7 @@ class _ContactsList extends StatelessWidget {
     required this.selectedContact,
     required this.onClearSearch,
     required this.onSelected,
+    required this.onContinue,
     required this.isLoading,
     required this.onUseNumber,
     required this.onRefresh,
@@ -1158,7 +1160,8 @@ class _ContactsList extends StatelessWidget {
   final int allContactsCount;
   final DeviceContact? selectedContact;
   final VoidCallback onClearSearch;
-  final Future<void> Function(DeviceContact) onSelected;
+  final ValueChanged<DeviceContact> onSelected;
+  final VoidCallback onContinue;
   final bool isLoading;
   final VoidCallback onUseNumber;
   final Future<void> Function() onRefresh;
@@ -1279,11 +1282,7 @@ class _ContactsList extends StatelessWidget {
                       return _ContactTile(
                         contact: contact,
                         isSelected: selectedContact?.id == contact.id,
-                        onTap: isLoading
-                            ? null
-                            : () {
-                                onSelected(contact);
-                              },
+                        onTap: isLoading ? null : () => onSelected(contact),
                       );
                     },
                   ),
@@ -1310,6 +1309,29 @@ class _ContactsList extends StatelessWidget {
                   child: _SelectedContactSummary(
                     contact: selectedContact!,
                     isLoading: isLoading,
+                  ),
+                ),
+        ),
+        AnimatedSwitcher(
+          duration: const Duration(
+            milliseconds: 160,
+          ),
+          child: selectedContact == null
+              ? const SizedBox.shrink()
+              : Center(
+                  key: const ValueKey('continue-with-contact'),
+                  child: SizedBox(
+                    width: 220,
+                    child: AppButton(
+                      label: 'Continue',
+                      iconWidget: const Icon(
+                        Icons.phone_in_talk_rounded,
+                        color: AppColors.background,
+                      ),
+                      size: AppButtonSize.md,
+                      isLoading: isLoading,
+                      onPressed: isLoading ? null : onContinue,
+                    ),
                   ),
                 ),
         ),
@@ -1611,9 +1633,7 @@ class _ManualRecipientEntry extends StatelessWidget {
             color: AppColors.textSecondary,
           ),
           onSubmitted: (_) {
-            if (canContinue && !isLoading) {
-              onContinue();
-            }
+            FocusScope.of(context).unfocus();
           },
         ),
         const SizedBox(
@@ -1656,20 +1676,29 @@ class _ManualRecipientEntry extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        Center(
-          child: SizedBox(
-            width: 220,
-            child: AppButton(
-              label: 'Open transfer',
-              iconWidget: const Icon(
-                Icons.phone_in_talk_rounded,
-                color: AppColors.background,
-              ),
-              size: AppButtonSize.md,
-              isLoading: isLoading,
-              onPressed: canContinue && !isLoading ? onContinue : null,
-            ),
+        AnimatedSwitcher(
+          duration: const Duration(
+            milliseconds: 160,
           ),
+          child: !canContinue && !isLoading
+              ? const SizedBox.shrink()
+              : Center(
+                  key: const ValueKey('continue-with-number'),
+                  child: SizedBox(
+                    width: 220,
+                    child: AppButton(
+                      label: 'Continue',
+                      iconWidget: const Icon(
+                        Icons.phone_in_talk_rounded,
+                        color: AppColors.background,
+                      ),
+                      size: AppButtonSize.md,
+                      isLoading: isLoading,
+                      onPressed:
+                          canContinue && !isLoading ? onContinue : null,
+                    ),
+                  ),
+                ),
         ),
       ],
     );
