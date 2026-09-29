@@ -99,6 +99,32 @@ bool isValidTransactionRecipient(
   return RegExp(r'^\d{6,34}$').hasMatch(digits);
 }
 
+TransactionTransferType inferTransactionTransferType({
+  required String recipientIdentifier,
+  required TransactionRecipientType recipientType,
+}) {
+  if (recipientType == TransactionRecipientType.bankAccount) {
+    return TransactionTransferType.momoToEkash;
+  }
+
+  final digits = recipientIdentifier.replaceAll(
+    RegExp(r'\D'),
+    '',
+  );
+  final localNumber = digits.startsWith('250')
+      ? '0${digits.substring(3)}'
+      : digits.startsWith('7')
+          ? '0$digits'
+          : digits;
+
+  final isMtnNumber = localNumber.startsWith('078') ||
+      localNumber.startsWith('079');
+
+  return isMtnNumber
+      ? TransactionTransferType.momoToMomo
+      : TransactionTransferType.momoToEkash;
+}
+
 class TransactionQuote {
   const TransactionQuote({
     required this.transferType,
