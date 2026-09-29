@@ -12,6 +12,13 @@ class AuthLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final safePadding = MediaQuery.paddingOf(context);
+    final availableFormHeight =
+        screenHeight - safePadding.vertical - 163;
+    final minimumFormHeight = availableFormHeight > 0
+        ? availableFormHeight
+        : 0.0;
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -29,48 +36,38 @@ class AuthLayout extends StatelessWidget {
                       const _AuthHeader(),
                       const SizedBox(height: 24),
                       Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            return SingleChildScrollView(
-                              keyboardDismissBehavior:
-                                  ScrollViewKeyboardDismissBehavior.onDrag,
-                              padding: EdgeInsets.only(
-                                bottom: keyboardInset,
-                              ),
-                              child: ConstrainedBox(
+                        child: SingleChildScrollView(
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          padding: EdgeInsets.only(
+                            bottom: keyboardInset,
+                          ),
+                          child: Column(
+                            children: [
+                              ConstrainedBox(
                                 constraints: BoxConstraints(
-                                  minHeight: constraints.maxHeight,
+                                  minHeight: minimumFormHeight,
                                 ),
-                                child: IntrinsicHeight(
-                                  child: Column(
-                                    children: [
-                                      Expanded(
-                                        child: AnimatedPadding(
-                                          duration: const Duration(
-                                            milliseconds: 180,
-                                          ),
-                                          curve: Curves.easeOutCubic,
-                                          padding: EdgeInsets.only(
-                                            bottom: keyboardInset,
-                                          ),
-                                          child: Center(
-                                            child: ConstrainedBox(
-                                              constraints: const BoxConstraints(
-                                                maxWidth: 520,
-                                              ),
-                                              child: child,
-                                            ),
-                                          ),
-                                        ),
+                                child: AnimatedPadding(
+                                  duration: const Duration(milliseconds: 180),
+                                  curve: Curves.easeOutCubic,
+                                  padding: EdgeInsets.only(
+                                    bottom: keyboardInset,
+                                  ),
+                                  child: Center(
+                                    child: ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 520,
                                       ),
-                                      const SizedBox(height: 20),
-                                      const AuthFooterLinks(),
-                                    ],
+                                      child: child,
+                                    ),
                                   ),
                                 ),
                               ),
-                            );
-                          },
+                              const SizedBox(height: 20),
+                              const AuthFooterLinks(),
+                            ],
+                          ),
                         ),
                       ),
                     ],
