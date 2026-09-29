@@ -1,68 +1,33 @@
-import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
 
-import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
-import '../../../../core/widgets/app_input.dart';
-import '../../../../core/widgets/app_toast.dart';
-import '../../application/transaction_service.dart';
-import '../../application/ussd_transfer_service.dart';
-import '../../data/models/transaction_models.dart';
 import '../widgets/send_money_category_sheet.dart';
 import 'select_recipient_page.dart';
 
 class SendMoneyPage extends StatefulWidget {
-  const SendMoneyPage({
-    super.key,
-    this.transactionService,
-    this.ussdTransferService,
-  });
-
-  final TransactionService? transactionService;
-  final UssdTransferService? ussdTransferService;
+  const SendMoneyPage({super.key});
 
   @override
   State<SendMoneyPage> createState() => _SendMoneyPageState();
 }
 
-enum _SendMoneyMode { recipient, momoCode }
-
 class _SendMoneyPageState extends State<SendMoneyPage>
     with SingleTickerProviderStateMixin {
   static const int _maximumDigits = 12;
 
-  final _momoCodeController = TextEditingController();
-
   late final AnimationController _entranceController;
   late final Animation<double> _entranceOpacity;
   late final Animation<Offset> _entranceOffset;
-  late final TransactionService _transactionService;
-  late final UssdTransferService _ussdTransferService;
 
   String _amountDigits = '';
   bool _lastChangeWasDelete = false;
-  _SendMoneyMode _mode = _SendMoneyMode.recipient;
-  PaymentTransaction? _pendingMomoPayTransaction;
-  String? _activeMomoPaySignature;
-  String? _momoPayIdempotencyKey;
-  bool _isStartingMomoPay = false;
 
   bool get _hasAmount => _amountDigits.isNotEmpty && _amountDigits != '0';
-
-  bool get _hasValidMomoCode => isValidTransactionRecipient(
-    _momoCodeController.text,
-    TransactionRecipientType.momoCode,
-  );
-
-  bool get _canContinue =>
-      _hasAmount &&
-      (_mode == _SendMoneyMode.recipient || _hasValidMomoCode) &&
-      !_isStartingMomoPay;
 
   String get _formattedAmount {
     final value = _amountDigits.isEmpty ? '0' : _amountDigits;
@@ -84,12 +49,6 @@ class _SendMoneyPageState extends State<SendMoneyPage>
   @override
   void initState() {
     super.initState();
-
-    _transactionService =
-        widget.transactionService ?? TransactionService.createDefault();
-    _ussdTransferService =
-        widget.ussdTransferService ?? const UssdTransferService();
-    _momoCodeController.addListener(_handleMomoCodeChanged);
 
     _entranceController = AnimationController(
       vsync: this,
@@ -113,30 +72,8 @@ class _SendMoneyPageState extends State<SendMoneyPage>
 
   @override
   void dispose() {
-    _momoCodeController
-      ..removeListener(_handleMomoCodeChanged)
-      ..dispose();
     _entranceController.dispose();
     super.dispose();
-  }
-
-  void _handleMomoCodeChanged() {
-    _activeMomoPaySignature = null;
-    _pendingMomoPayTransaction = null;
-
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  void _selectMode(_SendMoneyMode mode) {
-    if (_mode == mode || _isStartingMomoPay) {
-      return;
-    }
-
-    FocusScope.of(context).unfocus();
-    HapticFeedback.selectionClick();
-    setState(() => _mode = mode);
   }
 
   void _appendDigits(String digits) {
@@ -201,32 +138,12 @@ class _SendMoneyPageState extends State<SendMoneyPage>
   }
 
   Future<void> _sendMoney() async {
-    if (!_canContinue) {
-      return;
-    }
-
-    if (_mode == _SendMoneyMode.momoCode && !_hasValidMomoCode) {
-      AppToast.error(
-        context,
-        title: 'Invalid MoMo code',
-        description: 'Enter a MoMo merchant code containing 3 to 12 digits.',
-      );
-      return;
-    }
-
-    FocusScope.of(context).unfocus();
-
     final category = await showSendMoneyCategorySheet(
       context,
       amount: _formattedAmount,
     );
 
     if (!mounted || category == null) {
-      return;
-    }
-
-    if (_mode == _SendMoneyMode.momoCode) {
-      await _startMomoPay(category);
       return;
     }
 
@@ -238,130 +155,6 @@ class _SendMoneyPageState extends State<SendMoneyPage>
         ),
       ),
     );
-  }
-
-  Future<void> _startMomoPay(String category) async {
-    if (_isStartingMomoPay) {
-      return;
-    }
-
-    final momoCode = _momoCodeController.text.replaceAll(RegExp(r'\D'), '');
-    final amount = int.parse(_amountDigits);
-
-    if (!_ussdTransferService.isSupported) {
-      AppToast.error(
-        context,
-        title: 'USSD unavailable on this device',
-        description:
-            'Use Budgetify on an Android phone or iPhone to open the MTN MoMo Pay prompt.',
-      );
-      return;
-    }
-
-    final transferSignature = '$amount:$momoCode:$category';
-
-    if (_activeMomoPaySignature != transferSignature) {
-      _activeMomoPaySignature = transferSignature;
-      _momoPayIdempotencyKey = _createIdempotencyKey();
-      _pendingMomoPayTransaction = null;
-    }
-
-    setState(() => _isStartingMomoPay = true);
-
-    try {
-      final allowed = await _ussdTransferService.prepare();
-
-      if (!allowed) {
-        if (!mounted) {
-          return;
-        }
-
-        AppToast.error(
-          context,
-          title: 'Phone access required',
-          description:
-              'Allow phone access so Budgetify can open the MTN MoMo Pay prompt.',
-        );
-        return;
-      }
-
-      final transaction =
-          _pendingMomoPayTransaction ??
-          await _transactionService.create(
-            amount: amount,
-            transferType: TransactionTransferType.momoPay,
-            recipientType: TransactionRecipientType.momoCode,
-            category: TransactionCategory.fromLabel(category),
-            receiverIdentifier: momoCode,
-            idempotencyKey: _momoPayIdempotencyKey!,
-          );
-
-      _pendingMomoPayTransaction = transaction;
-
-      await _ussdTransferService.launch(
-        transferType: TransactionTransferType.momoPay,
-        recipientType: TransactionRecipientType.momoCode,
-        receiverIdentifier: momoCode,
-        amount: amount,
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      AppToast.info(
-        context,
-        title: 'MoMo Pay opened',
-        description:
-            'Confirm the merchant payment in the MTN prompt. It remains pending until confirmed.',
-      );
-    } on ApiException catch (error) {
-      if (mounted) {
-        AppToast.error(
-          context,
-          title: 'Could not prepare payment',
-          description: error.message,
-        );
-      }
-    } on PlatformException catch (error) {
-      if (mounted) {
-        AppToast.error(
-          context,
-          title: 'Could not open MTN MoMo',
-          description: error.message ?? 'Please try again.',
-        );
-      }
-    } on ArgumentError catch (error) {
-      if (mounted) {
-        AppToast.error(
-          context,
-          title: 'Invalid payment details',
-          description: error.message?.toString() ?? 'Check the MoMo code.',
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        AppToast.error(
-          context,
-          title: 'Payment unavailable',
-          description: 'The payment could not be started. Please try again.',
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isStartingMomoPay = false);
-      }
-    }
-  }
-
-  String _createIdempotencyKey() {
-    final random = Random.secure();
-    final randomPart = List<int>.generate(
-      16,
-      (_) => random.nextInt(256),
-    ).map((value) => value.toRadixString(16).padLeft(2, '0')).join();
-
-    return 'momo-pay-${DateTime.now().microsecondsSinceEpoch}-$randomPart';
   }
 
   @override
@@ -376,39 +169,13 @@ class _SendMoneyPageState extends State<SendMoneyPage>
         constraints: const BoxConstraints(
           maxWidth: 520,
         ),
-        child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: EdgeInsets.all(isCompact ? 16 : 20),
+        child: Padding(
+          padding: EdgeInsets.all(
+            isCompact ? 16 : 20,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _SendMoneyModeSelector(
-                mode: _mode,
-                onSelected: _selectMode,
-              ),
-              if (_mode == _SendMoneyMode.momoCode) ...[
-                SizedBox(height: isCompact ? 14 : 16),
-                AppInput(
-                  controller: _momoCodeController,
-                  label: 'MoMo merchant code',
-                  hintText: 'Enter merchant code',
-                  leadingIcon: HugeIcons.strokeRoundedMoneySendSquare,
-                  keyboardType: TextInputType.number,
-                  textInputAction: TextInputAction.done,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(12),
-                  ],
-                  maxLength: 12,
-                  borderRadius: 999,
-                  onSubmitted: (_) {
-                    if (_canContinue) {
-                      _sendMoney();
-                    }
-                  },
-                ),
-              ],
-              SizedBox(height: isCompact ? 16 : 20),
               _AmountDisplay(
                 amount: _formattedAmount,
                 changeWasDelete: _lastChangeWasDelete,
@@ -433,20 +200,17 @@ class _SendMoneyPageState extends State<SendMoneyPage>
                 child: SizedBox(
                   width: 240,
                   child: AppButton(
-                    label: _mode == _SendMoneyMode.momoCode
-                        ? 'Pay with MoMo'
-                        : 'Send money',
+                    label: 'Send money',
                     icon: HugeIcons.strokeRoundedMoneySendCircle,
                     size: AppButtonSize.md,
-                    isLoading: _isStartingMomoPay,
-                    onPressed: _canContinue ? _sendMoney : null,
+                    onPressed: _hasAmount ? _sendMoney : null,
                   ),
                 ),
               ),
               const SizedBox(
                 height: 12,
               ),
-              _NextStepHint(mode: _mode),
+              const _NextStepHint(),
             ],
           ),
         ),
@@ -462,115 +226,6 @@ class _SendMoneyPageState extends State<SendMoneyPage>
       child: SlideTransition(
         position: _entranceOffset,
         child: content,
-      ),
-    );
-  }
-}
-
-class _SendMoneyModeSelector extends StatelessWidget {
-  const _SendMoneyModeSelector({
-    required this.mode,
-    required this.onSelected,
-  });
-
-  final _SendMoneyMode mode;
-  final ValueChanged<_SendMoneyMode> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: 'Payment destination',
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: _SendMoneyModeButton(
-                label: 'Phone / account',
-                icon: Icons.person_outline_rounded,
-                isSelected: mode == _SendMoneyMode.recipient,
-                onPressed: () => onSelected(_SendMoneyMode.recipient),
-              ),
-            ),
-            Expanded(
-              child: _SendMoneyModeButton(
-                label: 'MoMo code',
-                icon: Icons.storefront_outlined,
-                isSelected: mode == _SendMoneyMode.momoCode,
-                onPressed: () => onSelected(_SendMoneyMode.momoCode),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SendMoneyModeButton extends StatelessWidget {
-  const _SendMoneyModeButton({
-    required this.label,
-    required this.icon,
-    required this.isSelected,
-    required this.onPressed,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final disableAnimations = MediaQuery.disableAnimationsOf(context);
-    final color = isSelected ? AppColors.primary : AppColors.textSecondary;
-
-    return Semantics(
-      button: true,
-      selected: isSelected,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(999),
-          child: AnimatedContainer(
-            duration: disableAnimations
-                ? Duration.zero
-                : const Duration(milliseconds: 180),
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? AppColors.primary.withValues(alpha: 0.11)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 18, color: color),
-                const SizedBox(width: 7),
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: color,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -1012,16 +667,12 @@ class _AmountKeyState extends State<_AmountKey> {
 }
 
 class _NextStepHint extends StatelessWidget {
-  const _NextStepHint({required this.mode});
-
-  final _SendMoneyMode mode;
+  const _NextStepHint();
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      mode == _SendMoneyMode.momoCode
-          ? 'MTN will ask you to confirm the merchant payment.'
-          : 'You’ll choose the recipient in the next step.',
+    return const Text(
+      'You’ll choose the recipient in the next step.',
       textAlign: TextAlign.center,
       style: TextStyle(
         fontSize: 10,
