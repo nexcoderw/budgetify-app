@@ -15,9 +15,6 @@ enum DeviceContactsPermission {
 class DeviceContactsService {
   const DeviceContactsService();
 
-  static DeviceContactsPermission _lastKnownPermission =
-      DeviceContactsPermission.notDetermined;
-
   bool get isSupported {
     if (kIsWeb) {
       return false;
@@ -32,7 +29,7 @@ class DeviceContactsService {
       return DeviceContactsPermission.unsupported;
     }
 
-    return _lastKnownPermission;
+    return requestPermission();
   }
 
   Future<DeviceContactsPermission> requestPermission() async {
@@ -44,16 +41,20 @@ class DeviceContactsService {
       readonly: true,
     );
 
-    _lastKnownPermission = isGranted
+    return isGranted
         ? DeviceContactsPermission.granted
         : DeviceContactsPermission.denied;
-
-    return _lastKnownPermission;
   }
 
   Future<List<DeviceContact>> getContacts() async {
     if (!isSupported) {
       return const [];
+    }
+
+    final permission = await requestPermission();
+
+    if (permission != DeviceContactsPermission.granted) {
+      throw StateError('Contact access has not been granted.');
     }
 
     final contacts = await FlutterContacts.getContacts(
@@ -67,9 +68,19 @@ class DeviceContactsService {
     for (var contactIndex = 0; contactIndex < contacts.length; contactIndex++) {
       final contact = contacts[contactIndex];
       final displayName = contact.displayName.trim();
-      final resolvedName = displayName.isEmpty
-          ? 'Unknown contact'
-          : displayName;
+      final structuredName = [
+        contact.name.first,
+        contact.name.middle,
+        contact.name.last,
+      ].map((part) => part.trim()).where((part) => part.isNotEmpty).join(' ');
+      final nickname = contact.name.nickname.trim();
+      final resolvedName = displayName.isNotEmpty
+          ? displayName
+          : structuredName.isNotEmpty
+          ? structuredName
+          : nickname.isNotEmpty
+          ? nickname
+          : 'Unknown contact';
       final contactIdentity = contact.id.isEmpty
           ? 'contact-$contactIndex'
           : contact.id;
