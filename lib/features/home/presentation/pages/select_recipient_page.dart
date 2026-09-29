@@ -238,6 +238,35 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
     }
   }
 
+  Future<void> _refreshContacts() async {
+    try {
+      final contacts = await widget.contactsService.getContacts();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _contacts = contacts;
+        _selectedContact = contacts.any(
+          (contact) => contact.id == _selectedContact?.id,
+        )
+            ? _selectedContact
+            : null;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      AppToast.error(
+        context,
+        title: 'Could not refresh contacts',
+        description: 'Pull down to try again.',
+      );
+    }
+  }
+
   void _showContacts() {
     FocusScope.of(context).unfocus();
 
@@ -363,20 +392,15 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
                     onBack: () => Navigator.of(context).pop(),
                   ),
                   SizedBox(
-                    height: isCompact ? 22 : 28,
+                    height: isCompact ? 16 : 20,
                   ),
                   _RecipientHeader(
                     compact: isCompact,
-                  ),
-                  const SizedBox(
-                    height: 18,
-                  ),
-                  _TransferSummary(
                     amount: widget.amount,
                     category: widget.category,
                   ),
                   const SizedBox(
-                    height: 18,
+                    height: 14,
                   ),
                   FractionallySizedBox(
                     widthFactor: mediaQuery.size.width < 600 ? 0.88 : 0.66,
@@ -387,7 +411,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
                     ),
                   ),
                   const SizedBox(
-                    height: 18,
+                    height: 14,
                   ),
                   Expanded(
                     child: AnimatedSwitcher(
@@ -446,6 +470,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
           onContinue:
               _selectedContact == null ? null : _continueWithRecipient,
           onUseNumber: _showManualEntry,
+          onRefresh: _refreshContacts,
         ),
     };
   }
@@ -532,162 +557,63 @@ class _RecipientTopBar extends StatelessWidget {
 class _RecipientHeader extends StatelessWidget {
   const _RecipientHeader({
     required this.compact,
-  });
-
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'SEND MONEY',
-          style: TextStyle(
-            fontSize: 10,
-            height: 1,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.5,
-            color: AppColors.primary.withValues(
-              alpha: 0.92,
-            ),
-          ),
-        ),
-        const SizedBox(
-          height: 10,
-        ),
-        Text(
-          'Choose recipient',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontSize: compact ? 25 : 28,
-                height: 1.05,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.8,
-                color: AppColors.textPrimary,
-              ),
-        ),
-        const SizedBox(
-          height: 7,
-        ),
-        const Text(
-          'Who should receive this money?',
-          style: TextStyle(
-            fontSize: 12,
-            height: 1.5,
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TransferSummary extends StatelessWidget {
-  const _TransferSummary({
     required this.amount,
     required this.category,
   });
 
+  final bool compact;
   final String amount;
   final String category;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(
-        14,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(
-          alpha: 0.045,
-        ),
-        borderRadius: BorderRadius.circular(
-          22,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.primary.withValues(
-                alpha: 0.14,
-              ),
-            ),
-            alignment: Alignment.center,
-            child: const Icon(
-              Icons.payments_outlined,
-              size: 20,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(
-            width: 12,
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'YOU ARE SENDING',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.1,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(
-                  height: 4,
-                ),
-                Text(
-                  'RWF $amount',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    height: 1.1,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(
-            width: 12,
-          ),
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 11,
-                vertical: 7,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(
-                  alpha: 0.11,
-                ),
-                borderRadius: BorderRadius.circular(
-                  999,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Choose recipient',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontSize: compact ? 23 : 26,
+                  height: 1.05,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.7,
+                  color: AppColors.textPrimary,
                 ),
               ),
-              child: Text(
+              const SizedBox(height: 5),
+              Text(
                 category,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
                 ),
               ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 14),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.11),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Text(
+            'RWF $amount',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -864,7 +790,7 @@ class _ContactsPermissionPrompt extends StatelessWidget {
                 maxWidth: 340,
               ),
               child: const Text(
-                'Allow Budgetify to show names and phone numbers from your device so you can choose a recipient quickly.',
+                'Allow Budgetify to show names and phone numbers from your device. Choose full contact access when your phone asks.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
@@ -1065,6 +991,7 @@ class _ContactsList extends StatelessWidget {
     required this.onSelected,
     required this.onContinue,
     required this.onUseNumber,
+    required this.onRefresh,
   });
 
   final TextEditingController searchController;
@@ -1075,6 +1002,7 @@ class _ContactsList extends StatelessWidget {
   final ValueChanged<DeviceContact> onSelected;
   final VoidCallback? onContinue;
   final VoidCallback onUseNumber;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -1105,11 +1033,10 @@ class _ContactsList extends StatelessWidget {
         Row(
           children: [
             const Text(
-              'CONTACTS',
+              'All contacts',
               style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.3,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
                 color: AppColors.textSecondary,
               ),
             ),
@@ -1128,7 +1055,9 @@ class _ContactsList extends StatelessWidget {
                 ),
               ),
               child: Text(
-                '$allContactsCount',
+                contacts.length == allContactsCount
+                    ? '$allContactsCount'
+                    : '${contacts.length} of $allContactsCount',
                 style: const TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w800,
@@ -1165,28 +1094,33 @@ class _ContactsList extends StatelessWidget {
         Expanded(
           child: contacts.isEmpty
               ? const _NoContactResults()
-              : ListView.separated(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: const EdgeInsets.only(
-                    bottom: 10,
-                  ),
-                  itemCount: contacts.length,
-                  separatorBuilder: (_, _) {
-                    return const SizedBox(
-                      height: 7,
-                    );
-                  },
-                  itemBuilder: (context, index) {
-                    final contact = contacts[index];
+              : RefreshIndicator(
+                  color: AppColors.background,
+                  backgroundColor: AppColors.primary,
+                  onRefresh: onRefresh,
+                  child: ListView.separated(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    padding: const EdgeInsets.only(bottom: 12),
+                    itemCount: contacts.length,
+                    separatorBuilder: (_, _) => Divider(
+                      height: 1,
+                      indent: 60,
+                      color: AppColors.border.withValues(alpha: 0.65),
+                    ),
+                    itemBuilder: (context, index) {
+                      final contact = contacts[index];
 
-                    return _ContactTile(
-                      contact: contact,
-                      isSelected:
-                          selectedContact?.id == contact.id,
-                      onTap: () => onSelected(contact),
-                    );
-                  },
+                      return _ContactTile(
+                        contact: contact,
+                        isSelected: selectedContact?.id == contact.id,
+                        onTap: () => onSelected(contact),
+                      );
+                    },
+                  ),
                 ),
         ),
         const SizedBox(
@@ -1253,12 +1187,12 @@ class _ContactTile extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(
-          18,
+          14,
         ),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(
-            18,
+            14,
           ),
           child: AnimatedContainer(
             duration: disableAnimations
@@ -1268,8 +1202,8 @@ class _ContactTile extends StatelessWidget {
                   ),
             curve: Curves.easeOutCubic,
             padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
+              horizontal: 8,
+              vertical: 8,
             ),
             decoration: BoxDecoration(
               color: isSelected
@@ -1277,10 +1211,10 @@ class _ContactTile extends StatelessWidget {
                       alpha: 0.13,
                     )
                   : Colors.white.withValues(
-                      alpha: 0.035,
+                      alpha: 0,
                     ),
               borderRadius: BorderRadius.circular(
-                18,
+                14,
               ),
             ),
             child: Row(
@@ -1291,8 +1225,8 @@ class _ContactTile extends StatelessWidget {
                       : const Duration(
                           milliseconds: 160,
                         ),
-                  width: 44,
-                  height: 44,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: isSelected
