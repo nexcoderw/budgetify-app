@@ -551,15 +551,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
                     onBack: () => Navigator.of(context).pop(),
                   ),
                   SizedBox(
-                    height: isCompact ? 16 : 20,
-                  ),
-                  _RecipientHeader(
-                    compact: isCompact,
-                    amount: widget.amount,
-                    category: widget.category,
-                  ),
-                  const SizedBox(
-                    height: 14,
+                    height: isCompact ? 18 : 22,
                   ),
                   FractionallySizedBox(
                     widthFactor: mediaQuery.size.width < 600 ? 0.88 : 0.66,
@@ -645,135 +637,34 @@ class _RecipientTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Semantics(
-          button: true,
-          label: 'Go back',
-          child: Tooltip(
-            message: 'Back',
-            child: Material(
-              color: AppColors.surfaceElevated,
-              shape: const CircleBorder(),
-              child: InkWell(
-                onTap: onBack,
-                customBorder: const CircleBorder(),
-                child: const SizedBox.square(
-                  dimension: 44,
-                  child: Center(
-                    child: HugeIcon(
-                      icon: HugeIcons.strokeRoundedArrowLeft01,
-                      size: 19,
-                      color: AppColors.textPrimary,
-                      strokeWidth: 1.9,
-                    ),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Semantics(
+        button: true,
+        label: 'Go back',
+        child: Tooltip(
+          message: 'Back',
+          child: Material(
+            color: AppColors.surfaceElevated,
+            shape: const CircleBorder(),
+            child: InkWell(
+              onTap: onBack,
+              customBorder: const CircleBorder(),
+              child: const SizedBox.square(
+                dimension: 44,
+                child: Center(
+                  child: HugeIcon(
+                    icon: HugeIcons.strokeRoundedArrowLeft01,
+                    size: 19,
+                    color: AppColors.textPrimary,
+                    strokeWidth: 1.9,
                   ),
                 ),
               ),
             ),
           ),
         ),
-        const Spacer(),
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 8,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(
-              alpha: 0.05,
-            ),
-            borderRadius: BorderRadius.circular(
-              999,
-            ),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.lock_outline_rounded,
-                size: 14,
-                color: AppColors.textSecondary,
-              ),
-              SizedBox(
-                width: 6,
-              ),
-              Text(
-                'Secure transfer',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _RecipientHeader extends StatelessWidget {
-  const _RecipientHeader({
-    required this.compact,
-    required this.amount,
-    required this.category,
-  });
-
-  final bool compact;
-  final String amount;
-  final String category;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Choose recipient',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontSize: compact ? 23 : 26,
-                  height: 1.05,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.7,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                category,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 14),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.11),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Text(
-            'RWF $amount',
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              color: AppColors.primary,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -1174,6 +1065,7 @@ class _ContactsList extends StatelessWidget {
         AppInput(
           controller: searchController,
           hintText: 'Search name or phone number',
+          borderRadius: 999,
           textInputAction: TextInputAction.search,
           suffixIcon: searchController.text.isEmpty
               ? const Icon(
@@ -1620,6 +1512,7 @@ class _ManualRecipientEntry extends StatelessWidget {
           focusNode: phoneFocusNode,
           label: 'Phone number or bank account',
           hintText: '0788 123 456 or account number',
+          borderRadius: 999,
           keyboardType: TextInputType.phone,
           textInputAction: TextInputAction.done,
           maxLength: 34,
