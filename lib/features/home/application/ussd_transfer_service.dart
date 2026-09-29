@@ -17,8 +17,8 @@ class UssdTransferService {
 
   bool get isSupported {
     return !kIsWeb &&
-        defaultTargetPlatform ==
-            TargetPlatform.android;
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS);
   }
 
   Future<bool> prepare() async {
@@ -42,7 +42,7 @@ class UssdTransferService {
       throw PlatformException(
         code: 'unsupported_platform',
         message:
-            'Direct USSD transfers are currently available on Android only.',
+            'USSD transfers are only available on Android and iPhone.',
       );
     }
 
