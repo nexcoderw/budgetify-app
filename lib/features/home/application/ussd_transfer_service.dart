@@ -15,6 +15,8 @@ class UssdTransferService {
   static const String _ekashTransferPrefix =
       '*182*1*2';
 
+  static const String _momoPayPrefix = '*182*8*1';
+
   bool get isSupported {
     return !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.android ||
@@ -85,21 +87,39 @@ class UssdTransferService {
       );
     }
 
-    final recipient =
-        recipientType ==
-                TransactionRecipientType.phone
-            ? _normalizePhoneForUssd(
-                receiverIdentifier,
-              )
-            : _normalizeBankAccount(
-                receiverIdentifier,
-              );
+    if (
+        transferType == TransactionTransferType.momoPay &&
+        recipientType != TransactionRecipientType.momoCode) {
+      throw ArgumentError(
+        'MoMo Pay requires a MoMo merchant code.',
+      );
+    }
 
-    final prefix =
-        transferType ==
-                TransactionTransferType.momoToMomo
-            ? _momoTransferPrefix
-            : _ekashTransferPrefix;
+    if (
+        recipientType == TransactionRecipientType.momoCode &&
+        transferType != TransactionTransferType.momoPay) {
+      throw ArgumentError(
+        'MoMo merchant codes can only be used with MoMo Pay.',
+      );
+    }
+
+    final recipient = switch (recipientType) {
+      TransactionRecipientType.phone => _normalizePhoneForUssd(
+        receiverIdentifier,
+      ),
+      TransactionRecipientType.bankAccount => _normalizeBankAccount(
+        receiverIdentifier,
+      ),
+      TransactionRecipientType.momoCode => _normalizeMomoCode(
+        receiverIdentifier,
+      ),
+    };
+
+    final prefix = switch (transferType) {
+      TransactionTransferType.momoToMomo => _momoTransferPrefix,
+      TransactionTransferType.momoToEkash => _ekashTransferPrefix,
+      TransactionTransferType.momoPay => _momoPayPrefix,
+    };
 
     return '$prefix*$recipient*$amount#';
   }
@@ -144,6 +164,18 @@ class UssdTransferService {
             .hasMatch(digits)) {
       throw ArgumentError(
         'Invalid bank account number.',
+      );
+    }
+
+    return digits;
+  }
+
+  String _normalizeMomoCode(String value) {
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+
+    if (!RegExp(r'^\d{3,12}$').hasMatch(digits)) {
+      throw ArgumentError(
+        'MoMo merchant code must contain between 3 and 12 digits.',
       );
     }
 
