@@ -365,7 +365,7 @@ class _OtpFormState extends State<_OtpForm>
                       ),
                     ),
                   ],
-                ],
+                ),
               ),
             ),
           ),
