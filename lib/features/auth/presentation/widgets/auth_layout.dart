@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/glass_panel.dart';
 import 'auth_footer_links.dart';
 
 class AuthLayout extends StatelessWidget {
@@ -21,57 +20,55 @@ class AuthLayout extends StatelessWidget {
         : 0.0;
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       resizeToAvoidBottomInset: false,
-      body: DecoratedBox(
-        decoration: const _AuthBackgroundDecoration(),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1320),
-            child: SizedBox.expand(
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-                  child: Column(
-                    children: [
-                      const _AuthHeader(),
-                      const SizedBox(height: 24),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          keyboardDismissBehavior:
-                              ScrollViewKeyboardDismissBehavior.onDrag,
-                          padding: EdgeInsets.only(
-                            bottom: keyboardInset,
-                          ),
-                          child: Column(
-                            children: [
-                              ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  minHeight: minimumFormHeight,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1320),
+          child: SizedBox.expand(
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+                child: Column(
+                  children: [
+                    const _AuthHeader(),
+                    const SizedBox(height: 24),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        padding: EdgeInsets.only(
+                          bottom: keyboardInset,
+                        ),
+                        child: Column(
+                          children: [
+                            ConstrainedBox(
+                              constraints: BoxConstraints(
+                                minHeight: minimumFormHeight,
+                              ),
+                              child: AnimatedPadding(
+                                duration: const Duration(milliseconds: 180),
+                                curve: Curves.easeOutCubic,
+                                padding: EdgeInsets.only(
+                                  bottom: keyboardInset,
                                 ),
-                                child: AnimatedPadding(
-                                  duration: const Duration(milliseconds: 180),
-                                  curve: Curves.easeOutCubic,
-                                  padding: EdgeInsets.only(
-                                    bottom: keyboardInset,
-                                  ),
-                                  child: Center(
-                                    child: ConstrainedBox(
-                                      constraints: const BoxConstraints(
-                                        maxWidth: 520,
-                                      ),
-                                      child: child,
+                                child: Center(
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 520,
                                     ),
+                                    child: child,
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 20),
-                              const AuthFooterLinks(),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(height: 20),
+                            const AuthFooterLinks(),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -96,11 +93,8 @@ class _AuthHeader extends StatelessWidget {
 
     return Row(
       children: [
-        GlassPanel(
+        Padding(
           padding: EdgeInsets.all(logoPadding),
-          blur: 20,
-          opacity: 0.12,
-          borderRadius: BorderRadius.circular(18),
           child: Image.asset(
             'assets/branding/png/tight/logo-color-beige-512.png',
             width: logoWidth,
@@ -121,47 +115,6 @@ class _AuthHeader extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _AuthBackgroundDecoration extends Decoration {
-  const _AuthBackgroundDecoration();
-
-  @override
-  BoxPainter createBoxPainter([VoidCallback? onChanged]) {
-    return _AuthBackgroundPainter();
-  }
-}
-
-class _AuthBackgroundPainter extends BoxPainter {
-  @override
-  void paint(Canvas canvas, Offset offset, ImageConfiguration configuration) {
-    final size = configuration.size;
-    if (size == null) {
-      return;
-    }
-
-    final rect = offset & size;
-    final paint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [AppColors.background, Color(0xFF0D1116), Color(0xFF131922)],
-      ).createShader(rect);
-    canvas.drawRect(rect, paint);
-
-    final accentPaint = Paint()
-      ..color = AppColors.primary.withValues(alpha: 0.08);
-    canvas.drawCircle(
-      Offset(offset.dx + size.width * 0.2, offset.dy + size.height * 0.18),
-      size.shortestSide * 0.2,
-      accentPaint,
-    );
-    canvas.drawCircle(
-      Offset(offset.dx + size.width * 0.82, offset.dy + size.height * 0.78),
-      size.shortestSide * 0.28,
-      Paint()..color = Colors.white.withValues(alpha: 0.04),
     );
   }
 }
