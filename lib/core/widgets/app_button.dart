@@ -203,7 +203,6 @@ class _AppButtonState extends State<AppButton>
 
 class _TransferPulseLoader extends StatelessWidget {
   const _TransferPulseLoader({
-    super.key,
     required this.controller,
     required this.size,
     required this.color,
