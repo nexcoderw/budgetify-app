@@ -11,6 +11,16 @@ class AuthApiRoutes {
 
   String get emailVerify => '$base/email/verify';
 
+  String get passwordStatus => '$base/password/status';
+
+  String get passwordChallenge => '$base/password/challenge';
+
+  String get passwordChallengeVerify => '$base/password/challenge/verify';
+
+  String get passwordSet => '$base/password/set';
+
+  String get passwordLogin => '$base/password/login';
+
   String get refresh => '$base/refresh';
 
   String get logout => '$base/logout';
