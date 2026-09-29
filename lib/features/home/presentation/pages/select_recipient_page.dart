@@ -1033,7 +1033,7 @@ class _TypedRecipientTile extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(14),
           child: Container(
-            minHeight: 58,
+            constraints: const BoxConstraints(minHeight: 58),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             decoration: BoxDecoration(
               color: isSelected
