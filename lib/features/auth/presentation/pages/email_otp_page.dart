@@ -9,22 +9,23 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_input.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../application/auth_service_contract.dart';
-import '../../data/models/email_initiate_response.dart';
-import '../auth_post_auth_navigation.dart';
+import '../../data/models/password_auth_models.dart';
 import '../widgets/auth_layout.dart';
-import '../widgets/profile_completion_dialog.dart';
+import 'password_setup_page.dart';
 
 class EmailOtpPage extends StatefulWidget {
   const EmailOtpPage({
     super.key,
     required this.authService,
     required this.email,
-    required this.initiateResponse,
+    required this.challenge,
+    required this.isRecovery,
   });
 
   final AuthServiceContract authService;
   final String email;
-  final EmailInitiateResponse initiateResponse;
+  final PasswordChallenge challenge;
+  final bool isRecovery;
 
   @override
   State<EmailOtpPage> createState() => _EmailOtpPageState();
@@ -74,32 +75,21 @@ class _EmailOtpPageState extends State<EmailOtpPage> {
     setState(() => _isVerifying = true);
 
     try {
-      final session = await widget.authService.verifyEmailOtp(
+      final grant = await widget.authService.verifyPasswordChallenge(
         widget.email,
         _currentOtp,
       );
 
       if (!mounted) return;
 
-      final resolvedUser = await ProfileCompletionDialog.showIfRequired(
-        context,
-        authService: widget.authService,
-        user: session.user,
-      );
-
-      if (!mounted) return;
-
-      AppToast.success(
-        context,
-        title: 'Signed in successfully',
-        description: 'Welcome, ${resolvedUser.fullName ?? resolvedUser.email}.',
-      );
-
-      await openPostAuthDestination(
-        context: context,
-        authService: widget.authService,
-        user: resolvedUser,
-        clearStack: true,
+      await Navigator.of(context).pushReplacement<void, void>(
+        MaterialPageRoute<void>(
+          builder: (_) => PasswordSetupPage(
+            authService: widget.authService,
+            grantToken: grant.token,
+            isRecovery: widget.isRecovery,
+          ),
+        ),
       );
     } catch (error) {
       if (mounted) {
@@ -118,15 +108,14 @@ class _EmailOtpPageState extends State<EmailOtpPage> {
     setState(() => _isResending = true);
 
     try {
-      await widget.authService.initiateEmailAuth(widget.email);
+      await widget.authService.requestPasswordChallenge(widget.email);
 
       if (!mounted) return;
 
       AppToast.success(
         context,
         title: 'Code resent',
-        description:
-            'A new code was sent to ${widget.initiateResponse.maskedEmail}.',
+        description: 'A new code was sent to ${widget.challenge.maskedEmail}.',
       );
 
       setState(() {
@@ -162,9 +151,7 @@ class _EmailOtpPageState extends State<EmailOtpPage> {
   Widget build(BuildContext context) {
     return AuthLayout(
       headerTrailing: _resendCountdown > 0
-          ? _OtpCountdown(
-              seconds: _resendCountdown,
-            )
+          ? _OtpCountdown(seconds: _resendCountdown)
           : null,
       child: _OtpForm(
         otpGeneration: _otpGeneration,
@@ -181,9 +168,7 @@ class _EmailOtpPageState extends State<EmailOtpPage> {
 }
 
 class _OtpCountdown extends StatelessWidget {
-  const _OtpCountdown({
-    required this.seconds,
-  });
+  const _OtpCountdown({required this.seconds});
 
   final int seconds;
 
@@ -191,7 +176,8 @@ class _OtpCountdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final minutes = seconds ~/ 60;
     final remainingSeconds = seconds % 60;
-    final value = '${minutes.toString().padLeft(2, '0')}:'
+    final value =
+        '${minutes.toString().padLeft(2, '0')}:'
         '${remainingSeconds.toString().padLeft(2, '0')}';
 
     return Semantics(
@@ -236,9 +222,7 @@ class _OtpForm extends StatelessWidget {
     final hasActiveCode = resendCountdown > 0;
 
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: isCompact ? 0 : 12,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: isCompact ? 0 : 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -251,9 +235,7 @@ class _OtpForm extends StatelessWidget {
               color: AppColors.textPrimary,
             ),
           ),
-          SizedBox(
-            height: isCompact ? 24 : 30,
-          ),
+          SizedBox(height: isCompact ? 24 : 30),
           _OtpFieldsRow(
             key: ValueKey<int>(otpGeneration),
             onChanged: onOtpChanged,
@@ -266,7 +248,7 @@ class _OtpForm extends StatelessWidget {
             child: hasActiveCode
                 ? AppButton(
                     key: const ValueKey('verify-otp'),
-                    label: 'Verify & sign in',
+                    label: 'Verify email',
                     isLoading: isVerifying,
                     size: AppButtonSize.md,
                     icon: HugeIcons.strokeRoundedCheckmarkCircle02,
@@ -318,10 +300,7 @@ class _OtpForm extends StatelessWidget {
 // ── OTP input row ────────────────────────────────────────────────────────────
 
 class _OtpFieldsRow extends StatefulWidget {
-  const _OtpFieldsRow({
-    super.key,
-    required this.onChanged,
-  });
+  const _OtpFieldsRow({super.key, required this.onChanged});
 
   final ValueChanged<String> onChanged;
 
@@ -416,9 +395,7 @@ class _OtpFieldsRowState extends State<_OtpFieldsRow> {
 
               return Expanded(
                 child: Padding(
-                  padding: EdgeInsets.only(
-                    right: index == 5 ? 0 : spacing,
-                  ),
+                  padding: EdgeInsets.only(right: index == 5 ? 0 : spacing),
                   child: _OtpDigitCell(
                     digit: digit,
                     isActive: isActive,
@@ -480,8 +457,8 @@ class _OtpDigitCell extends StatelessWidget {
         color: isActive
             ? AppColors.primary.withValues(alpha: 0.16)
             : isFilled
-                ? AppColors.surface
-                : AppColors.surfaceElevated,
+            ? AppColors.surface
+            : AppColors.surfaceElevated,
       ),
       child: Center(
         child: AnimatedSwitcher(
