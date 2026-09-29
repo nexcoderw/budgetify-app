@@ -1,15 +1,19 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
 
+import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_input.dart';
 import '../../../../core/widgets/app_toast.dart';
+import '../../application/transaction_service.dart';
+import '../../application/ussd_transfer_service.dart';
 import '../../data/models/device_contact.dart';
 import '../../data/models/transaction_models.dart';
 import '../../data/services/device_contacts_service.dart';
-import 'transaction_review_page.dart';
 
 class SelectRecipientPage extends StatefulWidget {
   const SelectRecipientPage({
@@ -17,11 +21,15 @@ class SelectRecipientPage extends StatefulWidget {
     required this.amount,
     required this.category,
     this.contactsService = const DeviceContactsService(),
+    this.transactionService,
+    this.ussdTransferService,
   });
 
   final String amount;
   final String category;
   final DeviceContactsService contactsService;
+  final TransactionService? transactionService;
+  final UssdTransferService? ussdTransferService;
 
   @override
   State<SelectRecipientPage> createState() => _SelectRecipientPageState();
@@ -45,13 +53,20 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
   final _searchController = TextEditingController();
   final _phoneFocusNode = FocusNode();
 
+  late final TransactionService _transactionService;
+  late final UssdTransferService _ussdTransferService;
+
   _RecipientMode _mode = _RecipientMode.contacts;
   _ContactsView _contactsView = _ContactsView.checking;
 
   List<DeviceContact> _contacts = const [];
   DeviceContact? _selectedContact;
+  PaymentTransaction? _pendingTransaction;
 
   String _searchQuery = '';
+  String? _activeTransferSignature;
+  String? _idempotencyKey;
+  bool _isStartingTransfer = false;
 
   bool get _hasManualNumber {
     final value = _phoneController.text.trim();
@@ -83,6 +98,11 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
   @override
   void initState() {
     super.initState();
+
+    _transactionService = widget.transactionService ??
+        TransactionService.createDefault();
+    _ussdTransferService =
+        widget.ussdTransferService ?? const UssdTransferService();
 
     _phoneController.addListener(_refreshManualEntry);
     _searchController.addListener(_filterContacts);
@@ -311,24 +331,42 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
     _searchController.clear();
   }
 
-  void _selectContact(DeviceContact contact) {
+  Future<void> _selectContact(DeviceContact contact) async {
+    if (_isStartingTransfer) {
+      return;
+    }
+
     HapticFeedback.selectionClick();
 
     setState(() {
       _selectedContact = contact;
     });
+
+    await _startTransfer(
+      receiverIdentifier: contact.phoneNumber,
+      recipientType: TransactionRecipientType.phone,
+    );
   }
 
   Future<void> _continueWithRecipient() async {
-    final selectedContact = _selectedContact;
+    final receiverIdentifier = _phoneController.text.trim();
+    final recipientType = inferTransactionRecipientType(
+      receiverIdentifier,
+    );
 
-    final receiverIdentifier = _mode == _RecipientMode.contacts
-        ? selectedContact?.phoneNumber ?? ''
-        : _phoneController.text.trim();
+    await _startTransfer(
+      receiverIdentifier: receiverIdentifier,
+      recipientType: recipientType,
+    );
+  }
 
-    final recipientType = _mode == _RecipientMode.contacts
-        ? TransactionRecipientType.phone
-        : inferTransactionRecipientType(receiverIdentifier);
+  Future<void> _startTransfer({
+    required String receiverIdentifier,
+    required TransactionRecipientType recipientType,
+  }) async {
+    if (_isStartingTransfer) {
+      return;
+    }
 
     if (!isValidTransactionRecipient(receiverIdentifier, recipientType)) {
       AppToast.error(
@@ -343,18 +381,147 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
     }
 
     final amount = int.parse(widget.amount.replaceAll(',', ''));
-
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => TransactionReviewPage(
-          amount: amount,
-          category: widget.category,
-          recipientIdentifier: receiverIdentifier,
-          recipientType: recipientType,
-          recipientName: selectedContact?.name,
-        ),
-      ),
+    final transferType = inferTransactionTransferType(
+      recipientIdentifier: receiverIdentifier,
+      recipientType: recipientType,
     );
+
+    if (!_ussdTransferService.isSupported) {
+      AppToast.error(
+        context,
+        title: 'USSD unavailable on this device',
+        description:
+            'iPhone does not allow apps to dial * or # USSD codes. Use Budgetify on Android to open the MTN transfer prompt.',
+      );
+      return;
+    }
+
+    final transferSignature = [
+      amount,
+      transferType.apiValue,
+      recipientType.apiValue,
+      receiverIdentifier.replaceAll(RegExp(r'\D'), ''),
+      widget.category,
+    ].join(':');
+
+    if (_activeTransferSignature != transferSignature) {
+      _activeTransferSignature = transferSignature;
+      _idempotencyKey = _createIdempotencyKey();
+      _pendingTransaction = null;
+    }
+
+    setState(() {
+      _isStartingTransfer = true;
+    });
+
+    try {
+      final allowed = await _ussdTransferService.prepare();
+
+      if (!allowed) {
+        if (!mounted) {
+          return;
+        }
+
+        AppToast.error(
+          context,
+          title: 'Phone access required',
+          description:
+              'Allow phone access so Budgetify can open the MTN transfer prompt.',
+        );
+        return;
+      }
+
+      final transaction =
+          _pendingTransaction ??
+          await _transactionService.create(
+            amount: amount,
+            transferType: transferType,
+            recipientType: recipientType,
+            category: TransactionCategory.fromLabel(
+              widget.category,
+            ),
+            receiverIdentifier: receiverIdentifier,
+            idempotencyKey: _idempotencyKey!,
+          );
+
+      _pendingTransaction = transaction;
+
+      await _ussdTransferService.launch(
+        transferType: transferType,
+        recipientType: recipientType,
+        receiverIdentifier: receiverIdentifier,
+        amount: amount,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      AppToast.info(
+        context,
+        title: '${transferType.label} opened',
+        description:
+            'Complete the transfer in the MTN prompt. It remains pending until confirmed.',
+      );
+    } on ApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      AppToast.error(
+        context,
+        title: 'Could not prepare transfer',
+        description: error.message,
+      );
+    } on PlatformException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      AppToast.error(
+        context,
+        title: 'Could not open MTN MoMo',
+        description: error.message ?? 'Please try again.',
+      );
+    } on ArgumentError catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      AppToast.error(
+        context,
+        title: 'Invalid transfer details',
+        description: error.message?.toString() ?? 'Check the recipient.',
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      AppToast.error(
+        context,
+        title: 'Transfer unavailable',
+        description: 'The transfer could not be started. Please try again.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isStartingTransfer = false;
+        });
+      }
+    }
+  }
+
+  String _createIdempotencyKey() {
+    final random = Random.secure();
+    final randomPart = List<int>.generate(
+      16,
+      (_) => random.nextInt(256),
+    ).map(
+      (value) => value.toRadixString(16).padLeft(2, '0'),
+    ).join();
+
+    return 'ussd-${DateTime.now().microsecondsSinceEpoch}-$randomPart';
   }
 
   @override
@@ -425,6 +592,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
                                 phoneController: _phoneController,
                                 phoneFocusNode: _phoneFocusNode,
                                 canContinue: _hasManualNumber,
+                                isLoading: _isStartingTransfer,
                                 onContinue: _continueWithRecipient,
                               ),
                             ),
@@ -459,8 +627,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
           selectedContact: _selectedContact,
           onClearSearch: _clearSearch,
           onSelected: _selectContact,
-          onContinue:
-              _selectedContact == null ? null : _continueWithRecipient,
+          isLoading: _isStartingTransfer,
           onUseNumber: _showManualEntry,
           onRefresh: _refreshContacts,
         ),
@@ -981,7 +1148,7 @@ class _ContactsList extends StatelessWidget {
     required this.selectedContact,
     required this.onClearSearch,
     required this.onSelected,
-    required this.onContinue,
+    required this.isLoading,
     required this.onUseNumber,
     required this.onRefresh,
   });
@@ -991,8 +1158,8 @@ class _ContactsList extends StatelessWidget {
   final int allContactsCount;
   final DeviceContact? selectedContact;
   final VoidCallback onClearSearch;
-  final ValueChanged<DeviceContact> onSelected;
-  final VoidCallback? onContinue;
+  final Future<void> Function(DeviceContact) onSelected;
+  final bool isLoading;
   final VoidCallback onUseNumber;
   final Future<void> Function() onRefresh;
 
@@ -1112,7 +1279,11 @@ class _ContactsList extends StatelessWidget {
                       return _ContactTile(
                         contact: contact,
                         isSelected: selectedContact?.id == contact.id,
-                        onTap: () => onSelected(contact),
+                        onTap: isLoading
+                            ? null
+                            : () {
+                                onSelected(contact);
+                              },
                       );
                     },
                   ),
@@ -1138,22 +1309,9 @@ class _ContactsList extends StatelessWidget {
                   ),
                   child: _SelectedContactSummary(
                     contact: selectedContact!,
+                    isLoading: isLoading,
                   ),
                 ),
-        ),
-        Center(
-          child: SizedBox(
-            width: 220,
-            child: AppButton(
-              label: 'Continue',
-              iconWidget: const Icon(
-                Icons.arrow_forward_rounded,
-                color: AppColors.background,
-              ),
-              size: AppButtonSize.md,
-              onPressed: onContinue,
-            ),
-          ),
         ),
       ],
     );
@@ -1169,7 +1327,7 @@ class _ContactTile extends StatelessWidget {
 
   final DeviceContact contact;
   final bool isSelected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1312,9 +1470,11 @@ class _ContactTile extends StatelessWidget {
 class _SelectedContactSummary extends StatelessWidget {
   const _SelectedContactSummary({
     required this.contact,
+    required this.isLoading,
   });
 
   final DeviceContact contact;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -1381,11 +1541,20 @@ class _SelectedContactSummary extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(
-            Icons.check_circle_rounded,
-            size: 19,
-            color: AppColors.success,
-          ),
+          if (isLoading)
+            const SizedBox.square(
+              dimension: 19,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            )
+          else
+            const Icon(
+              Icons.check_circle_rounded,
+              size: 19,
+              color: AppColors.success,
+            ),
         ],
       ),
     );
@@ -1397,12 +1566,14 @@ class _ManualRecipientEntry extends StatelessWidget {
     required this.phoneController,
     required this.phoneFocusNode,
     required this.canContinue,
+    required this.isLoading,
     required this.onContinue,
   });
 
   final TextEditingController phoneController;
   final FocusNode phoneFocusNode;
   final bool canContinue;
+  final bool isLoading;
   final VoidCallback onContinue;
 
   @override
@@ -1411,7 +1582,7 @@ class _ManualRecipientEntry extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'PHONE NUMBER',
+          'RECIPIENT',
           style: TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w800,
@@ -1440,7 +1611,7 @@ class _ManualRecipientEntry extends StatelessWidget {
             color: AppColors.textSecondary,
           ),
           onSubmitted: (_) {
-            if (canContinue) {
+            if (canContinue && !isLoading) {
               onContinue();
             }
           },
@@ -1473,7 +1644,7 @@ class _ManualRecipientEntry extends StatelessWidget {
               ),
               Expanded(
                 child: Text(
-                  'Enter the recipient number carefully. You will be able to review the transfer before it is completed.',
+                  'MTN numbers use MoMo. Airtel numbers and bank accounts use eKash automatically.',
                   style: TextStyle(
                     fontSize: 11,
                     height: 1.5,
@@ -1489,14 +1660,14 @@ class _ManualRecipientEntry extends StatelessWidget {
           child: SizedBox(
             width: 220,
             child: AppButton(
-              label: 'Continue',
+              label: 'Open transfer',
               iconWidget: const Icon(
-                Icons.arrow_forward_rounded,
+                Icons.phone_in_talk_rounded,
                 color: AppColors.background,
               ),
               size: AppButtonSize.md,
-              onPressed:
-                  canContinue ? onContinue : null,
+              isLoading: isLoading,
+              onPressed: canContinue && !isLoading ? onContinue : null,
             ),
           ),
         ),
