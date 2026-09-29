@@ -11,33 +11,60 @@ class AuthLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final keyboardInset = mediaQuery.viewInsets.bottom;
+    final footerBottom = keyboardInset > 0
+        ? keyboardInset + 8
+        : mediaQuery.viewPadding.bottom + 8;
+
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: DecoratedBox(
         decoration: const _AuthBackgroundDecoration(),
-        child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1320),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 34),
-                child: Column(
-                  children: [
-                    const _AuthHeader(),
-                    const SizedBox(height: 24),
-                    Expanded(
-                      child: Center(
-                        child: SingleChildScrollView(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 520),
-                            child: child,
-                          ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1320),
+            child: SizedBox.expand(
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    bottom: footerBottom + 56,
+                    child: SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                        child: Column(
+                          children: [
+                            const _AuthHeader(),
+                            const SizedBox(height: 24),
+                            Expanded(
+                              child: Center(
+                                child: SingleChildScrollView(
+                                  keyboardDismissBehavior:
+                                      ScrollViewKeyboardDismissBehavior.onDrag,
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 520,
+                                    ),
+                                    child: child,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 28),
-                    const AuthFooterLinks(),
-                  ],
-                ),
+                  ),
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: footerBottom,
+                    child: const Center(
+                      child: AuthFooterLinks(),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
