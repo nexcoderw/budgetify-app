@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +9,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_input.dart';
 import '../../../../core/widgets/app_toast.dart';
-import '../../../../core/widgets/glass_panel.dart';
 import '../../application/auth_service_contract.dart';
 import '../../data/services/google_identity_service.dart';
 import '../auth_post_auth_navigation.dart';
@@ -327,29 +325,14 @@ class _InitializingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppColors.background,
-              Color(0xFF0D1116),
-              Color(0xFF131922),
-            ],
-          ),
-        ),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
-          child: const Center(
-            child: SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                strokeWidth: 1.6,
-              ),
-            ),
+      backgroundColor: AppColors.background,
+      body: const Center(
+        child: SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+            strokeWidth: 1.6,
           ),
         ),
       ),
@@ -434,18 +417,15 @@ class _LoginFormState extends State<_LoginForm>
   @override
   Widget build(BuildContext context) {
     final isCompact = MediaQuery.sizeOf(context).width < 420;
-    final panelPadding = isCompact ? 22.0 : 28.0;
+    final horizontalPadding = isCompact ? 0.0 : 12.0;
     final titleSize = isCompact ? 22.0 : 24.0;
     final subtitle = _showsGoogleSignIn
         ? 'Enter your email to receive a one-time code, or continue with Google.'
         : 'Enter your email to receive a one-time code and continue securely.';
 
-    return GlassPanel(
+    return Padding(
       key: const ValueKey('login-form'),
-      padding: EdgeInsets.all(panelPadding),
-      borderRadius: BorderRadius.circular(34),
-      blur: 26,
-      opacity: 0.16,
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
       child: Form(
         key: _formKey,
         child: Column(
