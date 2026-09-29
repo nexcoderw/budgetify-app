@@ -11,12 +11,6 @@ class AuthLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mediaQuery = MediaQuery.of(context);
-    final keyboardInset = mediaQuery.viewInsets.bottom;
-    final footerBottom = keyboardInset > 0
-        ? keyboardInset + 8
-        : mediaQuery.viewPadding.bottom + 8;
-
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: DecoratedBox(
@@ -25,46 +19,52 @@ class AuthLayout extends StatelessWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1320),
             child: SizedBox.expand(
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    bottom: footerBottom + 56,
-                    child: SafeArea(
-                      bottom: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-                        child: Column(
-                          children: [
-                            const _AuthHeader(),
-                            const SizedBox(height: 24),
-                            Expanded(
-                              child: Center(
-                                child: SingleChildScrollView(
-                                  keyboardDismissBehavior:
-                                      ScrollViewKeyboardDismissBehavior.onDrag,
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxWidth: 520,
-                                    ),
-                                    child: child,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+                  child: Column(
+                    children: [
+                      const _AuthHeader(),
+                      const SizedBox(height: 24),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            return SingleChildScrollView(
+                              keyboardDismissBehavior:
+                                  ScrollViewKeyboardDismissBehavior.onDrag,
+                              padding: EdgeInsets.only(
+                                bottom: MediaQuery.viewInsetsOf(context).bottom,
+                              ),
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  minHeight: constraints.maxHeight,
+                                ),
+                                child: IntrinsicHeight(
+                                  child: Column(
+                                    children: [
+                                      Expanded(
+                                        child: Center(
+                                          child: ConstrainedBox(
+                                            constraints: const BoxConstraints(
+                                              maxWidth: 520,
+                                            ),
+                                            child: child,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 20),
+                                      const AuthFooterLinks(),
+                                    ],
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                            );
+                          },
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                  Positioned(
-                    left: 16,
-                    right: 16,
-                    bottom: footerBottom,
-                    child: const Center(
-                      child: AuthFooterLinks(),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
