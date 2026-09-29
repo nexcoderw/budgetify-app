@@ -239,19 +239,18 @@ class _OtpFormState extends State<_OtpForm>
   @override
   Widget build(BuildContext context) {
     final isCompact = MediaQuery.sizeOf(context).width < 420;
-    final panelPadding = isCompact ? 22.0 : 28.0;
-    final titleSize = isCompact ? 20.0 : 22.0;
+    final panelPadding = isCompact ? 18.0 : 26.0;
+    final titleSize = isCompact ? 22.0 : 25.0;
 
     return GlassPanel(
       padding: EdgeInsets.all(panelPadding),
-      borderRadius: BorderRadius.circular(34),
-      blur: 26,
-      opacity: 0.16,
+      borderRadius: BorderRadius.circular(30),
+      blur: 24,
+      opacity: 0.14,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Back button ─────────────────────────────────────────────────
           FadeTransition(
             opacity: _fadeAt(0.0, 0.5),
             child: SlideTransition(
@@ -259,24 +258,20 @@ class _OtpFormState extends State<_OtpForm>
               child: const _BackButton(),
             ),
           ),
-
-          const SizedBox(height: 20),
-
-          // ── Icon + title + subtitle ─────────────────────────────────────
+          SizedBox(height: isCompact ? 18 : 24),
           FadeTransition(
             opacity: _fadeAt(0.08, 0.58),
             child: SlideTransition(
               position: _slideAt(0.08, 0.58),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Container(
-                    width: 52,
-                    height: 52,
+                    width: 56,
+                    height: 56,
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(16),
+                      shape: BoxShape.circle,
                       border: Border.all(
                         color: AppColors.primary.withValues(alpha: 0.25),
                       ),
@@ -290,61 +285,91 @@ class _OtpFormState extends State<_OtpForm>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Check your inbox',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontSize: titleSize,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  RichText(
-                    text: TextSpan(
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                        height: 1.55,
-                        fontFamily: 'DMSans',
-                      ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        TextSpan(
-                          text: widget.isRegister
-                              ? 'Creating your account — a '
-                              : 'Welcome back — a ',
+                        Text(
+                          widget.isRegister
+                              ? 'Verify your email'
+                              : 'Welcome back',
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(
+                                fontSize: titleSize,
+                                color: AppColors.textPrimary,
+                              ),
                         ),
-                        const TextSpan(
-                          text: '6-digit code',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w600,
+                        const SizedBox(height: 5),
+                        Text(
+                          'Enter the six-digit code we sent you.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                            height: 1.45,
                           ),
                         ),
-                        const TextSpan(text: ' was sent to '),
-                        TextSpan(
-                          text: widget.maskedEmail,
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const TextSpan(text: '.'),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                  _DeliverySummaryCard(
-                    maskedEmail: widget.maskedEmail,
-                    isRegister: widget.isRegister,
                   ),
                 ],
               ),
             ),
           ),
-
-          const SizedBox(height: 28),
-
-          // ── OTP boxes ───────────────────────────────────────────────────
+          const SizedBox(height: 20),
+          FadeTransition(
+            opacity: _fadeAt(0.14, 0.64),
+            child: SlideTransition(
+              position: _slideAt(0.14, 0.64),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 13,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.045),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const HugeIcon(
+                      icon: HugeIcons.strokeRoundedMail01,
+                      size: 18,
+                      color: AppColors.primary,
+                      strokeWidth: 1.8,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        widget.maskedEmail,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'DMSans',
+                        ),
+                      ),
+                    ),
+                    const Text(
+                      '6 digits',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'DMSans',
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: isCompact ? 22 : 28),
           FadeTransition(
             opacity: _fadeAt(0.18, 0.68),
             child: SlideTransition(
@@ -355,10 +380,7 @@ class _OtpFormState extends State<_OtpForm>
               ),
             ),
           ),
-
           const SizedBox(height: 20),
-
-          // ── Verify button ───────────────────────────────────────────────
           FadeTransition(
             opacity: _fadeAt(0.28, 0.78),
             child: SlideTransition(
@@ -374,10 +396,7 @@ class _OtpFormState extends State<_OtpForm>
               ),
             ),
           ),
-
-          const SizedBox(height: 22),
-
-          // ── Resend + change email ───────────────────────────────────────
+          const SizedBox(height: 18),
           FadeTransition(
             opacity: _fadeAt(0.38, 0.9),
             child: SlideTransition(
@@ -386,100 +405,6 @@ class _OtpFormState extends State<_OtpForm>
                 countdown: widget.resendCountdown,
                 isResending: widget.isResending,
                 onResend: widget.onResend,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DeliverySummaryCard extends StatelessWidget {
-  const _DeliverySummaryCard({
-    required this.maskedEmail,
-    required this.isRegister,
-  });
-
-  final String maskedEmail;
-  final bool isRegister;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.primary.withValues(alpha: 0.12),
-            Colors.white.withValues(alpha: 0.04),
-          ],
-        ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceElevated,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-            ),
-            child: const Center(
-              child: HugeIcon(
-                icon: HugeIcons.strokeRoundedSent,
-                size: 18,
-                color: AppColors.primary,
-                strokeWidth: 1.8,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  isRegister ? 'Registration email' : 'Sign-in email',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  maskedEmail,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'DMSans',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-            ),
-            child: const Text(
-              '6 digits',
-              style: TextStyle(
-                fontSize: 11,
-                color: AppColors.primary,
-                fontWeight: FontWeight.w700,
-                fontFamily: 'DMSans',
               ),
             ),
           ),
@@ -588,100 +513,80 @@ class _OtpFieldsRowState extends State<_OtpFieldsRow> {
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = MediaQuery.sizeOf(context).width < 390;
+    final spacing = isCompact ? 5.0 : 8.0;
+    final cellHeight = isCompact ? 54.0 : 62.0;
+    final activeIndex = _code.length >= 6 ? 5 : _code.length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.white.withValues(alpha: 0.06),
-                AppColors.surfaceElevated.withValues(alpha: 0.92),
-              ],
+        Row(
+          children: [
+            Text(
+              'Verification code',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontSize: 13,
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    'Enter your code',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontSize: 13,
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    widget.isCodeComplete ? 'Code ready' : 'Paste supported',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: widget.isCodeComplete
-                          ? AppColors.success
-                          : AppColors.textSecondary,
-                      fontWeight: FontWeight.w500,
-                      fontFamily: 'DMSans',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _focusInput,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isCompact = constraints.maxWidth < 360;
-                    final spacing = isCompact ? 6.0 : 8.0;
-                    final cellHeight = isCompact ? 58.0 : 64.0;
-                    final activeIndex = _code.length >= 6 ? 5 : _code.length;
-
-                    return Row(
-                      children: List.generate(6, (index) {
-                        final digit = index < _code.length ? _code[index] : '';
-                        final isActive = _isFocused && index == activeIndex;
-                        final isFilled = digit.isNotEmpty;
-
-                        return Expanded(
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                              right: index == 5 ? 0 : spacing,
-                            ),
-                            child: _OtpDigitCell(
-                              digit: digit,
-                              isActive: isActive,
-                              isFilled: isFilled,
-                              height: cellHeight,
-                            ),
-                          ),
-                        );
-                      }),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                widget.isCodeComplete
-                    ? 'Looks good. Continue when you are ready.'
-                    : 'You can type or paste the full 6-digit code.',
+            const Spacer(),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 160),
+              child: Text(
+                widget.isCodeComplete ? 'Ready' : 'Paste supported',
+                key: ValueKey<bool>(widget.isCodeComplete),
                 style: TextStyle(
                   fontSize: 11,
                   color: widget.isCodeComplete
-                      ? AppColors.success.withValues(alpha: 0.94)
+                      ? AppColors.success
                       : AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
                   fontFamily: 'DMSans',
-                  height: 1.45,
                 ),
               ),
-            ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _focusInput,
+          child: Row(
+            children: List.generate(6, (index) {
+              final digit = index < _code.length ? _code[index] : '';
+              final isActive = _isFocused && index == activeIndex;
+              final isFilled = digit.isNotEmpty;
+
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    right: index == 5 ? 0 : spacing,
+                  ),
+                  child: _OtpDigitCell(
+                    digit: digit,
+                    isActive: isActive,
+                    isFilled: isFilled,
+                    height: cellHeight,
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          widget.isCodeComplete
+              ? 'Code complete. You can continue.'
+              : 'Type or paste the code from your email.',
+          style: TextStyle(
+            fontSize: 11,
+            color: widget.isCodeComplete
+                ? AppColors.success.withValues(alpha: 0.94)
+                : AppColors.textSecondary,
+            fontFamily: 'DMSans',
+            height: 1.45,
           ),
         ),
         SizedBox(
