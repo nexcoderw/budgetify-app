@@ -585,10 +585,7 @@ class _TimelineItem extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  [
-                    event.source.label,
-                    if (transition != null) transition,
-                  ].join(' • '),
+                  [event.source.label, ?transition].join(' • '),
                   style: const TextStyle(
                     fontSize: 10,
                     color: AppColors.textSecondary,
