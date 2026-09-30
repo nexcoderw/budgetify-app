@@ -17,19 +17,16 @@ enum TransactionAnalyticsPeriodPreset {
         localNow.month,
         localNow.day - 6,
       ),
-
       TransactionAnalyticsPeriodPreset.thirtyDays => DateTime(
         localNow.year,
         localNow.month,
         localNow.day - 29,
       ),
-
       TransactionAnalyticsPeriodPreset.thisMonth => DateTime(
         localNow.year,
         localNow.month,
         1,
       ),
-
       TransactionAnalyticsPeriodPreset.thisYear => DateTime(
         localNow.year,
         1,
@@ -42,7 +39,7 @@ enum TransactionAnalyticsPeriodPreset {
 }
 
 class TransactionAnalyticsRange {
-  const TransactionAnalyticsRange({required this.from, required this.to})
+  TransactionAnalyticsRange({required this.from, required this.to})
     : assert(
         !from.isAfter(to),
         'Analytics start date must not occur after its end date.',
