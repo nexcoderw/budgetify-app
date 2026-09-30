@@ -31,7 +31,7 @@ class MtnTransactionSmsParser {
   const MtnTransactionSmsParser();
 
   ParsedProviderSmsResult? parse(ProviderSmsMessage message) {
-    final body = message.body.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final body = _normalizeBody(message.body);
 
     if (!_looksLikeMomoMessage(address: message.address, body: body)) {
       return null;
@@ -51,8 +51,9 @@ class MtnTransactionSmsParser {
 
     final providerReference = _extractProviderReference(body);
 
-    // Never mark a payment completed unless the
-    // provider supplied a transaction reference.
+    // Completion requires a provider-issued
+    // transaction reference. We never infer success
+    // from wording alone.
     if (status == TransactionStatus.completed && providerReference == null) {
       return null;
     }
@@ -61,17 +62,23 @@ class MtnTransactionSmsParser {
 
     final failure = _failureInformation(body, status);
 
+    final occurredAt = _extractProviderOccurredAt(body) ?? message.receivedAt;
+
     return ParsedProviderSmsResult(
       messageId: message.id,
       status: status,
       amount: amount,
-      occurredAt: message.receivedAt,
+      occurredAt: occurredAt,
       providerReference: providerReference,
       receiverName: recipient?.name,
       receiverIdentifier: recipient?.identifier,
       failureCode: failure.$1,
       failureReason: failure.$2,
     );
+  }
+
+  String _normalizeBody(String body) {
+    return body.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
   bool _looksLikeMomoMessage({required String address, required String body}) {
@@ -108,18 +115,33 @@ class MtnTransactionSmsParser {
         text.contains('unsuccessful') ||
         text.contains('not successful') ||
         text.contains('could not be completed') ||
+        text.contains('was not completed') ||
         text.contains('insufficient balance') ||
-        text.contains('insufficient funds')) {
+        text.contains('insufficient funds') ||
+        text.contains('declined') ||
+        text.contains('rejected')) {
       return TransactionStatus.failed;
     }
 
-    final successfulTransfer = RegExp(
-      r'\b(?:you\s+have\s+)?'
+    final successfulOutgoing = RegExp(
+      r'\byou\s+have\s+'
+      r'(?:successfully\s+)?'
       r'(?:transferred|sent|paid)\b',
       caseSensitive: false,
     ).hasMatch(body);
 
-    if (successfulTransfer) {
+    if (successfulOutgoing) {
+      return TransactionStatus.completed;
+    }
+
+    final explicitSuccess = RegExp(
+      r'\b(?:transaction|transfer|payment)\b'
+      r'.{0,100}'
+      r'\b(?:successful|successfully completed)\b',
+      caseSensitive: false,
+    ).hasMatch(body);
+
+    if (explicitSuccess) {
       return TransactionStatus.completed;
     }
 
@@ -130,7 +152,7 @@ class MtnTransactionSmsParser {
     final patterns = <RegExp>[
       RegExp(
         r'(?:transferred|sent|paid)\s+'
-        r'([0-9][0-9,]*)\s*RWF\b',
+        r'([0-9][0-9,\s]*?)\s*RWF\b',
         caseSensitive: false,
       ),
       RegExp(
@@ -141,7 +163,7 @@ class MtnTransactionSmsParser {
       RegExp(
         r'(?:transaction|payment|transfer)\s+'
         r'(?:of\s+)?'
-        r'([0-9][0-9,]*)\s*RWF\b',
+        r'([0-9][0-9,\s]*?)\s*RWF\b',
         caseSensitive: false,
       ),
       RegExp(
@@ -161,7 +183,7 @@ class MtnTransactionSmsParser {
         continue;
       }
 
-      final normalized = captured.replaceAll(',', '');
+      final normalized = captured.replaceAll(RegExp(r'[,\s]'), '');
 
       final amount = int.tryParse(normalized);
 
@@ -174,24 +196,38 @@ class MtnTransactionSmsParser {
   }
 
   String? _extractProviderReference(String body) {
-    final match = RegExp(
-      r'(?:financial\s+transaction\s+id'
-      r'|transaction\s+(?:id|reference)'
-      r'|txn\s*(?:id|reference)?)'
-      r'\s*(?::|#|-)?\s*'
-      r'(?:is\s+)?'
-      r'([A-Za-z0-9]'
-      r'[A-Za-z0-9._/-]{2,127})',
-      caseSensitive: false,
-    ).firstMatch(body);
+    final patterns = <RegExp>[
+      RegExp(
+        r'(?:financial\s+transaction\s+'
+        r'(?:id|reference)'
+        r'|transaction\s+'
+        r'(?:id|reference)'
+        r'|txn\s*(?:id|reference)?)'
+        r'\s*(?::|#|-)?\s*'
+        r'(?:is\s+)?'
+        r'([A-Za-z0-9]'
+        r'[A-Za-z0-9._/-]{2,127})',
+        caseSensitive: false,
+      ),
+    ];
 
-    final value = match?.group(1);
+    for (final pattern in patterns) {
+      final match = pattern.firstMatch(body);
 
-    if (value == null) {
-      return null;
+      final raw = match?.group(1);
+
+      if (raw == null) {
+        continue;
+      }
+
+      final value = raw.replaceFirst(RegExp(r'[.,;:]+$'), '').trim();
+
+      if (value.length >= 3) {
+        return value;
+      }
     }
 
-    return value.replaceFirst(RegExp(r'[.,;:]+$'), '').trim();
+    return null;
   }
 
   _SmsRecipient? _extractRecipient(String body) {
@@ -199,27 +235,27 @@ class MtnTransactionSmsParser {
       r'\bto\s+'
       r'(.{1,120}?)'
       r'\s*\('
-      r'(\+?2507\d{8}'
-      r'|07\d{8}'
-      r'|7\d{8})'
+      r'([^)]{3,50})'
       r'\)',
       caseSensitive: false,
     ).firstMatch(body);
 
     if (namedMatch != null) {
-      final name = namedMatch.group(1)?.trim();
+      final rawIdentifier = namedMatch.group(2);
 
-      final identifier = namedMatch.group(2);
+      if (rawIdentifier != null) {
+        final identifier = _normalizeRecipientIdentifier(rawIdentifier);
 
-      if (identifier != null) {
-        return _SmsRecipient(
-          identifier: identifier,
-          name: _normalizeName(name),
-        );
+        if (identifier != null) {
+          return _SmsRecipient(
+            identifier: identifier,
+            name: _normalizeName(namedMatch.group(1)),
+          );
+        }
       }
     }
 
-    final numberMatch = RegExp(
+    final phoneMatch = RegExp(
       r'\bto\s+'
       r'(\+?2507\d{8}'
       r'|07\d{8}'
@@ -227,13 +263,32 @@ class MtnTransactionSmsParser {
       caseSensitive: false,
     ).firstMatch(body);
 
-    final identifier = numberMatch?.group(1);
+    final phone = phoneMatch?.group(1);
 
-    if (identifier == null) {
+    if (phone == null) {
       return null;
     }
 
-    return _SmsRecipient(identifier: identifier, name: null);
+    return _SmsRecipient(
+      identifier: phone.replaceAll(RegExp(r'\D'), ''),
+      name: null,
+    );
+  }
+
+  String? _normalizeRecipientIdentifier(String value) {
+    // Masked recipient values must never be
+    // used for automatic reconciliation.
+    if (value.contains('*')) {
+      return null;
+    }
+
+    final compact = value.replaceAll(RegExp(r'[\s()+-]'), '');
+
+    if (!RegExp(r'^\d{3,34}$').hasMatch(compact)) {
+      return null;
+    }
+
+    return compact;
   }
 
   String? _normalizeName(String? name) {
@@ -254,6 +309,57 @@ class MtnTransactionSmsParser {
     return normalized;
   }
 
+  DateTime? _extractProviderOccurredAt(String body) {
+    final match = RegExp(
+      r'\bat\s+'
+      r'(20\d{2})-(\d{2})-(\d{2})'
+      r'\s+'
+      r'(\d{2}):(\d{2}):(\d{2})\b',
+      caseSensitive: false,
+    ).firstMatch(body);
+
+    if (match == null) {
+      return null;
+    }
+
+    final year = int.tryParse(match.group(1) ?? '');
+
+    final month = int.tryParse(match.group(2) ?? '');
+
+    final day = int.tryParse(match.group(3) ?? '');
+
+    final hour = int.tryParse(match.group(4) ?? '');
+
+    final minute = int.tryParse(match.group(5) ?? '');
+
+    final second = int.tryParse(match.group(6) ?? '');
+
+    if (year == null ||
+        month == null ||
+        day == null ||
+        hour == null ||
+        minute == null ||
+        second == null) {
+      return null;
+    }
+
+    final parsed = DateTime(year, month, day, hour, minute, second);
+
+    // DateTime normalizes invalid values, so
+    // explicitly ensure the SMS contained a
+    // valid timestamp.
+    if (parsed.year != year ||
+        parsed.month != month ||
+        parsed.day != day ||
+        parsed.hour != hour ||
+        parsed.minute != minute ||
+        parsed.second != second) {
+      return null;
+    }
+
+    return parsed;
+  }
+
   (String?, String?) _failureInformation(
     String body,
     TransactionStatus status,
@@ -270,6 +376,14 @@ class MtnTransactionSmsParser {
         'INSUFFICIENT_FUNDS',
         'The provider reported insufficient funds.',
       );
+    }
+
+    if (text.contains('declined')) {
+      return ('PROVIDER_DECLINED', 'The provider declined the transaction.');
+    }
+
+    if (text.contains('rejected')) {
+      return ('PROVIDER_REJECTED', 'The provider rejected the transaction.');
     }
 
     if (status == TransactionStatus.cancelled) {
