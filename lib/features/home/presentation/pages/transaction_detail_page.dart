@@ -24,7 +24,6 @@ class TransactionDetailPage extends StatefulWidget {
 
   final String transactionId;
   final TransactionService? transactionService;
-
   final TransactionSmsReconciliationService? smsReconciliationService;
 
   @override
@@ -223,7 +222,6 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
           );
 
         case TransactionReconciliationOutcome.permissionDenied:
-          // Handled above.
           break;
       }
     } on ApiException catch (error) {
@@ -333,8 +331,6 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
         return;
       }
 
-      // Reload in case the server accepted the
-      // result but the client lost the response.
       await _load(showLoader: false);
 
       if (!mounted) {
@@ -452,6 +448,8 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
     final transaction = detail.transaction;
 
     final needsConfirmation = transactionNeedsConfirmation(transaction);
+
+    final confirmationSource = _confirmationSource(detail);
 
     return SingleChildScrollView(
       child: Column(
@@ -1286,6 +1284,39 @@ class _DetailError extends StatelessWidget {
   }
 }
 
+String? _confirmationSource(TransactionDetail detail) {
+  final status = detail.transaction.status;
+
+  if (status != TransactionStatus.completed &&
+      status != TransactionStatus.failed &&
+      status != TransactionStatus.cancelled) {
+    return null;
+  }
+
+  for (final event in detail.events.reversed) {
+    if (event.toStatus != status) {
+      continue;
+    }
+
+    if (event.type == TransactionEventType.providerResultReceived &&
+        event.source == TransactionEventSource.providerSms) {
+      return 'Confirmed from MTN';
+    }
+
+    if (event.type == TransactionEventType.providerResultReceived &&
+        event.source == TransactionEventSource.providerApi) {
+      return 'Confirmed by provider';
+    }
+
+    if (event.type == TransactionEventType.statusChanged &&
+        event.source == TransactionEventSource.mobileApp) {
+      return 'Manually confirmed';
+    }
+  }
+
+  return null;
+}
+
 Color _statusColor(TransactionStatus status) {
   return switch (status) {
     TransactionStatus.completed => AppColors.success,
@@ -1341,37 +1372,4 @@ String _formatDateTime(DateTime date) {
   final period = date.hour >= 12 ? 'PM' : 'AM';
 
   return '${date.day} ${months[date.month - 1]} ${date.year} • $hour:$minute $period';
-}
-
-String? _confirmationSource(TransactionDetail detail) {
-  final status = detail.transaction.status;
-
-  if (status != TransactionStatus.completed &&
-      status != TransactionStatus.failed &&
-      status != TransactionStatus.cancelled) {
-    return null;
-  }
-
-  for (final event in detail.events.reversed) {
-    if (event.toStatus != status) {
-      continue;
-    }
-
-    if (event.type == TransactionEventType.providerResultReceived &&
-        event.source == TransactionEventSource.providerSms) {
-      return 'Confirmed from MTN';
-    }
-
-    if (event.type == TransactionEventType.providerResultReceived &&
-        event.source == TransactionEventSource.providerApi) {
-      return 'Confirmed by provider';
-    }
-
-    if (event.type == TransactionEventType.statusChanged &&
-        event.source == TransactionEventSource.mobileApp) {
-      return 'Manually confirmed';
-    }
-  }
-
-  return null;
 }
