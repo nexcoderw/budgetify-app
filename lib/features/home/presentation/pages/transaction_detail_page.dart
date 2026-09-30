@@ -727,7 +727,7 @@ class _IosManualRecoveryCard extends StatelessWidget {
           AppButton(
             label: 'Confirm payment result',
             icon: HugeIcons.strokeRoundedTransactionHistory,
-            size: AppButtonSize.sm,
+            size: AppButtonSize.md,
             variant: AppButtonVariant.secondary,
             isLoading: isSaving,
             onPressed: isSaving ? null : onConfirm,

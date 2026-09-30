@@ -130,7 +130,7 @@ class _ManualTransactionConfirmationSheetState
         AppButton(
           label: 'Not sure yet',
           icon: HugeIcons.strokeRoundedTransactionHistory,
-          size: AppButtonSize.sm,
+          size: AppButtonSize.md,
           variant: AppButtonVariant.ghost,
           onPressed: () {
             Navigator.of(
@@ -227,7 +227,7 @@ class _ManualTransactionConfirmationSheetState
         AppButton(
           label: 'Go back',
           icon: HugeIcons.strokeRoundedArrowLeft01,
-          size: AppButtonSize.sm,
+          size: AppButtonSize.md,
           variant: AppButtonVariant.ghost,
           onPressed: () {
             setState(() {
