@@ -431,6 +431,7 @@ class _SummaryMetric extends StatelessWidget {
         border: Border.all(color: Colors.white.withValues(alpha: 0.055)),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -450,18 +451,31 @@ class _SummaryMetric extends StatelessWidget {
                   color: AppColors.primary,
                 ),
               ),
+
+              // This Spacer is safe because Row has a bounded width.
               const Spacer(),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary,
+
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
             ],
           ),
-          const Spacer(),
+
+          // Do not use Spacer here.
+          // This widget lives inside a Wrap, so its vertical
+          // constraints are unbounded.
+          const SizedBox(height: 16),
+
           Text(
             value,
             maxLines: 1,
@@ -473,10 +487,18 @@ class _SummaryMetric extends StatelessWidget {
               color: AppColors.textPrimary,
             ),
           ),
+
           const SizedBox(height: 5),
+
           Text(
             _formatComparison(changePercentage),
-            style: const TextStyle(fontSize: 8, color: AppColors.textSecondary),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 8,
+              height: 1.3,
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),
