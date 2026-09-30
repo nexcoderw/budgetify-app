@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 
@@ -36,7 +37,6 @@ enum _MethodFilter {
   const _MethodFilter(this.transferType, this.label);
 
   final TransactionTransferType? transferType;
-
   final String label;
 }
 
@@ -87,6 +87,16 @@ class _HistoryPageState extends State<HistoryPage> {
   String? _loadMoreError;
 
   int _requestGeneration = 0;
+
+  bool get _shouldShowSmsSkeleton {
+    final permission = _smsPermission;
+
+    if (permission != null) {
+      return permission != DeviceSmsPermission.unsupported;
+    }
+
+    return !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  }
 
   @override
   void initState() {
@@ -431,66 +441,65 @@ class _HistoryPageState extends State<HistoryPage> {
         horizontal: isCompact ? 0 : 4,
         vertical: isCompact ? 4 : 8,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _HistoryHeader(
-            compact: isCompact,
-            onRefresh: _isInitialLoading
-                ? null
-                : () {
+      child: _isInitialLoading
+          ? _HistoryPageSkeleton(
+              compact: isCompact,
+              showSmsCard: _shouldShowSmsSkeleton,
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _HistoryHeader(
+                  compact: isCompact,
+                  onRefresh: () {
                     unawaited(_loadTransactions(reset: true));
                   },
-          ),
-          if (_smsPermission != null &&
-              _smsPermission != DeviceSmsPermission.unsupported) ...[
-            SizedBox(height: isCompact ? 16 : 18),
-            _SmsReconciliationCard(
-              permission: _smsPermission!,
-              isSyncing: _isSmsSyncing,
-              onEnable: () {
-                unawaited(_enableSmsReconciliation());
-              },
-              onSync: () {
-                unawaited(_syncSmsFromHistory());
-              },
+                ),
+                if (_smsPermission != null &&
+                    _smsPermission != DeviceSmsPermission.unsupported) ...[
+                  SizedBox(height: isCompact ? 16 : 18),
+                  _SmsReconciliationCard(
+                    permission: _smsPermission!,
+                    isSyncing: _isSmsSyncing,
+                    onEnable: () {
+                      unawaited(_enableSmsReconciliation());
+                    },
+                    onSync: () {
+                      unawaited(_syncSmsFromHistory());
+                    },
+                  ),
+                ],
+                SizedBox(height: isCompact ? 22 : 28),
+                AppInput(
+                  controller: _searchController,
+                  hintText: 'Search recipient or reference',
+                  borderRadius: 999,
+                  textInputAction: TextInputAction.search,
+                  onChanged: _onSearchChanged,
+                  onSubmitted: _onSearchSubmitted,
+                ),
+                const SizedBox(height: 16),
+                _FilterScroller<_StatusFilter>(
+                  values: _StatusFilter.values,
+                  selected: _statusFilter,
+                  labelBuilder: (filter) => filter.label,
+                  onSelected: _selectStatus,
+                ),
+                const SizedBox(height: 10),
+                _FilterScroller<_MethodFilter>(
+                  values: _MethodFilter.values,
+                  selected: _methodFilter,
+                  labelBuilder: (filter) => filter.label,
+                  onSelected: _selectMethod,
+                ),
+                SizedBox(height: isCompact ? 22 : 28),
+                _buildContent(compact: isCompact),
+              ],
             ),
-          ],
-          SizedBox(height: isCompact ? 22 : 28),
-          AppInput(
-            controller: _searchController,
-            hintText: 'Search recipient or reference',
-            borderRadius: 999,
-            textInputAction: TextInputAction.search,
-            onChanged: _onSearchChanged,
-            onSubmitted: _onSearchSubmitted,
-          ),
-          const SizedBox(height: 16),
-          _FilterScroller<_StatusFilter>(
-            values: _StatusFilter.values,
-            selected: _statusFilter,
-            labelBuilder: (filter) => filter.label,
-            onSelected: _selectStatus,
-          ),
-          const SizedBox(height: 10),
-          _FilterScroller<_MethodFilter>(
-            values: _MethodFilter.values,
-            selected: _methodFilter,
-            labelBuilder: (filter) => filter.label,
-            onSelected: _selectMethod,
-          ),
-          SizedBox(height: isCompact ? 22 : 28),
-          _buildContent(compact: isCompact),
-        ],
-      ),
     );
   }
 
   Widget _buildContent({required bool compact}) {
-    if (_isInitialLoading) {
-      return const _HistoryLoading();
-    }
-
     final error = _errorMessage;
 
     if (error != null && _transactions.isEmpty) {
@@ -1097,26 +1106,460 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
-class _HistoryLoading extends StatelessWidget {
-  const _HistoryLoading();
+class _HistoryPageSkeleton extends StatefulWidget {
+  const _HistoryPageSkeleton({
+    required this.compact,
+    required this.showSmsCard,
+  });
+
+  final bool compact;
+  final bool showSmsCard;
+
+  @override
+  State<_HistoryPageSkeleton> createState() => _HistoryPageSkeletonState();
+}
+
+class _HistoryPageSkeletonState extends State<_HistoryPageSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animationController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1350),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 70),
-      child: Center(
-        child: Column(
-          children: [
-            CircularProgressIndicator(
-              strokeWidth: 2.2,
-              color: AppColors.primary,
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+
+    return ExcludeSemantics(
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: _animationController,
+          builder: (context, child) {
+            final progress = disableAnimations
+                ? 0.35
+                : _animationController.value;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _HistoryHeaderSkeleton(
+                  compact: widget.compact,
+                  progress: progress,
+                ),
+                if (widget.showSmsCard) ...[
+                  SizedBox(height: widget.compact ? 16 : 18),
+                  _SmsCardSkeleton(progress: progress),
+                ],
+                SizedBox(height: widget.compact ? 22 : 28),
+                _SearchInputSkeleton(progress: progress),
+                const SizedBox(height: 16),
+                _FilterRowSkeleton(
+                  progress: progress,
+                  widths: const [48, 72, 88, 91, 61],
+                ),
+                const SizedBox(height: 10),
+                _FilterRowSkeleton(
+                  progress: progress,
+                  widths: const [92, 92, 72, 88],
+                ),
+                SizedBox(height: widget.compact ? 22 : 28),
+                _HistoryCountSkeleton(progress: progress),
+                const SizedBox(height: 16),
+                _HistoryDateGroupSkeleton(
+                  compact: widget.compact,
+                  progress: progress,
+                  rowCount: 3,
+                ),
+                SizedBox(height: widget.compact ? 22 : 26),
+                _HistoryDateGroupSkeleton(
+                  compact: widget.compact,
+                  progress: progress,
+                  rowCount: 2,
+                ),
+                const SizedBox(height: 18),
+                Center(
+                  child: SizedBox(
+                    height: 44,
+                    child: Center(
+                      child: _SkeletonBox(
+                        progress: progress,
+                        width: 88,
+                        height: 13,
+                        radius: 7,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryHeaderSkeleton extends StatelessWidget {
+  const _HistoryHeaderSkeleton({required this.compact, required this.progress});
+
+  final bool compact;
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _SkeletonBox(
+                progress: progress,
+                width: 92,
+                height: 10,
+                radius: 5,
+              ),
+              const SizedBox(height: 10),
+              _SkeletonBox(
+                progress: progress,
+                width: compact ? 176 : 218,
+                height: compact ? 27 : 32,
+                radius: 9,
+              ),
+              const SizedBox(height: 8),
+              FractionallySizedBox(
+                widthFactor: compact ? 0.78 : 0.64,
+                alignment: Alignment.centerLeft,
+                child: _SkeletonBox(progress: progress, height: 12, radius: 6),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        _SkeletonBox(progress: progress, width: 46, height: 46, radius: 16),
+      ],
+    );
+  }
+}
+
+class _SmsCardSkeleton extends StatelessWidget {
+  const _SmsCardSkeleton({required this.progress});
+
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _SkeletonBox(progress: progress, width: 42, height: 42, radius: 14),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SkeletonBox(
+                  progress: progress,
+                  width: 185,
+                  height: 12,
+                  radius: 6,
+                ),
+                const SizedBox(height: 8),
+                FractionallySizedBox(
+                  widthFactor: 0.92,
+                  alignment: Alignment.centerLeft,
+                  child: _SkeletonBox(progress: progress, height: 9, radius: 5),
+                ),
+                const SizedBox(height: 6),
+                FractionallySizedBox(
+                  widthFactor: 0.68,
+                  alignment: Alignment.centerLeft,
+                  child: _SkeletonBox(progress: progress, height: 9, radius: 5),
+                ),
+              ],
             ),
-            SizedBox(height: 14),
-            Text(
-              'Loading transactions...',
-              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 56,
+            height: 44,
+            child: Center(
+              child: _SkeletonBox(
+                progress: progress,
+                width: 42,
+                height: 12,
+                radius: 6,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SearchInputSkeleton extends StatelessWidget {
+  const _SearchInputSkeleton({required this.progress});
+
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 56,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18),
+      alignment: Alignment.centerLeft,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: _SkeletonBox(
+        progress: progress,
+        width: 190,
+        height: 14,
+        radius: 7,
+      ),
+    );
+  }
+}
+
+class _FilterRowSkeleton extends StatelessWidget {
+  const _FilterRowSkeleton({required this.progress, required this.widths});
+
+  final double progress;
+  final List<double> widths;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const NeverScrollableScrollPhysics(),
+      child: Row(
+        children: [
+          for (var index = 0; index < widths.length; index++) ...[
+            if (index > 0) const SizedBox(width: 7),
+            _SkeletonBox(
+              progress: progress,
+              width: widths[index],
+              height: 38,
+              radius: 999,
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _HistoryCountSkeleton extends StatelessWidget {
+  const _HistoryCountSkeleton({required this.progress});
+
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _SkeletonBox(progress: progress, width: 122, height: 18, radius: 7),
+        const Spacer(),
+        _SkeletonBox(progress: progress, width: 50, height: 11, radius: 6),
+      ],
+    );
+  }
+}
+
+class _HistoryDateGroupSkeleton extends StatelessWidget {
+  const _HistoryDateGroupSkeleton({
+    required this.compact,
+    required this.progress,
+    required this.rowCount,
+  });
+
+  final bool compact;
+  final double progress;
+  final int rowCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SkeletonBox(progress: progress, width: 82, height: 10, radius: 5),
+        const SizedBox(height: 10),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(compact ? 22 : 26),
+          ),
+          child: Column(
+            children: [
+              for (var index = 0; index < rowCount; index++) ...[
+                _TransactionTileSkeleton(
+                  compact: compact,
+                  progress: progress,
+                  index: index,
+                ),
+                if (index < rowCount - 1)
+                  Padding(
+                    padding: EdgeInsets.only(left: compact ? 66 : 74),
+                    child: Container(
+                      height: 1,
+                      color: Colors.white.withValues(alpha: 0.045),
+                    ),
+                  ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TransactionTileSkeleton extends StatelessWidget {
+  const _TransactionTileSkeleton({
+    required this.compact,
+    required this.progress,
+    required this.index,
+  });
+
+  final bool compact;
+  final double progress;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final titleWidths = <double>[128, 156, 108];
+
+    final subtitleWidths = <double>[180, 148, 195];
+
+    final titleWidth = titleWidths[index % titleWidths.length];
+
+    final subtitleWidth = subtitleWidths[index % subtitleWidths.length];
+
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 14 : 18,
+        vertical: compact ? 14 : 16,
+      ),
+      child: Row(
+        children: [
+          _SkeletonBox(
+            progress: progress,
+            width: compact ? 42 : 46,
+            height: compact ? 42 : 46,
+            radius: 15,
+          ),
+          SizedBox(width: compact ? 12 : 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SkeletonBox(
+                  progress: progress,
+                  width: titleWidth,
+                  height: 13,
+                  radius: 6,
+                ),
+                const SizedBox(height: 7),
+                _SkeletonBox(
+                  progress: progress,
+                  width: subtitleWidth,
+                  height: 10,
+                  radius: 5,
+                ),
+                const SizedBox(height: 7),
+                _SkeletonBox(
+                  progress: progress,
+                  width: 54,
+                  height: 9,
+                  radius: 5,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _SkeletonBox(
+                progress: progress,
+                width: 70,
+                height: compact ? 13 : 14,
+                radius: 6,
+              ),
+              const SizedBox(height: 5),
+              _SkeletonBox(progress: progress, width: 26, height: 9, radius: 5),
+              const SizedBox(height: 7),
+              _SkeletonBox(
+                progress: progress,
+                width: 72,
+                height: 20,
+                radius: 999,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonBox extends StatelessWidget {
+  const _SkeletonBox({
+    required this.progress,
+    this.width,
+    required this.height,
+    required this.radius,
+  });
+
+  final double progress;
+  final double? width;
+  final double height;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final position = -1.8 + (progress * 3.6);
+
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        gradient: LinearGradient(
+          begin: Alignment(position - 1, 0),
+          end: Alignment(position + 1, 0),
+          colors: [
+            AppColors.surfaceElevated,
+            Colors.white.withValues(alpha: 0.09),
+            AppColors.surfaceElevated,
+          ],
+          stops: const [0.2, 0.5, 0.8],
         ),
       ),
     );
@@ -1267,9 +1710,13 @@ Color _transactionStatusColor(PaymentTransaction transaction) {
 Color _statusColor(TransactionStatus status) {
   return switch (status) {
     TransactionStatus.completed => AppColors.success,
+
     TransactionStatus.failed || TransactionStatus.cancelled => AppColors.danger,
+
     TransactionStatus.processing => AppColors.primary,
+
     TransactionStatus.pending => AppColors.textSecondary,
+
     TransactionStatus.reversed => AppColors.primaryMuted,
   };
 }
