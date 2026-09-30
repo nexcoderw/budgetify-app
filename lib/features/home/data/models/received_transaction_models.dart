@@ -47,9 +47,9 @@ enum ReceivedTransactionClassification {
 }
 
 enum ReceivedTransactionEvidenceSource {
-  providerSms(apiValue: 'PROVIDER_SMS', label: 'Provider SMS'),
+  providerSms(apiValue: 'PROVIDER_SMS', label: 'MTN SMS evidence'),
   providerApi(apiValue: 'PROVIDER_API', label: 'Provider API'),
-  manual(apiValue: 'MANUAL', label: 'Manual');
+  manual(apiValue: 'MANUAL', label: 'Manual entry');
 
   const ReceivedTransactionEvidenceSource({
     required this.apiValue,
@@ -182,6 +182,7 @@ class ReceivedTransactionPagination {
   final int limit;
   final int total;
   final int totalPages;
+
   final bool hasNextPage;
   final bool hasPreviousPage;
 }
