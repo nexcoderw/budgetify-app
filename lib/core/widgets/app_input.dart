@@ -121,16 +121,18 @@ class _AppInputState extends State<AppInput> {
   @override
   Widget build(BuildContext context) {
     if (widget.variant == AppInputVariant.bare) {
-      return _buildField(const InputDecoration(
-        isCollapsed: true,
-        border: InputBorder.none,
-        enabledBorder: InputBorder.none,
-        focusedBorder: InputBorder.none,
-        errorBorder: InputBorder.none,
-        focusedErrorBorder: InputBorder.none,
-        contentPadding: EdgeInsets.zero,
-        counterText: '',
-      ));
+      return _buildField(
+        const InputDecoration(
+          isCollapsed: true,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
+          focusedErrorBorder: InputBorder.none,
+          contentPadding: EdgeInsets.zero,
+          counterText: '',
+        ),
+      );
     }
 
     final radius = BorderRadius.circular(widget.borderRadius);
@@ -158,9 +160,7 @@ class _AppInputState extends State<AppInput> {
           labelText: widget.label,
           hintText: widget.hintText,
           labelStyle: TextStyle(
-            color: _isFocused
-                ? AppColors.primary
-                : AppColors.textSecondary,
+            color: _isFocused ? AppColors.primary : AppColors.textSecondary,
             fontSize: 13,
           ),
           hintStyle: const TextStyle(
@@ -200,29 +200,17 @@ class _AppInputState extends State<AppInput> {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: radius,
-            borderSide: const BorderSide(
-              color: AppColors.primary,
-              width: 1.5,
-            ),
+            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
           ),
           errorBorder: OutlineInputBorder(
             borderRadius: radius,
-            borderSide: const BorderSide(
-              color: AppColors.danger,
-              width: 1.2,
-            ),
+            borderSide: const BorderSide(color: AppColors.danger, width: 1.2),
           ),
           focusedErrorBorder: OutlineInputBorder(
             borderRadius: radius,
-            borderSide: const BorderSide(
-              color: AppColors.danger,
-              width: 1.5,
-            ),
+            borderSide: const BorderSide(color: AppColors.danger, width: 1.5),
           ),
-          errorStyle: const TextStyle(
-            color: AppColors.danger,
-            fontSize: 11,
-          ),
+          errorStyle: const TextStyle(color: AppColors.danger, fontSize: 11),
           counterText: '',
         ),
       ),
@@ -249,7 +237,8 @@ class _AppInputState extends State<AppInput> {
       maxLength: widget.maxLength,
       maxLines: widget.maxLines,
       minLines: widget.minLines,
-      style: widget.textStyle ??
+      style:
+          widget.textStyle ??
           const TextStyle(
             color: AppColors.textPrimary,
             fontSize: 14,
