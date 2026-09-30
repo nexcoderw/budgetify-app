@@ -14,17 +14,36 @@ import '../../application/transaction_sms_reconciliation_service.dart';
 import '../../data/models/provider_sms_message.dart';
 import '../../data/models/transaction_models.dart';
 import 'transaction_detail_page.dart';
+import '../../application/received_transaction_service.dart';
+import '../../application/received_transaction_sms_reconciliation_service.dart';
+import '../../data/models/transaction_history_models.dart';
+import 'received_transaction_detail_page.dart';
+
+enum _DirectionFilter {
+  all(null, 'All'),
+  sent(TransactionHistoryDirection.sent, 'Sent'),
+  received(TransactionHistoryDirection.received, 'Received');
+
+  const _DirectionFilter(this.direction, this.label);
+
+  final TransactionHistoryDirection? direction;
+
+  final String label;
+}
 
 enum _StatusFilter {
-  all(null, 'All'),
+  all(null, 'All statuses'),
   pending(TransactionStatus.pending, 'Pending'),
   processing(TransactionStatus.processing, 'Processing'),
   completed(TransactionStatus.completed, 'Completed'),
-  failed(TransactionStatus.failed, 'Failed');
+  failed(TransactionStatus.failed, 'Failed'),
+  cancelled(TransactionStatus.cancelled, 'Cancelled'),
+  reversed(TransactionStatus.reversed, 'Reversed');
 
   const _StatusFilter(this.status, this.label);
 
   final TransactionStatus? status;
+
   final String label;
 }
 
@@ -44,13 +63,20 @@ class HistoryPage extends StatefulWidget {
   const HistoryPage({
     super.key,
     this.transactionService,
+    this.receivedTransactionService,
     this.smsReconciliationService,
+    this.receivedSmsReconciliationService,
     this.refreshToken = 0,
   });
 
   final TransactionService? transactionService;
 
+  final ReceivedTransactionService? receivedTransactionService;
+
   final TransactionSmsReconciliationService? smsReconciliationService;
+
+  final ReceivedTransactionSmsReconciliationService?
+  receivedSmsReconciliationService;
 
   final int refreshToken;
 
@@ -69,7 +95,14 @@ class _HistoryPageState extends State<HistoryPage> {
 
   Timer? _searchDebounce;
 
-  List<PaymentTransaction> _transactions = const [];
+  List<TransactionHistoryItem> _transactions = const [];
+
+  late final ReceivedTransactionService _receivedTransactionService;
+
+  late final ReceivedTransactionSmsReconciliationService
+  _receivedSmsReconciliationService;
+
+  _DirectionFilter _directionFilter = _DirectionFilter.all;
 
   TransactionPagination? _pagination;
 
