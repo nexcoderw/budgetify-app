@@ -9,20 +9,35 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_input.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../application/received_transaction_service.dart';
+import '../../application/received_transaction_sms_reconciliation_service.dart';
 import '../../application/transaction_service.dart';
-import '../../application/transaction_sms_matcher.dart';
 import '../../application/transaction_sms_reconciliation_service.dart';
 import '../../data/models/provider_sms_message.dart';
+import '../../data/models/transaction_history_models.dart';
 import '../../data/models/transaction_models.dart';
+import 'received_transaction_detail_page.dart';
 import 'record_received_money_page.dart';
 import 'transaction_detail_page.dart';
 
-enum _StatusFilter {
+enum _DirectionFilter {
   all(null, 'All'),
+  sent(TransactionHistoryDirection.sent, 'Sent'),
+  received(TransactionHistoryDirection.received, 'Received');
+
+  const _DirectionFilter(this.direction, this.label);
+
+  final TransactionHistoryDirection? direction;
+  final String label;
+}
+
+enum _StatusFilter {
+  all(null, 'All statuses'),
   pending(TransactionStatus.pending, 'Pending'),
   processing(TransactionStatus.processing, 'Processing'),
   completed(TransactionStatus.completed, 'Completed'),
-  failed(TransactionStatus.failed, 'Failed');
+  failed(TransactionStatus.failed, 'Failed'),
+  cancelled(TransactionStatus.cancelled, 'Cancelled'),
+  reversed(TransactionStatus.reversed, 'Reversed');
 
   const _StatusFilter(this.status, this.label);
 
@@ -48,6 +63,7 @@ class HistoryPage extends StatefulWidget {
     this.transactionService,
     this.receivedTransactionService,
     this.smsReconciliationService,
+    this.receivedSmsReconciliationService,
     this.refreshToken = 0,
   });
 
@@ -57,6 +73,9 @@ class HistoryPage extends StatefulWidget {
 
   final TransactionSmsReconciliationService? smsReconciliationService;
 
+  final ReceivedTransactionSmsReconciliationService?
+  receivedSmsReconciliationService;
+
   final int refreshToken;
 
   @override
@@ -64,9 +83,9 @@ class HistoryPage extends StatefulWidget {
 }
 
 class _HistoryPageState extends State<HistoryPage> {
-  static const _pageSize = 20;
+  static const int _pageSize = 20;
 
-  final _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
   late final TransactionService _transactionService;
 
@@ -74,11 +93,16 @@ class _HistoryPageState extends State<HistoryPage> {
 
   late final TransactionSmsReconciliationService _smsReconciliationService;
 
+  late final ReceivedTransactionSmsReconciliationService
+  _receivedSmsReconciliationService;
+
   Timer? _searchDebounce;
 
-  List<PaymentTransaction> _transactions = const [];
+  List<TransactionHistoryItem> _transactions = const [];
 
   TransactionPagination? _pagination;
+
+  _DirectionFilter _directionFilter = _DirectionFilter.all;
 
   _StatusFilter _statusFilter = _StatusFilter.all;
 
@@ -109,6 +133,22 @@ class _HistoryPageState extends State<HistoryPage> {
     return supportsManualReceivedPaymentEntry;
   }
 
+  List<_StatusFilter> get _availableStatusFilters {
+    if (_directionFilter == _DirectionFilter.received) {
+      return const [
+        _StatusFilter.all,
+        _StatusFilter.completed,
+        _StatusFilter.reversed,
+      ];
+    }
+
+    return _StatusFilter.values;
+  }
+
+  bool get _shouldShowMethodFilter {
+    return _directionFilter == _DirectionFilter.sent;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -124,6 +164,12 @@ class _HistoryPageState extends State<HistoryPage> {
         widget.smsReconciliationService ??
         TransactionSmsReconciliationService.createDefault(
           transactionService: _transactionService,
+        );
+
+    _receivedSmsReconciliationService =
+        widget.receivedSmsReconciliationService ??
+        ReceivedTransactionSmsReconciliationService.createDefault(
+          receivedTransactionService: _receivedTransactionService,
         );
 
     unawaited(_loadSmsPermission());
@@ -196,7 +242,7 @@ class _HistoryPageState extends State<HistoryPage> {
           context,
           title: 'SMS access not enabled',
           description:
-              'Budgetify cannot automatically check MoMo transaction messages without SMS access.',
+              'Budgetify cannot automatically reconcile MTN MoMo transactions without SMS access.',
         );
 
         return;
@@ -211,7 +257,8 @@ class _HistoryPageState extends State<HistoryPage> {
       AppToast.error(
         context,
         title: 'SMS access unavailable',
-        description: 'Budgetify could not enable automatic transaction checks.',
+        description:
+            'Budgetify could not enable automatic MTN transaction synchronization.',
       );
     } finally {
       if (mounted) {
@@ -243,62 +290,90 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   Future<void> _syncTransactionSms({required bool showResult}) async {
+    var outgoing = const SmsReconciliationSummary.empty();
+
+    var incoming = const ReceivedSmsReconciliationSummary.empty();
+
+    var outgoingFailed = false;
+    var incomingFailed = false;
+
     try {
-      final result = await _smsReconciliationService.reconcile();
-
-      if (!mounted) {
-        return;
-      }
-
-      if (result.hasChanges) {
-        await _loadTransactions(reset: true);
-      }
-
-      if (!mounted || !showResult) {
-        return;
-      }
-
-      if (result.hasAttentionNeeded) {
-        final parts = <String>[
-          if (result.matchedTransactions > 0)
-            '${result.matchedTransactions} updated',
-          if (result.ambiguousMessages > 0)
-            '${result.ambiguousMessages} ambiguous',
-          if (result.failedUpdates > 0)
-            '${result.failedUpdates} could not be updated',
-        ];
-
-        AppToast.info(
-          context,
-          title: 'Transaction review needed',
-          description:
-              '${parts.join(', ')}. Budgetify left uncertain transactions unchanged.',
-        );
-
-        return;
-      }
-
-      AppToast.info(
-        context,
-        title: result.hasChanges
-            ? 'Transactions updated'
-            : 'Everything is up to date',
-        description: result.hasChanges
-            ? '${result.matchedTransactions} transaction${result.matchedTransactions == 1 ? '' : 's'} updated from MTN MoMo message evidence.'
-            : 'No new reliable transaction evidence was found.',
-      );
+      outgoing = await _smsReconciliationService.reconcile();
     } catch (_) {
-      if (!mounted || !showResult) {
-        return;
-      }
+      outgoingFailed = true;
+    }
 
+    try {
+      incoming = await _receivedSmsReconciliationService.reconcile();
+    } catch (_) {
+      incomingFailed = true;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    final hasChanges = outgoing.hasChanges || incoming.hasAcceptedPayments;
+
+    if (hasChanges) {
+      await _loadTransactions(reset: true);
+    }
+
+    if (!mounted || !showResult) {
+      return;
+    }
+
+    if (outgoingFailed && incomingFailed) {
       AppToast.error(
         context,
         title: 'Could not sync transactions',
         description:
             'Budgetify could not check recent MTN MoMo transaction messages.',
       );
+
+      return;
     }
+
+    final uncertainCount =
+        outgoing.ambiguousMessages + incoming.conflictingMessages;
+
+    final failedCount = outgoing.failedUpdates + incoming.failedUpdates;
+
+    final hasAttentionNeeded =
+        outgoingFailed ||
+        incomingFailed ||
+        uncertainCount > 0 ||
+        failedCount > 0;
+
+    if (hasAttentionNeeded) {
+      final parts = <String>[
+        if (outgoing.matchedTransactions > 0)
+          '${outgoing.matchedTransactions} sent updated',
+        if (incoming.acceptedPayments > 0)
+          '${incoming.acceptedPayments} received processed',
+        if (uncertainCount > 0) '$uncertainCount uncertain',
+        if (failedCount > 0) '$failedCount could not be updated',
+        if (outgoingFailed) 'sent-payment sync unavailable',
+        if (incomingFailed) 'received-payment sync unavailable',
+      ];
+
+      AppToast.info(
+        context,
+        title: 'Transaction review needed',
+        description:
+            '${parts.join(', ')}. Budgetify left uncertain evidence unchanged.',
+      );
+
+      return;
+    }
+
+    AppToast.info(
+      context,
+      title: hasChanges ? 'Money history updated' : 'Everything is up to date',
+      description: hasChanges
+          ? 'Budgetify synchronized reliable sent and received MTN transaction evidence.'
+          : 'No new reliable transaction evidence was found.',
+    );
   }
 
   Future<void> _recordReceivedMoney() async {
@@ -311,6 +386,12 @@ class _HistoryPageState extends State<HistoryPage> {
     );
 
     if (!mounted || saved != true) {
+      return;
+    }
+
+    await _loadTransactions(reset: true);
+
+    if (!mounted) {
       return;
     }
 
@@ -334,6 +415,33 @@ class _HistoryPageState extends State<HistoryPage> {
     _searchDebounce?.cancel();
 
     unawaited(_loadTransactions(reset: true));
+  }
+
+  void _selectDirection(_DirectionFilter filter) {
+    if (_directionFilter == filter) {
+      return;
+    }
+
+    setState(() {
+      _directionFilter = filter;
+
+      if (filter != _DirectionFilter.sent) {
+        _methodFilter = _MethodFilter.all;
+      }
+
+      if (filter == _DirectionFilter.received &&
+          !_isReceivedSupportedStatus(_statusFilter)) {
+        _statusFilter = _StatusFilter.all;
+      }
+    });
+
+    unawaited(_loadTransactions(reset: true));
+  }
+
+  bool _isReceivedSupportedStatus(_StatusFilter filter) {
+    return filter == _StatusFilter.all ||
+        filter == _StatusFilter.completed ||
+        filter == _StatusFilter.reversed;
   }
 
   void _selectStatus(_StatusFilter filter) {
@@ -395,11 +503,14 @@ class _HistoryPageState extends State<HistoryPage> {
     }
 
     try {
-      final result = await _transactionService.list(
+      final result = await _transactionService.history(
         page: page,
         limit: _pageSize,
+        direction: _directionFilter.direction,
         status: _statusFilter.status,
-        transferType: _methodFilter.transferType,
+        transferType: _directionFilter == _DirectionFilter.sent
+            ? _methodFilter.transferType
+            : null,
         search: _searchController.text.trim(),
       );
 
@@ -410,7 +521,7 @@ class _HistoryPageState extends State<HistoryPage> {
       setState(() {
         _transactions = reset
             ? result.items
-            : <PaymentTransaction>[..._transactions, ...result.items];
+            : <TransactionHistoryItem>[..._transactions, ...result.items];
 
         _pagination = result.pagination;
 
@@ -436,7 +547,8 @@ class _HistoryPageState extends State<HistoryPage> {
 
       setState(() {
         if (reset) {
-          _errorMessage = 'Could not load your transactions. Please try again.';
+          _errorMessage =
+              'Could not load your money history. Please try again.';
         } else {
           _loadMoreError = 'Could not load more transactions.';
         }
@@ -452,16 +564,27 @@ class _HistoryPageState extends State<HistoryPage> {
     }
   }
 
-  Future<void> _openTransaction(PaymentTransaction transaction) async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => TransactionDetailPage(
-          transactionId: transaction.id,
-          transactionService: _transactionService,
-          smsReconciliationService: _smsReconciliationService,
+  Future<void> _openTransaction(TransactionHistoryItem transaction) async {
+    if (transaction.isSent) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => TransactionDetailPage(
+            transactionId: transaction.id,
+            transactionService: _transactionService,
+            smsReconciliationService: _smsReconciliationService,
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => ReceivedTransactionDetailPage(
+            receivedTransactionId: transaction.id,
+            receivedTransactionService: _receivedTransactionService,
+          ),
+        ),
+      );
+    }
 
     if (!mounted) {
       return;
@@ -485,14 +608,12 @@ class _HistoryPageState extends State<HistoryPage> {
           ? _HistoryPageSkeleton(
               compact: isCompact,
               showSmsCard: _shouldShowSmsSkeleton,
-              showRecordReceivedAction: _shouldShowManualReceivedAction,
             )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _HistoryHeader(
                   compact: isCompact,
-                  showManualReceivedAction: _shouldShowManualReceivedAction,
                   onRecordReceived: _shouldShowManualReceivedAction
                       ? () {
                           unawaited(_recordReceivedMoney());
@@ -519,26 +640,35 @@ class _HistoryPageState extends State<HistoryPage> {
                 SizedBox(height: isCompact ? 22 : 28),
                 AppInput(
                   controller: _searchController,
-                  hintText: 'Search recipient or reference',
+                  hintText: 'Search sender, recipient or reference',
                   borderRadius: 999,
                   textInputAction: TextInputAction.search,
                   onChanged: _onSearchChanged,
                   onSubmitted: _onSearchSubmitted,
                 ),
                 const SizedBox(height: 16),
+                _FilterScroller<_DirectionFilter>(
+                  values: _DirectionFilter.values,
+                  selected: _directionFilter,
+                  labelBuilder: (filter) => filter.label,
+                  onSelected: _selectDirection,
+                ),
+                const SizedBox(height: 10),
                 _FilterScroller<_StatusFilter>(
-                  values: _StatusFilter.values,
+                  values: _availableStatusFilters,
                   selected: _statusFilter,
                   labelBuilder: (filter) => filter.label,
                   onSelected: _selectStatus,
                 ),
-                const SizedBox(height: 10),
-                _FilterScroller<_MethodFilter>(
-                  values: _MethodFilter.values,
-                  selected: _methodFilter,
-                  labelBuilder: (filter) => filter.label,
-                  onSelected: _selectMethod,
-                ),
+                if (_shouldShowMethodFilter) ...[
+                  const SizedBox(height: 10),
+                  _FilterScroller<_MethodFilter>(
+                    values: _MethodFilter.values,
+                    selected: _methodFilter,
+                    labelBuilder: (filter) => filter.label,
+                    onSelected: _selectMethod,
+                  ),
+                ],
                 SizedBox(height: isCompact ? 22 : 28),
                 _buildContent(compact: isCompact),
               ],
@@ -559,7 +689,7 @@ class _HistoryPageState extends State<HistoryPage> {
     }
 
     if (_transactions.isEmpty) {
-      return const _EmptyHistory();
+      return _EmptyHistory(direction: _directionFilter);
     }
 
     return Column(
@@ -604,18 +734,15 @@ class _HistoryPageState extends State<HistoryPage> {
 class _HistoryHeader extends StatelessWidget {
   const _HistoryHeader({
     required this.compact,
-    required this.showManualReceivedAction,
     required this.onRefresh,
     this.onRecordReceived,
   });
 
   final bool compact;
 
-  final bool showManualReceivedAction;
+  final VoidCallback onRefresh;
 
   final VoidCallback? onRecordReceived;
-
-  final VoidCallback? onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -648,11 +775,9 @@ class _HistoryHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                showManualReceivedAction
-                    ? 'Track outgoing transfers and manually record money received on this device.'
-                    : 'Track outgoing transfers recorded by Budgetify.',
-                style: const TextStyle(
+              const Text(
+                'Track money you send and receive in one timeline.',
+                style: TextStyle(
                   fontSize: 12,
                   height: 1.5,
                   color: AppColors.textSecondary,
@@ -666,7 +791,7 @@ class _HistoryHeader extends StatelessWidget {
           _HistoryHeaderAction(
             tooltip: 'Record received money',
             icon: HugeIcons.strokeRoundedMoneyReceiveCircle,
-            onTap: onRecordReceived,
+            onTap: onRecordReceived!,
           ),
           const SizedBox(width: 8),
         ],
@@ -691,7 +816,7 @@ class _HistoryHeaderAction extends StatelessWidget {
 
   final List<List<dynamic>> icon;
 
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -758,11 +883,11 @@ class _SmsReconciliationCard extends StatelessWidget {
           Container(
             width: 42,
             height: 42,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: accent.withValues(alpha: 0.11),
               borderRadius: BorderRadius.circular(14),
             ),
-            alignment: Alignment.center,
             child: HugeIcon(
               icon: HugeIcons.strokeRoundedTransactionHistory,
               size: 19,
@@ -777,8 +902,8 @@ class _SmsReconciliationCard extends StatelessWidget {
               children: [
                 Text(
                   enabled
-                      ? 'Automatic SMS checks on'
-                      : 'Check transactions automatically',
+                      ? 'Automatic transaction sync on'
+                      : 'Sync MTN transactions automatically',
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -788,8 +913,8 @@ class _SmsReconciliationCard extends StatelessWidget {
                 const SizedBox(height: 5),
                 Text(
                   enabled
-                      ? 'Budgetify checks recent MTN MoMo transaction messages when the app resumes.'
-                      : 'Allow Budgetify to read transaction SMS so sent payments can update automatically.',
+                      ? 'Budgetify checks recent MTN MoMo messages for sent and received payments when the app resumes.'
+                      : 'Allow Budgetify to read transaction SMS so sent and received payments can update automatically.',
                   style: const TextStyle(
                     fontSize: 10,
                     height: 1.45,
@@ -958,18 +1083,18 @@ class _TransactionHistory extends StatelessWidget {
     required this.onTap,
   });
 
-  final List<PaymentTransaction> transactions;
+  final List<TransactionHistoryItem> transactions;
 
   final bool compact;
 
-  final ValueChanged<PaymentTransaction> onTap;
+  final ValueChanged<TransactionHistoryItem> onTap;
 
   @override
   Widget build(BuildContext context) {
-    final grouped = <DateTime, List<PaymentTransaction>>{};
+    final grouped = <DateTime, List<TransactionHistoryItem>>{};
 
     for (final transaction in transactions) {
-      final local = transaction.createdAt.toLocal();
+      final local = transaction.activityAt.toLocal();
 
       final date = DateTime(local.year, local.month, local.day);
 
@@ -978,17 +1103,18 @@ class _TransactionHistory extends StatelessWidget {
       grouped[date]!.add(transaction);
     }
 
+    final entries = grouped.entries.toList(growable: false);
+
     return Column(
       children: [
-        for (final entry in grouped.entries) ...[
+        for (var index = 0; index < entries.length; index++) ...[
           _DateGroup(
-            date: entry.key,
-            transactions: entry.value,
+            date: entries[index].key,
+            transactions: entries[index].value,
             compact: compact,
             onTap: onTap,
           ),
-          if (entry.key != grouped.keys.last)
-            SizedBox(height: compact ? 22 : 26),
+          if (index < entries.length - 1) SizedBox(height: compact ? 22 : 26),
         ],
       ],
     );
@@ -1005,11 +1131,11 @@ class _DateGroup extends StatelessWidget {
 
   final DateTime date;
 
-  final List<PaymentTransaction> transactions;
+  final List<TransactionHistoryItem> transactions;
 
   final bool compact;
 
-  final ValueChanged<PaymentTransaction> onTap;
+  final ValueChanged<TransactionHistoryItem> onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1065,7 +1191,7 @@ class _TransactionTile extends StatelessWidget {
     required this.onTap,
   });
 
-  final PaymentTransaction transaction;
+  final TransactionHistoryItem transaction;
 
   final bool compact;
 
@@ -1073,9 +1199,11 @@ class _TransactionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final received = transaction.isReceived;
+
     final accent = _transactionStatusColor(transaction);
 
-    final date = transaction.createdAt.toLocal();
+    final local = transaction.activityAt.toLocal();
 
     return Material(
       color: Colors.transparent,
@@ -1092,13 +1220,15 @@ class _TransactionTile extends StatelessWidget {
               Container(
                 width: compact ? 42 : 46,
                 height: compact ? 42 : 46,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.11),
                   borderRadius: BorderRadius.circular(15),
                 ),
-                alignment: Alignment.center,
                 child: HugeIcon(
-                  icon: HugeIcons.strokeRoundedMoneySendSquare,
+                  icon: received
+                      ? HugeIcons.strokeRoundedMoneyReceiveCircle
+                      : HugeIcons.strokeRoundedMoneySendSquare,
                   size: 19,
                   strokeWidth: 1.8,
                   color: accent,
@@ -1110,7 +1240,7 @@ class _TransactionTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      transaction.recipientDisplayName,
+                      transaction.counterpartyDisplayName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -1121,7 +1251,7 @@ class _TransactionTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      '${transaction.transferType.label} • ${transaction.receiverIdentifier}',
+                      _subtitleForTransaction(transaction),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -1131,7 +1261,7 @@ class _TransactionTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      _formatTime(date),
+                      _formatTime(local),
                       style: TextStyle(
                         fontSize: 9,
                         color: AppColors.textSecondary.withValues(alpha: 0.72),
@@ -1145,17 +1275,19 @@ class _TransactionTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '-${_formatAmount(transaction.amount)}',
+                    '${received ? '+' : '-'}${_formatAmount(transaction.amount)}',
                     style: TextStyle(
                       fontSize: compact ? 13 : 14,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
+                      color: received
+                          ? AppColors.success
+                          : AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 3),
-                  const Text(
-                    'RWF',
-                    style: TextStyle(
+                  Text(
+                    transaction.currency,
+                    style: const TextStyle(
                       fontSize: 9,
                       color: AppColors.textSecondary,
                     ),
@@ -1175,11 +1307,11 @@ class _TransactionTile extends StatelessWidget {
 class _StatusBadge extends StatelessWidget {
   const _StatusBadge({required this.transaction});
 
-  final PaymentTransaction transaction;
+  final TransactionHistoryItem transaction;
 
   @override
   Widget build(BuildContext context) {
-    final needsConfirmation = transactionNeedsConfirmation(transaction);
+    final needsConfirmation = transaction.needsConfirmation();
 
     final color = _transactionStatusColor(transaction);
 
@@ -1205,461 +1337,170 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
-class _HistoryPageSkeleton extends StatefulWidget {
+class _HistoryPageSkeleton extends StatelessWidget {
   const _HistoryPageSkeleton({
     required this.compact,
     required this.showSmsCard,
-    required this.showRecordReceivedAction,
   });
 
   final bool compact;
 
   final bool showSmsCard;
 
-  final bool showRecordReceivedAction;
-
-  @override
-  State<_HistoryPageSkeleton> createState() => _HistoryPageSkeletonState();
-}
-
-class _HistoryPageSkeletonState extends State<_HistoryPageSkeleton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _animationController;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1350),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final disableAnimations = MediaQuery.disableAnimationsOf(context);
-
     return ExcludeSemantics(
       child: IgnorePointer(
-        child: AnimatedBuilder(
-          animation: _animationController,
-          builder: (context, child) {
-            final progress = disableAnimations
-                ? 0.35
-                : _animationController.value;
-
-            return Column(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _HistoryHeaderSkeleton(
-                  compact: widget.compact,
-                  progress: progress,
-                  showRecordReceivedAction: widget.showRecordReceivedAction,
-                ),
-                if (widget.showSmsCard) ...[
-                  SizedBox(height: widget.compact ? 16 : 18),
-                  _SmsCardSkeleton(progress: progress),
-                ],
-                SizedBox(height: widget.compact ? 22 : 28),
-                _SearchInputSkeleton(progress: progress),
-                const SizedBox(height: 16),
-                _FilterRowSkeleton(
-                  progress: progress,
-                  widths: const [48, 72, 88, 91, 61],
-                ),
-                const SizedBox(height: 10),
-                _FilterRowSkeleton(
-                  progress: progress,
-                  widths: const [92, 92, 72, 88],
-                ),
-                SizedBox(height: widget.compact ? 22 : 28),
-                _HistoryCountSkeleton(progress: progress),
-                const SizedBox(height: 16),
-                _HistoryDateGroupSkeleton(
-                  compact: widget.compact,
-                  progress: progress,
-                  rowCount: 3,
-                ),
-                SizedBox(height: widget.compact ? 22 : 26),
-                _HistoryDateGroupSkeleton(
-                  compact: widget.compact,
-                  progress: progress,
-                  rowCount: 2,
-                ),
-                const SizedBox(height: 18),
-                Center(
-                  child: SizedBox(
-                    height: 44,
-                    child: Center(
-                      child: _SkeletonBox(
-                        progress: progress,
-                        width: 88,
-                        height: 13,
-                        radius: 7,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const _SkeletonBox(width: 92, height: 10),
+                      const SizedBox(height: 10),
+                      _SkeletonBox(
+                        width: compact ? 176 : 218,
+                        height: compact ? 27 : 32,
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                      const _SkeletonBox(width: 260, height: 12),
+                    ],
                   ),
                 ),
+                const SizedBox(width: 12),
+                const _SkeletonBox(width: 46, height: 46, radius: 16),
               ],
-            );
-          },
+            ),
+            if (showSmsCard) ...[
+              SizedBox(height: compact ? 16 : 18),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  children: [
+                    _SkeletonBox(width: 42, height: 42, radius: 14),
+                    SizedBox(width: 13),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _SkeletonBox(width: 170, height: 12),
+                          SizedBox(height: 8),
+                          _SkeletonBox(width: double.infinity, height: 9),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            SizedBox(height: compact ? 22 : 28),
+            const _SkeletonBox(width: double.infinity, height: 56, radius: 999),
+            const SizedBox(height: 16),
+            const Row(
+              children: [
+                _SkeletonBox(width: 48, height: 36, radius: 999),
+                SizedBox(width: 7),
+                _SkeletonBox(width: 58, height: 36, radius: 999),
+                SizedBox(width: 7),
+                _SkeletonBox(width: 82, height: 36, radius: 999),
+              ],
+            ),
+            const SizedBox(height: 10),
+            const Row(
+              children: [
+                _SkeletonBox(width: 90, height: 36, radius: 999),
+                SizedBox(width: 7),
+                _SkeletonBox(width: 72, height: 36, radius: 999),
+                SizedBox(width: 7),
+                _SkeletonBox(width: 88, height: 36, radius: 999),
+              ],
+            ),
+            SizedBox(height: compact ? 22 : 28),
+            const Row(
+              children: [
+                _SkeletonBox(width: 122, height: 18),
+                Spacer(),
+                _SkeletonBox(width: 50, height: 11),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(compact ? 22 : 26),
+              ),
+              child: const Column(
+                children: [
+                  _HistoryTileSkeleton(),
+                  SizedBox(height: 18),
+                  _HistoryTileSkeleton(),
+                  SizedBox(height: 18),
+                  _HistoryTileSkeleton(),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _HistoryHeaderSkeleton extends StatelessWidget {
-  const _HistoryHeaderSkeleton({
-    required this.compact,
-    required this.progress,
-    required this.showRecordReceivedAction,
-  });
-
-  final bool compact;
-
-  final double progress;
-
-  final bool showRecordReceivedAction;
+class _HistoryTileSkeleton extends StatelessWidget {
+  const _HistoryTileSkeleton();
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return const Row(
       children: [
+        _SkeletonBox(width: 44, height: 44, radius: 15),
+        SizedBox(width: 13),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _SkeletonBox(
-                progress: progress,
-                width: 92,
-                height: 10,
-                radius: 5,
-              ),
-              const SizedBox(height: 10),
-              _SkeletonBox(
-                progress: progress,
-                width: compact ? 176 : 218,
-                height: compact ? 27 : 32,
-                radius: 9,
-              ),
-              const SizedBox(height: 8),
-              FractionallySizedBox(
-                widthFactor: compact ? 0.78 : 0.64,
-                alignment: Alignment.centerLeft,
-                child: _SkeletonBox(progress: progress, height: 12, radius: 6),
-              ),
+              _SkeletonBox(width: 135, height: 12),
+              SizedBox(height: 7),
+              _SkeletonBox(width: 180, height: 9),
+              SizedBox(height: 7),
+              _SkeletonBox(width: 58, height: 8),
             ],
           ),
         ),
-        const SizedBox(width: 12),
-        if (showRecordReceivedAction) ...[
-          _SkeletonBox(progress: progress, width: 46, height: 46, radius: 16),
-          const SizedBox(width: 8),
-        ],
-        _SkeletonBox(progress: progress, width: 46, height: 46, radius: 16),
-      ],
-    );
-  }
-}
-
-class _SmsCardSkeleton extends StatelessWidget {
-  const _SmsCardSkeleton({required this.progress});
-
-  final double progress;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          _SkeletonBox(progress: progress, width: 42, height: 42, radius: 14),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _SkeletonBox(
-                  progress: progress,
-                  width: 185,
-                  height: 12,
-                  radius: 6,
-                ),
-                const SizedBox(height: 8),
-                FractionallySizedBox(
-                  widthFactor: 0.92,
-                  alignment: Alignment.centerLeft,
-                  child: _SkeletonBox(progress: progress, height: 9, radius: 5),
-                ),
-                const SizedBox(height: 6),
-                FractionallySizedBox(
-                  widthFactor: 0.68,
-                  alignment: Alignment.centerLeft,
-                  child: _SkeletonBox(progress: progress, height: 9, radius: 5),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: 56,
-            height: 44,
-            child: Center(
-              child: _SkeletonBox(
-                progress: progress,
-                width: 42,
-                height: 12,
-                radius: 6,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SearchInputSkeleton extends StatelessWidget {
-  const _SearchInputSkeleton({required this.progress});
-
-  final double progress;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 56,
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18),
-      alignment: Alignment.centerLeft,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: _SkeletonBox(
-        progress: progress,
-        width: 190,
-        height: 14,
-        radius: 7,
-      ),
-    );
-  }
-}
-
-class _FilterRowSkeleton extends StatelessWidget {
-  const _FilterRowSkeleton({required this.progress, required this.widths});
-
-  final double progress;
-
-  final List<double> widths;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const NeverScrollableScrollPhysics(),
-      child: Row(
-        children: [
-          for (var index = 0; index < widths.length; index++) ...[
-            if (index > 0) const SizedBox(width: 7),
-            _SkeletonBox(
-              progress: progress,
-              width: widths[index],
-              height: 38,
-              radius: 999,
-            ),
+        SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _SkeletonBox(width: 72, height: 13),
+            SizedBox(height: 8),
+            _SkeletonBox(width: 64, height: 20, radius: 999),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _HistoryCountSkeleton extends StatelessWidget {
-  const _HistoryCountSkeleton({required this.progress});
-
-  final double progress;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _SkeletonBox(progress: progress, width: 122, height: 18, radius: 7),
-        const Spacer(),
-        _SkeletonBox(progress: progress, width: 50, height: 11, radius: 6),
-      ],
-    );
-  }
-}
-
-class _HistoryDateGroupSkeleton extends StatelessWidget {
-  const _HistoryDateGroupSkeleton({
-    required this.compact,
-    required this.progress,
-    required this.rowCount,
-  });
-
-  final bool compact;
-
-  final double progress;
-
-  final int rowCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SkeletonBox(progress: progress, width: 82, height: 10, radius: 5),
-        const SizedBox(height: 10),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(compact ? 22 : 26),
-          ),
-          child: Column(
-            children: [
-              for (var index = 0; index < rowCount; index++) ...[
-                _TransactionTileSkeleton(
-                  compact: compact,
-                  progress: progress,
-                  index: index,
-                ),
-                if (index < rowCount - 1)
-                  Padding(
-                    padding: EdgeInsets.only(left: compact ? 66 : 74),
-                    child: Container(
-                      height: 1,
-                      color: Colors.white.withValues(alpha: 0.045),
-                    ),
-                  ),
-              ],
-            ],
-          ),
         ),
       ],
-    );
-  }
-}
-
-class _TransactionTileSkeleton extends StatelessWidget {
-  const _TransactionTileSkeleton({
-    required this.compact,
-    required this.progress,
-    required this.index,
-  });
-
-  final bool compact;
-
-  final double progress;
-
-  final int index;
-
-  @override
-  Widget build(BuildContext context) {
-    final titleWidths = <double>[128, 156, 108];
-
-    final subtitleWidths = <double>[180, 148, 195];
-
-    final titleWidth = titleWidths[index % titleWidths.length];
-
-    final subtitleWidth = subtitleWidths[index % subtitleWidths.length];
-
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? 14 : 18,
-        vertical: compact ? 14 : 16,
-      ),
-      child: Row(
-        children: [
-          _SkeletonBox(
-            progress: progress,
-            width: compact ? 42 : 46,
-            height: compact ? 42 : 46,
-            radius: 15,
-          ),
-          SizedBox(width: compact ? 12 : 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _SkeletonBox(
-                  progress: progress,
-                  width: titleWidth,
-                  height: 13,
-                  radius: 6,
-                ),
-                const SizedBox(height: 7),
-                _SkeletonBox(
-                  progress: progress,
-                  width: subtitleWidth,
-                  height: 10,
-                  radius: 5,
-                ),
-                const SizedBox(height: 7),
-                _SkeletonBox(
-                  progress: progress,
-                  width: 54,
-                  height: 9,
-                  radius: 5,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              _SkeletonBox(
-                progress: progress,
-                width: 70,
-                height: compact ? 13 : 14,
-                radius: 6,
-              ),
-              const SizedBox(height: 5),
-              _SkeletonBox(progress: progress, width: 26, height: 9, radius: 5),
-              const SizedBox(height: 7),
-              _SkeletonBox(
-                progress: progress,
-                width: 72,
-                height: 20,
-                radius: 999,
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }
 
 class _SkeletonBox extends StatelessWidget {
   const _SkeletonBox({
-    required this.progress,
-    this.width,
+    required this.width,
     required this.height,
-    required this.radius,
+    this.radius = 6,
   });
 
-  final double progress;
-
-  final double? width;
+  final double width;
 
   final double height;
 
@@ -1667,23 +1508,12 @@ class _SkeletonBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final position = -1.8 + (progress * 3.6);
-
     return Container(
       width: width,
       height: height,
       decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
         borderRadius: BorderRadius.circular(radius),
-        gradient: LinearGradient(
-          begin: Alignment(position - 1, 0),
-          end: Alignment(position + 1, 0),
-          colors: [
-            AppColors.surfaceElevated,
-            Colors.white.withValues(alpha: 0.09),
-            AppColors.surfaceElevated,
-          ],
-          stops: const [0.2, 0.5, 0.8],
-        ),
       ),
     );
   }
@@ -1716,7 +1546,7 @@ class _HistoryError extends StatelessWidget {
           const Text(
             'Could not load history',
             style: TextStyle(
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
@@ -1732,16 +1562,7 @@ class _HistoryError extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          TextButton(
-            onPressed: onRetry,
-            child: const Text(
-              'Try again',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
+          TextButton(onPressed: onRetry, child: const Text('Try again')),
         ],
       ),
     );
@@ -1749,10 +1570,21 @@ class _HistoryError extends StatelessWidget {
 }
 
 class _EmptyHistory extends StatelessWidget {
-  const _EmptyHistory();
+  const _EmptyHistory({required this.direction});
+
+  final _DirectionFilter direction;
 
   @override
   Widget build(BuildContext context) {
+    final description = switch (direction) {
+      _DirectionFilter.sent =>
+        'Payments you send will appear here once Budgetify records them.',
+      _DirectionFilter.received =>
+        'Payments you receive will appear here after Budgetify detects or records them.',
+      _DirectionFilter.all =>
+        'Money you send and receive will appear here once transactions are recorded.',
+    };
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 46),
@@ -1760,16 +1592,16 @@ class _EmptyHistory extends StatelessWidget {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(26),
       ),
-      child: const Column(
+      child: Column(
         children: [
-          HugeIcon(
+          const HugeIcon(
             icon: HugeIcons.strokeRoundedTransactionHistory,
             size: 30,
             strokeWidth: 1.7,
             color: AppColors.textSecondary,
           ),
-          SizedBox(height: 16),
-          Text(
+          const SizedBox(height: 16),
+          const Text(
             'No transactions found',
             style: TextStyle(
               fontSize: 14,
@@ -1777,11 +1609,11 @@ class _EmptyHistory extends StatelessWidget {
               color: AppColors.textPrimary,
             ),
           ),
-          SizedBox(height: 6),
+          const SizedBox(height: 6),
           Text(
-            'Your sent transactions will appear here once you start sending money.',
+            description,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 11,
               height: 1.5,
               color: AppColors.textSecondary,
@@ -1824,25 +1656,34 @@ class _LoadMoreButton extends StatelessWidget {
   }
 }
 
-Color _transactionStatusColor(PaymentTransaction transaction) {
-  if (transactionNeedsConfirmation(transaction)) {
+String _subtitleForTransaction(TransactionHistoryItem transaction) {
+  final identifier = transaction.counterpartyIdentifier?.trim();
+
+  final prefix = transaction.isReceived ? 'Received' : transaction.methodLabel;
+
+  if (identifier == null || identifier.isEmpty) {
+    return prefix;
+  }
+
+  return '$prefix • $identifier';
+}
+
+Color _transactionStatusColor(TransactionHistoryItem transaction) {
+  if (transaction.needsConfirmation()) {
     return AppColors.primaryMuted;
   }
 
-  return _statusColor(transaction.status);
-}
+  return switch (transaction.status) {
+    TransactionStatus.completed =>
+      transaction.isReceived ? AppColors.success : AppColors.primary,
 
-Color _statusColor(TransactionStatus status) {
-  return switch (status) {
-    TransactionStatus.completed => AppColors.success,
-
-    TransactionStatus.failed || TransactionStatus.cancelled => AppColors.danger,
+    TransactionStatus.failed ||
+    TransactionStatus.cancelled ||
+    TransactionStatus.reversed => AppColors.danger,
 
     TransactionStatus.processing => AppColors.primary,
 
     TransactionStatus.pending => AppColors.textSecondary,
-
-    TransactionStatus.reversed => AppColors.primaryMuted,
   };
 }
 
