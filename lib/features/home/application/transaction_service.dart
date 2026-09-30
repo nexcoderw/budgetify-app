@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../../../core/config/app_env.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
@@ -40,6 +42,7 @@ class TransactionService {
   final TransactionsApiService _transactionsApiService;
 
   final AuthApiService _authApiService;
+
   final AuthSessionStorage _sessionStorage;
 
   Future<TransactionListResult> list({
@@ -125,6 +128,58 @@ class TransactionService {
     });
   }
 
+  Future<PaymentTransaction> recordProviderSmsResult({
+    required String transactionId,
+    required String clientEventId,
+    required int amount,
+    required TransactionStatus status,
+    required DateTime occurredAt,
+    String? providerReference,
+    String? receiverName,
+    String? failureCode,
+    String? failureReason,
+  }) {
+    return _authorized((accessToken) {
+      return _transactionsApiService.recordProviderSmsResult(
+        accessToken: accessToken,
+        transactionId: transactionId,
+        clientEventId: clientEventId,
+        amount: amount,
+        status: status,
+        occurredAt: occurredAt,
+        providerReference: providerReference,
+        receiverName: receiverName,
+        failureCode: failureCode,
+        failureReason: failureReason,
+      );
+    });
+  }
+
+  Future<PaymentTransaction> recordManualResult({
+    required String transactionId,
+    required TransactionStatus status,
+  }) {
+    if (status != TransactionStatus.completed &&
+        status != TransactionStatus.failed) {
+      throw ArgumentError.value(
+        status,
+        'status',
+        'Manual result must be completed or failed.',
+      );
+    }
+
+    final clientEventId = _createManualResultEventId();
+
+    return _authorized((accessToken) {
+      return _transactionsApiService.recordManualResult(
+        accessToken: accessToken,
+        transactionId: transactionId,
+        clientEventId: clientEventId,
+        status: status,
+      );
+    });
+  }
+
   Future<T> _authorized<T>(
     Future<T> Function(String accessToken) request,
   ) async {
@@ -161,30 +216,14 @@ class TransactionService {
     return refreshed;
   }
 
-  Future<PaymentTransaction> recordProviderSmsResult({
-    required String transactionId,
-    required String clientEventId,
-    required int amount,
-    required TransactionStatus status,
-    required DateTime occurredAt,
-    String? providerReference,
-    String? receiverName,
-    String? failureCode,
-    String? failureReason,
-  }) {
-    return _authorized((accessToken) {
-      return _transactionsApiService.recordProviderSmsResult(
-        accessToken: accessToken,
-        transactionId: transactionId,
-        clientEventId: clientEventId,
-        amount: amount,
-        status: status,
-        occurredAt: occurredAt,
-        providerReference: providerReference,
-        receiverName: receiverName,
-        failureCode: failureCode,
-        failureReason: failureReason,
-      );
-    });
+  String _createManualResultEventId() {
+    final random = Random.secure();
+
+    final randomPart = List<int>.generate(
+      16,
+      (_) => random.nextInt(256),
+    ).map((value) => value.toRadixString(16).padLeft(2, '0')).join();
+
+    return 'manual-result-${DateTime.now().microsecondsSinceEpoch}-$randomPart';
   }
 }
