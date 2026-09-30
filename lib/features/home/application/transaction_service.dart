@@ -20,9 +20,7 @@ class TransactionService {
        _sessionStorage = sessionStorage;
 
   factory TransactionService.createDefault() {
-    final apiClient = ApiClient(
-      baseUrlResolver: () => AppEnv.apiBaseUrl,
-    );
+    final apiClient = ApiClient(baseUrlResolver: () => AppEnv.apiBaseUrl);
 
     return TransactionService(
       transactionsApiService: TransactionsApiService(
@@ -40,22 +38,57 @@ class TransactionService {
   }
 
   final TransactionsApiService _transactionsApiService;
+
   final AuthApiService _authApiService;
   final AuthSessionStorage _sessionStorage;
+
+  Future<TransactionListResult> list({
+    int page = 1,
+    int limit = 20,
+    TransactionStatus? status,
+    TransactionTransferType? transferType,
+    TransactionRecipientType? recipientType,
+    TransactionCategory? category,
+    DateTime? from,
+    DateTime? to,
+    String? search,
+  }) {
+    return _authorized((accessToken) {
+      return _transactionsApiService.list(
+        accessToken: accessToken,
+        page: page,
+        limit: limit,
+        status: status,
+        transferType: transferType,
+        recipientType: recipientType,
+        category: category,
+        from: from,
+        to: to,
+        search: search,
+      );
+    });
+  }
+
+  Future<TransactionDetail> getDetail({required String transactionId}) {
+    return _authorized((accessToken) {
+      return _transactionsApiService.getDetail(
+        accessToken: accessToken,
+        transactionId: transactionId,
+      );
+    });
+  }
 
   Future<TransactionQuote> quote({
     required int amount,
     required TransactionTransferType transferType,
   }) {
-    return _authorized(
-      (accessToken) {
-        return _transactionsApiService.quote(
-          accessToken: accessToken,
-          amount: amount,
-          transferType: transferType,
-        );
-      },
-    );
+    return _authorized((accessToken) {
+      return _transactionsApiService.quote(
+        accessToken: accessToken,
+        amount: amount,
+        transferType: transferType,
+      );
+    });
   }
 
   Future<PaymentTransaction> create({
@@ -66,19 +99,30 @@ class TransactionService {
     required String receiverIdentifier,
     required String idempotencyKey,
   }) {
-    return _authorized(
-      (accessToken) {
-        return _transactionsApiService.create(
-          accessToken: accessToken,
-          amount: amount,
-          transferType: transferType,
-          recipientType: recipientType,
-          category: category,
-          receiverIdentifier: receiverIdentifier,
-          idempotencyKey: idempotencyKey,
-        );
-      },
-    );
+    return _authorized((accessToken) {
+      return _transactionsApiService.create(
+        accessToken: accessToken,
+        amount: amount,
+        transferType: transferType,
+        recipientType: recipientType,
+        category: category,
+        receiverIdentifier: receiverIdentifier,
+        idempotencyKey: idempotencyKey,
+      );
+    });
+  }
+
+  Future<PaymentTransaction> recordUssdOpened({
+    required String transactionId,
+    required String clientEventId,
+  }) {
+    return _authorized((accessToken) {
+      return _transactionsApiService.recordUssdOpened(
+        accessToken: accessToken,
+        transactionId: transactionId,
+        clientEventId: clientEventId,
+      );
+    });
   }
 
   Future<T> _authorized<T>(
@@ -87,9 +131,7 @@ class TransactionService {
     var session = await _sessionStorage.read();
 
     if (session == null) {
-      throw StateError(
-        'No authenticated session was found.',
-      );
+      throw StateError('No authenticated session was found.');
     }
 
     if (session.needsRefresh) {
@@ -109,11 +151,8 @@ class TransactionService {
     }
   }
 
-  Future<AuthSession> _refresh(
-    AuthSession session,
-  ) async {
-    final refreshed =
-        await _authApiService.refreshSession(
+  Future<AuthSession> _refresh(AuthSession session) async {
+    final refreshed = await _authApiService.refreshSession(
       session.refreshToken,
     );
 
