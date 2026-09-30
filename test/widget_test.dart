@@ -206,12 +206,21 @@ Future<void> _tapOnboardingContinue(WidgetTester tester) async {
 }
 
 Future<void> _finishOnboardingTransition(WidgetTester tester) async {
-  // Flush the Future returned by the fake preference storage
-  // and allow AnimatedSwitcher to start.
+  // Resolve the onboarding completion future and mount
+  // the LoginPage through AnimatedSwitcher.
   await tester.pump();
 
-  // AnimatedSwitcher lasts 380 ms.
+  // Complete the 380 ms AnimatedSwitcher transition.
   await tester.pump(const Duration(milliseconds: 420));
+
+  // LoginPage starts a 900 ms initialization delay in
+  // initState. Advance past it so no timer remains when
+  // the widget test finishes.
+  await tester.pump(const Duration(milliseconds: 1000));
+
+  // Flush the session restoration result and resulting
+  // widget rebuild.
+  await tester.pump();
 }
 
 void main() {
