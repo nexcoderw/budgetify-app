@@ -36,7 +36,8 @@ void main() {
         'completedTransactionsChangePercentage': 20,
       },
       'confirmation': <String, dynamic>{
-        'providerConfirmed': 14,
+        'smsEvidence': 10,
+        'providerApiConfirmed': 4,
         'manuallyConfirmed': 4,
         'unclassified': 0,
       },
@@ -68,7 +69,9 @@ void main() {
 
     expect(analytics.summary.needsConfirmation, 3);
 
-    expect(analytics.confirmation.providerConfirmed, 14);
+    expect(analytics.confirmation.smsEvidence, 10);
+
+    expect(analytics.confirmation.providerApiConfirmed, 4);
 
     expect(analytics.confirmation.manuallyConfirmed, 4);
 
@@ -120,7 +123,8 @@ void main() {
         'completedTransactionsChangePercentage': null,
       },
       'confirmation': <String, dynamic>{
-        'providerConfirmed': 1,
+        'smsEvidence': 1,
+        'providerApiConfirmed': 0,
         'manuallyConfirmed': 0,
         'unclassified': 0,
       },
