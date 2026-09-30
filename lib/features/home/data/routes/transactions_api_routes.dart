@@ -1,13 +1,21 @@
 class TransactionsApiRoutes {
   const TransactionsApiRoutes._();
 
-  static const instance =
-      TransactionsApiRoutes._();
+  static const instance = TransactionsApiRoutes._();
 
-  static const String base =
-      '/api/v1/transactions';
+  static const String base = '/api/v1/transactions';
+
+  String get list => base;
 
   String get quote => '$base/quote';
 
   String get create => base;
+
+  String detail(String transactionId) {
+    return '$base/$transactionId';
+  }
+
+  String ussdOpened(String transactionId) {
+    return '$base/$transactionId/ussd-opened';
+  }
 }
