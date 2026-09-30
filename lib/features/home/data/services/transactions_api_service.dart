@@ -154,4 +154,31 @@ class TransactionsApiService {
 
     return PaymentTransaction.fromJson(json);
   }
+
+  Future<PaymentTransaction> recordManualResult({
+    required String accessToken,
+    required String transactionId,
+    required String clientEventId,
+    required TransactionStatus status,
+  }) async {
+    if (status != TransactionStatus.completed &&
+        status != TransactionStatus.failed) {
+      throw ArgumentError.value(
+        status,
+        'status',
+        'Manual result must be completed or failed.',
+      );
+    }
+
+    final json = await _apiClient.postJson(
+      _routes.manualResult(transactionId),
+      headers: _authorizedHeaders(accessToken),
+      body: <String, dynamic>{
+        'clientEventId': clientEventId,
+        'status': status.apiValue,
+      },
+    );
+
+    return PaymentTransaction.fromJson(json);
+  }
 }
