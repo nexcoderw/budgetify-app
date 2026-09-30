@@ -117,21 +117,19 @@ class TransactionSmsMatcher {
     final smsRecipient = result.receiverIdentifier;
 
     if (smsRecipient != null) {
-      final recipientMatches = amountAndTimeMatches
+      final matchingRecipients = amountAndTimeMatches
           .where((transaction) => recipientMatches(transaction, smsRecipient))
           .toList(growable: false);
 
-      if (recipientMatches.isEmpty) {
-        // If the provider supplied a recipient,
-        // never fall back to amount-only matching.
+      if (matchingRecipients.isEmpty) {
         return const TransactionSmsMatchResult.none();
       }
 
-      if (recipientMatches.length > 1) {
-        return TransactionSmsMatchResult.ambiguous(recipientMatches.length);
+      if (matchingRecipients.length > 1) {
+        return TransactionSmsMatchResult.ambiguous(matchingRecipients.length);
       }
 
-      return TransactionSmsMatchResult.matched(recipientMatches.single);
+      return TransactionSmsMatchResult.matched(matchingRecipients.single);
     }
 
     if (amountAndTimeMatches.length > 1) {
