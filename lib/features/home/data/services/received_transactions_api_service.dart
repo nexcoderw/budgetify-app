@@ -99,4 +99,46 @@ class ReceivedTransactionsApiService {
 
     return ReceivedTransaction.fromJson(json);
   }
+
+  Future<ReceivedTransaction> recordManual({
+    required String accessToken,
+    required String clientEventId,
+    required int amount,
+    required DateTime occurredAt,
+    String? senderIdentifier,
+    String? senderName,
+    String? providerReference,
+  }) async {
+    final normalizedIdentifier = senderIdentifier?.trim();
+
+    final normalizedName = senderName?.trim();
+
+    final normalizedProviderReference = providerReference?.trim();
+
+    if ((normalizedIdentifier == null || normalizedIdentifier.isEmpty) &&
+        (normalizedName == null || normalizedName.isEmpty)) {
+      throw ArgumentError(
+        'A manually recorded received payment requires a sender name or identifier.',
+      );
+    }
+
+    final json = await _apiClient.postJson(
+      _routes.manual,
+      headers: _authorizedHeaders(accessToken),
+      body: <String, dynamic>{
+        'clientEventId': clientEventId,
+        'amount': amount,
+        'occurredAt': occurredAt.toUtc().toIso8601String(),
+        if (normalizedIdentifier != null && normalizedIdentifier.isNotEmpty)
+          'senderIdentifier': normalizedIdentifier,
+        if (normalizedName != null && normalizedName.isNotEmpty)
+          'senderName': normalizedName,
+        if (normalizedProviderReference != null &&
+            normalizedProviderReference.isNotEmpty)
+          'providerReference': normalizedProviderReference,
+      },
+    );
+
+    return ReceivedTransaction.fromJson(json);
+  }
 }
