@@ -59,6 +59,11 @@ const List<AppNavDestination> defaultAppNavDestinations = [
 
 const List<AppNavDestination> bottomAppNavDestinations = [
   AppNavDestination(
+    section: AppLayoutSection.dashboard,
+    label: 'Dashboard',
+    icon: HugeIcons.strokeRoundedDashboardSquare02,
+  ),
+  AppNavDestination(
     section: AppLayoutSection.sendMoney,
     label: 'Send Money',
     icon: HugeIcons.strokeRoundedMoneySendSquare,
