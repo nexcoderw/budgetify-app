@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_input.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../application/transaction_service.dart';
+import '../../application/transaction_sms_matcher.dart';
 import '../../application/transaction_sms_reconciliation_service.dart';
 import '../../data/models/provider_sms_message.dart';
 import '../../data/models/transaction_models.dart';
@@ -35,6 +36,7 @@ enum _MethodFilter {
   const _MethodFilter(this.transferType, this.label);
 
   final TransactionTransferType? transferType;
+
   final String label;
 }
 
@@ -116,7 +118,6 @@ class _HistoryPageState extends State<HistoryPage> {
   @override
   void dispose() {
     _searchDebounce?.cancel();
-
     _searchController.dispose();
 
     super.dispose();
@@ -232,6 +233,26 @@ class _HistoryPageState extends State<HistoryPage> {
         return;
       }
 
+      if (result.hasAttentionNeeded) {
+        final parts = <String>[
+          if (result.matchedTransactions > 0)
+            '${result.matchedTransactions} updated',
+          if (result.ambiguousMessages > 0)
+            '${result.ambiguousMessages} ambiguous',
+          if (result.failedUpdates > 0)
+            '${result.failedUpdates} could not be updated',
+        ];
+
+        AppToast.info(
+          context,
+          title: 'Transaction review needed',
+          description:
+              '${parts.join(', ')}. Budgetify left uncertain transactions unchanged.',
+        );
+
+        return;
+      }
+
       AppToast.info(
         context,
         title: result.hasChanges
@@ -239,7 +260,7 @@ class _HistoryPageState extends State<HistoryPage> {
             : 'Everything is up to date',
         description: result.hasChanges
             ? '${result.matchedTransactions} transaction${result.matchedTransactions == 1 ? '' : 's'} confirmed from MTN MoMo messages.'
-            : 'No new transaction confirmations were found.',
+            : 'No new reliable transaction confirmations were found.',
       );
     } catch (_) {
       if (!mounted || !showResult) {
@@ -311,7 +332,6 @@ class _HistoryPageState extends State<HistoryPage> {
     if (reset) {
       setState(() {
         _isInitialLoading = true;
-
         _errorMessage = null;
         _loadMoreError = null;
 
@@ -388,6 +408,7 @@ class _HistoryPageState extends State<HistoryPage> {
         builder: (_) => TransactionDetailPage(
           transactionId: transaction.id,
           transactionService: _transactionService,
+          smsReconciliationService: _smsReconciliationService,
         ),
       ),
     );
@@ -944,7 +965,7 @@ class _TransactionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = _statusColor(transaction.status);
+    final accent = _transactionStatusColor(transaction);
 
     final date = transaction.createdAt.toLocal();
 
@@ -1032,7 +1053,7 @@ class _TransactionTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 7),
-                  _StatusBadge(status: transaction.status),
+                  _StatusBadge(transaction: transaction),
                 ],
               ),
             ],
@@ -1044,13 +1065,19 @@ class _TransactionTile extends StatelessWidget {
 }
 
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
+  const _StatusBadge({required this.transaction});
 
-  final TransactionStatus status;
+  final PaymentTransaction transaction;
 
   @override
   Widget build(BuildContext context) {
-    final color = _statusColor(status);
+    final needsConfirmation = transactionNeedsConfirmation(transaction);
+
+    final color = _transactionStatusColor(transaction);
+
+    final label = needsConfirmation
+        ? 'Needs confirmation'
+        : transaction.status.label;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
@@ -1059,7 +1086,7 @@ class _StatusBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        status.label,
+        label,
         style: TextStyle(
           fontSize: 8,
           fontWeight: FontWeight.w700,
@@ -1227,6 +1254,14 @@ class _LoadMoreButton extends StatelessWidget {
             ),
     );
   }
+}
+
+Color _transactionStatusColor(PaymentTransaction transaction) {
+  if (transactionNeedsConfirmation(transaction)) {
+    return AppColors.primaryMuted;
+  }
+
+  return _statusColor(transaction.status);
 }
 
 Color _statusColor(TransactionStatus status) {
