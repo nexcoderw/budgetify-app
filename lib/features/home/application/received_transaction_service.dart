@@ -135,4 +135,25 @@ class ReceivedTransactionService {
 
     return refreshed;
   }
+
+  Future<ReceivedTransaction> recordManual({
+    required String clientEventId,
+    required int amount,
+    required DateTime occurredAt,
+    String? senderIdentifier,
+    String? senderName,
+    String? providerReference,
+  }) {
+    return _authorized((accessToken) {
+      return _receivedTransactionsApiService.recordManual(
+        accessToken: accessToken,
+        clientEventId: clientEventId,
+        amount: amount,
+        occurredAt: occurredAt,
+        senderIdentifier: senderIdentifier,
+        senderName: senderName,
+        providerReference: providerReference,
+      );
+    });
+  }
 }
