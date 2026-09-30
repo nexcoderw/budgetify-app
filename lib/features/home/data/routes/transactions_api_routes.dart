@@ -18,4 +18,8 @@ class TransactionsApiRoutes {
   String ussdOpened(String transactionId) {
     return '$base/$transactionId/ussd-opened';
   }
+
+  String providerSmsResult(String transactionId) {
+    return '$base/$transactionId/provider-sms-result';
+  }
 }
