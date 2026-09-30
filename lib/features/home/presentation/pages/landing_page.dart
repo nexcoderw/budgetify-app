@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../auth/application/auth_service_contract.dart';
 import '../../../auth/data/models/auth_user.dart';
 import '../../../users/presentation/pages/profile_page.dart';
+import '../../application/transaction_sms_reconciliation_service.dart';
 import '../widgets/app_layout.dart';
 import 'history_page.dart';
 import 'send_money_page.dart';
@@ -17,22 +20,76 @@ class LandingPage extends StatefulWidget {
   State<LandingPage> createState() => _LandingPageState();
 }
 
-class _LandingPageState extends State<LandingPage> {
+class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
   late AuthUser _currentUser;
+
+  late final TransactionSmsReconciliationService _smsReconciliationService;
+
   AppLayoutSection _currentSection = AppLayoutSection.sendMoney;
+
+  bool _isReconcilingSms = false;
+  int _historyRefreshToken = 0;
 
   @override
   void initState() {
     super.initState();
+
     _currentUser = widget.user;
+
+    _smsReconciliationService =
+        TransactionSmsReconciliationService.createDefault();
+
+    WidgetsBinding.instance.addObserver(this);
+
+    unawaited(_reconcileSmsIfAllowed());
   }
 
   @override
   void didUpdateWidget(covariant LandingPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+
     if (oldWidget.user.updatedAt != widget.user.updatedAt ||
         oldWidget.user.id != widget.user.id) {
       _currentUser = widget.user;
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_reconcileSmsIfAllowed());
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+
+    super.dispose();
+  }
+
+  Future<void> _reconcileSmsIfAllowed() async {
+    if (_isReconcilingSms) {
+      return;
+    }
+
+    _isReconcilingSms = true;
+
+    try {
+      final summary = await _smsReconciliationService.reconcileIfPermitted();
+
+      if (!mounted || !summary.hasChanges) {
+        return;
+      }
+
+      setState(() {
+        _historyRefreshToken++;
+      });
+    } catch (_) {
+      // SMS reconciliation is opportunistic.
+      // It must never interrupt normal app usage.
+    } finally {
+      _isReconcilingSms = false;
     }
   }
 
@@ -57,7 +114,10 @@ class _LandingPageState extends State<LandingPage> {
 
   Widget _sectionContent() {
     if (_currentSection == AppLayoutSection.history) {
-      return const HistoryPage();
+      return HistoryPage(
+        smsReconciliationService: _smsReconciliationService,
+        refreshToken: _historyRefreshToken,
+      );
     }
 
     return const SendMoneyPage();
