@@ -12,6 +12,53 @@ class TransactionsApiService {
   final ApiClient _apiClient;
   final TransactionsApiRoutes _routes;
 
+  Map<String, String> _authorizedHeaders(String accessToken) {
+    return <String, String>{'Authorization': 'Bearer $accessToken'};
+  }
+
+  Future<TransactionListResult> list({
+    required String accessToken,
+    int page = 1,
+    int limit = 20,
+    TransactionStatus? status,
+    TransactionTransferType? transferType,
+    TransactionRecipientType? recipientType,
+    TransactionCategory? category,
+    DateTime? from,
+    DateTime? to,
+    String? search,
+  }) async {
+    final json = await _apiClient.getJson(
+      _routes.list,
+      headers: _authorizedHeaders(accessToken),
+      queryParameters: <String, dynamic>{
+        'page': page,
+        'limit': limit,
+        'status': status?.apiValue,
+        'transferType': transferType?.apiValue,
+        'recipientType': recipientType?.apiValue,
+        'category': category?.apiValue,
+        'from': from,
+        'to': to,
+        'search': search?.trim().isEmpty ?? true ? null : search!.trim(),
+      },
+    );
+
+    return TransactionListResult.fromJson(json);
+  }
+
+  Future<TransactionDetail> getDetail({
+    required String accessToken,
+    required String transactionId,
+  }) async {
+    final json = await _apiClient.getJson(
+      _routes.detail(transactionId),
+      headers: _authorizedHeaders(accessToken),
+    );
+
+    return TransactionDetail.fromJson(json);
+  }
+
   Future<TransactionQuote> quote({
     required String accessToken,
     required int amount,
@@ -19,9 +66,7 @@ class TransactionsApiService {
   }) async {
     final json = await _apiClient.postJson(
       _routes.quote,
-      headers: <String, String>{
-        'Authorization': 'Bearer $accessToken',
-      },
+      headers: _authorizedHeaders(accessToken),
       body: <String, dynamic>{
         'amount': amount,
         'transferType': transferType.apiValue,
@@ -42,9 +87,7 @@ class TransactionsApiService {
   }) async {
     final json = await _apiClient.postJson(
       _routes.create,
-      headers: <String, String>{
-        'Authorization': 'Bearer $accessToken',
-      },
+      headers: _authorizedHeaders(accessToken),
       body: <String, dynamic>{
         'amount': amount,
         'transferType': transferType.apiValue,
@@ -53,6 +96,20 @@ class TransactionsApiService {
         'receiverIdentifier': receiverIdentifier,
         'idempotencyKey': idempotencyKey,
       },
+    );
+
+    return PaymentTransaction.fromJson(json);
+  }
+
+  Future<PaymentTransaction> recordUssdOpened({
+    required String accessToken,
+    required String transactionId,
+    required String clientEventId,
+  }) async {
+    final json = await _apiClient.postJson(
+      _routes.ussdOpened(transactionId),
+      headers: _authorizedHeaders(accessToken),
+      body: <String, dynamic>{'clientEventId': clientEventId},
     );
 
     return PaymentTransaction.fromJson(json);
