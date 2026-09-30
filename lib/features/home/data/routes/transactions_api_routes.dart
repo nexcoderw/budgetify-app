@@ -9,6 +9,8 @@ class TransactionsApiRoutes {
 
   String get analytics => '$base/analytics';
 
+  String get history => '$base/history';
+
   String get quote => '$base/quote';
 
   String get create => base;
