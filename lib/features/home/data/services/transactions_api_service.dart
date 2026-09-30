@@ -1,4 +1,5 @@
 import '../../../../core/network/api_client.dart';
+import '../models/transaction_analytics_models.dart';
 import '../models/transaction_models.dart';
 import '../routes/transactions_api_routes.dart';
 
@@ -45,6 +46,29 @@ class TransactionsApiService {
     );
 
     return TransactionListResult.fromJson(json);
+  }
+
+  Future<TransactionAnalytics> analytics({
+    required String accessToken,
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    if (from.isAfter(to)) {
+      throw ArgumentError(
+        'Analytics start date must not occur after its end date.',
+      );
+    }
+
+    final json = await _apiClient.getJson(
+      _routes.analytics,
+      headers: _authorizedHeaders(accessToken),
+      queryParameters: <String, dynamic>{
+        'from': from.toUtc().toIso8601String(),
+        'to': to.toUtc().toIso8601String(),
+      },
+    );
+
+    return TransactionAnalytics.fromJson(json);
   }
 
   Future<TransactionDetail> getDetail({
