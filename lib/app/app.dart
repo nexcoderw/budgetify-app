@@ -98,13 +98,11 @@ class _AppEntryState extends State<_AppEntry> {
     try {
       await widget.onboardingPreferences.markOnboardingCompleted();
     } finally {
-      if (!mounted) {
-        return;
+      if (mounted) {
+        setState(() {
+          _hasCompletedOnboarding = true;
+        });
       }
-
-      setState(() {
-        _hasCompletedOnboarding = true;
-      });
     }
   }
 
