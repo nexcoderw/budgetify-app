@@ -207,210 +207,220 @@ class _RecordReceivedMoneyPageState extends State<RecordReceivedMoneyPage> {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 560),
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                compact ? 18 : 26,
-                16,
-                compact ? 18 : 26,
-                32,
-              ),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _BackButton(enabled: !_isSaving),
-                    const SizedBox(height: 34),
-
-                    Text(
-                      'Record received money',
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(
-                            fontSize: compact ? 24 : 26,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.7,
-                            color: AppColors.textPrimary,
-                          ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    const Text(
-                      'Add a payment you received manually.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.55,
-                        color: AppColors.textSecondary,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _TopBar(
+                    onBack: _isSaving
+                        ? null
+                        : () {
+                            Navigator.of(context).pop();
+                          },
+                  ),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: EdgeInsets.fromLTRB(
+                        compact ? 2 : 10,
+                        0,
+                        compact ? 2 : 10,
+                        12,
                       ),
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    AppInput(
-                      controller: _amountController,
-                      hintText: 'Amount received',
-                      leadingIcon: HugeIcons.strokeRoundedMoneyReceiveCircle,
-                      borderRadius: 28,
-                      keyboardType: TextInputType.number,
-                      textInputAction: TextInputAction.next,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      validator: _validateAmount,
-                      suffixIcon: const Padding(
-                        padding: EdgeInsets.only(right: 18),
-                        child: Center(
-                          widthFactor: 1,
-                          child: Text(
-                            'RWF',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'Record received money',
+                              style: Theme.of(context).textTheme.headlineMedium
+                                  ?.copyWith(
+                                    fontSize: compact ? 24 : 26,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.7,
+                                    color: AppColors.textPrimary,
+                                  ),
                             ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    AppInput(
-                      controller: _senderNameController,
-                      hintText: 'Sender name',
-                      borderRadius: 28,
-                      textCapitalization: TextCapitalization.words,
-                      textInputAction: TextInputAction.next,
-                      maxLength: 120,
-                      onChanged: (_) {
-                        _clearSenderError();
-                      },
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    AppInput(
-                      controller: _senderIdentifierController,
-                      hintText: 'Sender phone number',
-                      borderRadius: 28,
-                      keyboardType: TextInputType.phone,
-                      textInputAction: TextInputAction.next,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(
-                          RegExp(r'[0-9+\s()-]'),
-                        ),
-                      ],
-                      maxLength: 35,
-                      validator: _validateSenderIdentifier,
-                      onChanged: (_) {
-                        _clearSenderError();
-                      },
-                    ),
-
-                    if (_senderError != null) ...[
-                      const SizedBox(height: 7),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          _senderError!,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.danger,
-                          ),
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(height: 12),
-
-                    AppInput(
-                      controller: _providerReferenceController,
-                      hintText: 'Transaction reference (optional)',
-                      leadingIcon: HugeIcons.strokeRoundedTransactionHistory,
-                      borderRadius: 28,
-                      textInputAction: TextInputAction.next,
-                      maxLength: 128,
-                      validator: _validateProviderReference,
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    AppInput(
-                      controller: _receivedDateController,
-                      hintText: 'Received date',
-                      leadingIcon: HugeIcons.strokeRoundedTransactionHistory,
-                      borderRadius: 28,
-                      readOnly: true,
-                      onTap: _isSaving
-                          ? null
-                          : () {
-                              _chooseReceivedDate();
-                            },
-                      suffixIcon: Padding(
-                        padding: const EdgeInsets.only(right: 14),
-                        child: Center(
-                          widthFactor: 1,
-                          child: Container(
-                            width: 34,
-                            height: 34,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.09),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: const Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 20,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Padding(
-                          padding: EdgeInsets.only(top: 1),
-                          child: HugeIcon(
-                            icon: HugeIcons.strokeRoundedTransactionHistory,
-                            size: 15,
-                            strokeWidth: 1.7,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(width: 9),
-                        Expanded(
-                          child: Text(
-                            'This entry is manually reported and is not an independent MTN confirmation.',
-                            style: TextStyle(
-                              fontSize: 10,
-                              height: 1.5,
-                              color: AppColors.textSecondary.withValues(
-                                alpha: 0.82,
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Add a payment you received manually.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                height: 1.55,
+                                color: AppColors.textSecondary,
                               ),
                             ),
-                          ),
+                            const SizedBox(height: 28),
+                            AppInput(
+                              controller: _amountController,
+                              hintText: 'Amount received',
+                              leadingIcon:
+                                  HugeIcons.strokeRoundedMoneyReceiveCircle,
+                              borderRadius: 28,
+                              keyboardType: TextInputType.number,
+                              textInputAction: TextInputAction.next,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              validator: _validateAmount,
+                              suffixIcon: const Padding(
+                                padding: EdgeInsets.only(right: 18),
+                                child: Center(
+                                  widthFactor: 1,
+                                  child: Text(
+                                    'RWF',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            AppInput(
+                              controller: _senderNameController,
+                              hintText: 'Sender name',
+                              borderRadius: 28,
+                              textCapitalization: TextCapitalization.words,
+                              textInputAction: TextInputAction.next,
+                              maxLength: 120,
+                              onChanged: (_) {
+                                _clearSenderError();
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            AppInput(
+                              controller: _senderIdentifierController,
+                              hintText: 'Sender phone number',
+                              borderRadius: 28,
+                              keyboardType: TextInputType.phone,
+                              textInputAction: TextInputAction.next,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(
+                                  RegExp(r'[0-9+\s()-]'),
+                                ),
+                              ],
+                              maxLength: 35,
+                              validator: _validateSenderIdentifier,
+                              onChanged: (_) {
+                                _clearSenderError();
+                              },
+                            ),
+                            if (_senderError != null) ...[
+                              const SizedBox(height: 7),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                child: Text(
+                                  _senderError!,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.danger,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+                            AppInput(
+                              controller: _providerReferenceController,
+                              hintText: 'Transaction reference (optional)',
+                              leadingIcon:
+                                  HugeIcons.strokeRoundedTransactionHistory,
+                              borderRadius: 28,
+                              textInputAction: TextInputAction.next,
+                              maxLength: 128,
+                              validator: _validateProviderReference,
+                            ),
+                            const SizedBox(height: 12),
+                            AppInput(
+                              controller: _receivedDateController,
+                              hintText: 'Received date',
+                              leadingIcon:
+                                  HugeIcons.strokeRoundedTransactionHistory,
+                              borderRadius: 28,
+                              readOnly: true,
+                              onTap: _isSaving
+                                  ? null
+                                  : () {
+                                      _chooseReceivedDate();
+                                    },
+                              suffixIcon: Padding(
+                                padding: const EdgeInsets.only(right: 14),
+                                child: Center(
+                                  widthFactor: 1,
+                                  child: Container(
+                                    width: 34,
+                                    height: 34,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(
+                                        alpha: 0.09,
+                                      ),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: const Icon(
+                                      Icons.keyboard_arrow_down_rounded,
+                                      size: 20,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 1),
+                                  child: HugeIcon(
+                                    icon: HugeIcons
+                                        .strokeRoundedTransactionHistory,
+                                    size: 15,
+                                    strokeWidth: 1.7,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(width: 9),
+                                Expanded(
+                                  child: Text(
+                                    'This entry is manually reported and is not an independent MTN confirmation.',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      height: 1.5,
+                                      color: AppColors.textSecondary.withValues(
+                                        alpha: 0.82,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 26),
+                            AppButton(
+                              label: 'Save received money',
+                              icon: HugeIcons.strokeRoundedMoneyReceiveCircle,
+                              size: AppButtonSize.lg,
+                              isLoading: _isSaving,
+                              onPressed: _isSaving
+                                  ? null
+                                  : () {
+                                      _submit();
+                                    },
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
-
-                    const SizedBox(height: 26),
-
-                    AppButton(
-                      label: 'Save received money',
-                      icon: HugeIcons.strokeRoundedMoneyReceiveCircle,
-                      size: AppButtonSize.lg,
-                      isLoading: _isSaving,
-                      onPressed: _isSaving
-                          ? null
-                          : () {
-                              _submit();
-                            },
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -490,10 +500,10 @@ class _RecordReceivedMoneyPageState extends State<RecordReceivedMoneyPage> {
   }
 }
 
-class _BackButton extends StatelessWidget {
-  const _BackButton({required this.enabled});
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.onBack});
 
-  final bool enabled;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -502,25 +512,21 @@ class _BackButton extends StatelessWidget {
       child: Tooltip(
         message: 'Back',
         child: Material(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
+          color: AppColors.surfaceElevated,
+          shape: const CircleBorder(),
           child: InkWell(
-            onTap: enabled
-                ? () {
-                    Navigator.of(context).pop();
-                  }
-                : null,
-            borderRadius: BorderRadius.circular(16),
+            onTap: onBack,
+            customBorder: const CircleBorder(),
             child: SizedBox.square(
-              dimension: 46,
+              dimension: 44,
               child: Center(
                 child: HugeIcon(
                   icon: HugeIcons.strokeRoundedArrowLeft01,
                   size: 19,
-                  strokeWidth: 1.8,
-                  color: enabled
-                      ? AppColors.textPrimary
-                      : AppColors.textSecondary,
+                  strokeWidth: 1.9,
+                  color: onBack == null
+                      ? AppColors.textSecondary
+                      : AppColors.textPrimary,
                 ),
               ),
             ),
