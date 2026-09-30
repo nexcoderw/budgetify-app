@@ -160,4 +160,31 @@ class TransactionService {
 
     return refreshed;
   }
+
+  Future<PaymentTransaction> recordProviderSmsResult({
+    required String transactionId,
+    required String clientEventId,
+    required int amount,
+    required TransactionStatus status,
+    required DateTime occurredAt,
+    String? providerReference,
+    String? receiverName,
+    String? failureCode,
+    String? failureReason,
+  }) {
+    return _authorized((accessToken) {
+      return _transactionsApiService.recordProviderSmsResult(
+        accessToken: accessToken,
+        transactionId: transactionId,
+        clientEventId: clientEventId,
+        amount: amount,
+        status: status,
+        occurredAt: occurredAt,
+        providerReference: providerReference,
+        receiverName: receiverName,
+        failureCode: failureCode,
+        failureReason: failureReason,
+      );
+    });
+  }
 }
