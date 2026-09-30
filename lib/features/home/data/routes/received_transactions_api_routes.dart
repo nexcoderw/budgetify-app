@@ -1,0 +1,15 @@
+class ReceivedTransactionsApiRoutes {
+  const ReceivedTransactionsApiRoutes._();
+
+  static const instance = ReceivedTransactionsApiRoutes._();
+
+  static const String base = '/api/v1/received-transactions';
+
+  String get list => base;
+
+  String get providerSms => '$base/provider-sms';
+
+  String detail(String receivedTransactionId) {
+    return '$base/$receivedTransactionId';
+  }
+}
