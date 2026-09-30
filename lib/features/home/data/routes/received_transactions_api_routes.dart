@@ -9,6 +9,8 @@ class ReceivedTransactionsApiRoutes {
 
   String get providerSms => '$base/provider-sms';
 
+  String get manual => '$base/manual';
+
   String detail(String receivedTransactionId) {
     return '$base/$receivedTransactionId';
   }
