@@ -57,173 +57,90 @@ class _RecipientSelection {
   String get key => '${recipientType.apiValue}:$identifier';
 }
 
-class _SelectRecipientPageState extends State<SelectRecipientPage> {class _SelectRecipientPageState
-    extends State<SelectRecipientPage>
+class _SelectRecipientPageState extends State<SelectRecipientPage>
     with WidgetsBindingObserver {
-  final _searchController =
-      TextEditingController();
+  final _searchController = TextEditingController();
 
-  late final TransactionService
-      _transactionService;
+  late final TransactionService _transactionService;
+  late final UssdTransferService _ussdTransferService;
 
-  late final UssdTransferService
-      _ussdTransferService;
+  _ContactsView _contactsView = _ContactsView.checking;
 
-  _ContactsView _contactsView =
-      _ContactsView.checking;
-
-  List<DeviceContact> _contacts =
-      const [];
-
-  _RecipientSelection?
-      _selectedRecipient;
-
-  PaymentTransaction?
-      _pendingTransaction;
+  List<DeviceContact> _contacts = const [];
+  _RecipientSelection? _selectedRecipient;
+  PaymentTransaction? _pendingTransaction;
 
   String _searchQuery = '';
-
   String? _activeTransferSignature;
-
   String? _idempotencyKey;
 
   bool _isStartingTransfer = false;
 
-  bool _awaitingIosManualConfirmation =
-      false;
-
-  bool _iosTransferLeftForeground =
-      false;
-
-  bool _isShowingIosManualConfirmation =
-      false;
+  bool _awaitingIosManualConfirmation = false;
+  bool _iosTransferLeftForeground = false;
+  bool _isShowingIosManualConfirmation = false;
 
   AppLifecycleState? _lifecycleState;
 
-  List<DeviceContact>
-      get _filteredContacts {
-    final query =
-        _searchQuery
-            .trim()
-            .toLowerCase();
+  List<DeviceContact> get _filteredContacts {
+    final query = _searchQuery.trim().toLowerCase();
 
     if (query.isEmpty) {
       return _contacts;
     }
 
     return _contacts
-        .where(
-          (contact) {
-            final name =
-                contact.name
-                    .toLowerCase();
+        .where((contact) {
+          final name = contact.name.toLowerCase();
 
-            final phone =
-                contact.phoneNumber
-                    .replaceAll(
-              RegExp(r'\D'),
-              '',
-            );
+          final phone = contact.phoneNumber.replaceAll(RegExp(r'\D'), '');
 
-            final queryDigits =
-                query.replaceAll(
-              RegExp(r'\D'),
-              '',
-            );
+          final queryDigits = query.replaceAll(RegExp(r'\D'), '');
 
-            final comparablePhone =
-                _comparablePhone(
-              contact.phoneNumber,
-            );
+          final comparablePhone = _comparablePhone(contact.phoneNumber);
 
-            final comparableQuery =
-                _comparablePhone(
-              query,
-            );
+          final comparableQuery = _comparablePhone(query);
 
-            return name.contains(
-                  query,
-                ) ||
-                (queryDigits
-                        .isNotEmpty &&
-                    (phone.contains(
-                          queryDigits,
-                        ) ||
-                        comparablePhone
-                            .contains(
-                          comparableQuery,
-                        )));
-          },
-        )
-        .toList(
-          growable: false,
-        );
+          return name.contains(query) ||
+              (queryDigits.isNotEmpty &&
+                  (phone.contains(queryDigits) ||
+                      comparablePhone.contains(comparableQuery)));
+        })
+        .toList(growable: false);
   }
 
-  _RecipientSelection?
-      get _typedRecipient {
-    final value =
-        _searchQuery.trim();
+  _RecipientSelection? get _typedRecipient {
+    final value = _searchQuery.trim();
 
-    if (value.isEmpty ||
-        !RegExp(
-          r'^[+\d\s()-]+$',
-        ).hasMatch(value)) {
+    if (value.isEmpty || !RegExp(r'^[+\d\s()-]+$').hasMatch(value)) {
       return null;
     }
 
-    final type =
-        inferTransactionRecipientType(
-      value,
-    );
+    final type = inferTransactionRecipientType(value);
 
-    if (!isValidTransactionRecipient(
-      value,
-      type,
-    )) {
+    if (!isValidTransactionRecipient(value, type)) {
       return null;
     }
 
-    if (type ==
-            TransactionRecipientType
-                .phone &&
+    if (type == TransactionRecipientType.phone &&
         _contacts.any(
           (contact) =>
-              _comparablePhone(
-                contact.phoneNumber,
-              ) ==
-              _comparablePhone(
-                value,
-              ),
+              _comparablePhone(contact.phoneNumber) == _comparablePhone(value),
         )) {
       return null;
     }
 
-    final digits =
-        value.replaceAll(
-      RegExp(r'\D'),
-      '',
-    );
+    final digits = value.replaceAll(RegExp(r'\D'), '');
 
-    final transferType =
-        inferTransactionTransferType(
-      recipientIdentifier:
-          digits,
+    final transferType = inferTransactionTransferType(
+      recipientIdentifier: digits,
       recipientType: type,
     );
 
-    final subtitle =
-        switch (type) {
-      TransactionRecipientType.phone =>
-        '${transferType.label} phone number',
-
-      TransactionRecipientType
-            .bankAccount =>
-        'eKash bank account',
-
-      TransactionRecipientType
-            .momoCode =>
-        'MoMo Pay merchant code',
+    final subtitle = switch (type) {
+      TransactionRecipientType.phone => '${transferType.label} phone number',
+      TransactionRecipientType.bankAccount => 'eKash bank account',
+      TransactionRecipientType.momoCode => 'MoMo Pay merchant code',
     };
 
     return _RecipientSelection(
@@ -234,29 +151,15 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
     );
   }
 
-  String _comparablePhone(
-    String value,
-  ) {
-    final digits =
-        value.replaceAll(
-      RegExp(r'\D'),
-      '',
-    );
+  String _comparablePhone(String value) {
+    final digits = value.replaceAll(RegExp(r'\D'), '');
 
-    if (digits.startsWith(
-      '250',
-    )) {
-      return digits.substring(
-        3,
-      );
+    if (digits.startsWith('250')) {
+      return digits.substring(3);
     }
 
-    if (digits.startsWith(
-      '0',
-    )) {
-      return digits.substring(
-        1,
-      );
+    if (digits.startsWith('0')) {
+      return digits.substring(1);
     }
 
     return digits;
@@ -267,35 +170,22 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
     super.initState();
 
     _transactionService =
-        widget.transactionService ??
-        TransactionService.createDefault();
+        widget.transactionService ?? TransactionService.createDefault();
 
     _ussdTransferService =
-        widget.ussdTransferService ??
-        const UssdTransferService();
+        widget.ussdTransferService ?? const UssdTransferService();
 
-    _lifecycleState =
-        WidgetsBinding
-            .instance
-            .lifecycleState;
+    _lifecycleState = WidgetsBinding.instance.lifecycleState;
 
-    WidgetsBinding.instance.addObserver(
-      this,
-    );
+    WidgetsBinding.instance.addObserver(this);
 
-    _searchController.addListener(
-      _filterContacts,
-    );
+    _searchController.addListener(_filterContacts);
 
-    unawaited(
-      _initializePermissionState(),
-    );
+    unawaited(_initializePermissionState());
   }
 
   @override
-  void didChangeAppLifecycleState(
-    AppLifecycleState state,
-  ) {
+  void didChangeAppLifecycleState(AppLifecycleState state) {
     _lifecycleState = state;
 
     if (!supportsIosManualTransactionConfirmation) {
@@ -303,78 +193,54 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
     }
 
     if (_awaitingIosManualConfirmation &&
-        (state ==
-                AppLifecycleState
-                    .inactive ||
-            state ==
-                AppLifecycleState
-                    .paused ||
-            state ==
-                AppLifecycleState
-                    .hidden)) {
-      _iosTransferLeftForeground =
-          true;
+        (state == AppLifecycleState.inactive ||
+            state == AppLifecycleState.paused ||
+            state == AppLifecycleState.hidden)) {
+      _iosTransferLeftForeground = true;
 
       return;
     }
 
-    if (state ==
-        AppLifecycleState.resumed) {
-      unawaited(
-        _presentIosManualConfirmationIfReady(),
-      );
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_presentIosManualConfirmationIfReady());
     }
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(
-      this,
-    );
+    WidgetsBinding.instance.removeObserver(this);
 
     _searchController
-      ..removeListener(
-        _filterContacts,
-      )
+      ..removeListener(_filterContacts)
       ..dispose();
 
     super.dispose();
   }
 
-  Future<void>
-      _initializePermissionState() async {
+  Future<void> _initializePermissionState() async {
     try {
-      final permission =
-          await widget.contactsService
-              .checkPermission();
+      final permission = await widget.contactsService.checkPermission();
 
       if (!mounted) {
         return;
       }
 
-      if (permission ==
-          DeviceContactsPermission
-              .granted) {
+      if (permission == DeviceContactsPermission.granted) {
         await _loadContacts();
 
         return;
       }
 
-      if (permission ==
-          DeviceContactsPermission
-              .notDetermined) {
+      if (permission == DeviceContactsPermission.notDetermined) {
         setState(() {
-          _contactsView =
-              _ContactsView
-                  .permissionPrompt;
+          _contactsView = _ContactsView.permissionPrompt;
         });
 
         return;
       }
 
       setState(() {
-        _contactsView =
-            _ContactsView.unavailable;
+        _contactsView = _ContactsView.unavailable;
       });
     } catch (_) {
       if (!mounted) {
@@ -382,39 +248,31 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
       }
 
       setState(() {
-        _contactsView =
-            _ContactsView.unavailable;
+        _contactsView = _ContactsView.unavailable;
       });
     }
   }
 
-  Future<void>
-      _requestContacts() async {
+  Future<void> _requestContacts() async {
     setState(() {
-      _contactsView =
-          _ContactsView.loading;
+      _contactsView = _ContactsView.loading;
     });
 
     try {
-      final permission =
-          await widget.contactsService
-              .requestPermission();
+      final permission = await widget.contactsService.requestPermission();
 
       if (!mounted) {
         return;
       }
 
-      if (permission ==
-          DeviceContactsPermission
-              .granted) {
+      if (permission == DeviceContactsPermission.granted) {
         await _loadContacts();
 
         return;
       }
 
       setState(() {
-        _contactsView =
-            _ContactsView.unavailable;
+        _contactsView = _ContactsView.unavailable;
       });
     } catch (_) {
       if (!mounted) {
@@ -422,33 +280,26 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
       }
 
       setState(() {
-        _contactsView =
-            _ContactsView.unavailable;
+        _contactsView = _ContactsView.unavailable;
       });
 
       AppToast.error(
         context,
-        title:
-            'Contacts unavailable',
-        description:
-            'You can still enter a number or MoMo code above.',
+        title: 'Contacts unavailable',
+        description: 'You can still enter a number or MoMo code above.',
       );
     }
   }
 
-  Future<void>
-      _loadContacts() async {
+  Future<void> _loadContacts() async {
     if (mounted) {
       setState(() {
-        _contactsView =
-            _ContactsView.loading;
+        _contactsView = _ContactsView.loading;
       });
     }
 
     try {
-      final contacts =
-          await widget.contactsService
-              .getContacts();
+      final contacts = await widget.contactsService.getContacts();
 
       if (!mounted) {
         return;
@@ -456,9 +307,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
 
       setState(() {
         _contacts = contacts;
-
-        _contactsView =
-            _ContactsView.ready;
+        _contactsView = _ContactsView.ready;
       });
     } catch (_) {
       if (!mounted) {
@@ -466,26 +315,20 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
       }
 
       setState(() {
-        _contactsView =
-            _ContactsView.unavailable;
+        _contactsView = _ContactsView.unavailable;
       });
 
       AppToast.error(
         context,
-        title:
-            'Could not load contacts',
-        description:
-            'You can still enter a number or MoMo code above.',
+        title: 'Could not load contacts',
+        description: 'You can still enter a number or MoMo code above.',
       );
     }
   }
 
-  Future<void>
-      _refreshContacts() async {
+  Future<void> _refreshContacts() async {
     try {
-      final contacts =
-          await widget.contactsService
-              .getContacts();
+      final contacts = await widget.contactsService.getContacts();
 
       if (!mounted) {
         return;
@@ -494,18 +337,11 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
       setState(() {
         _contacts = contacts;
 
-        final contactId =
-            _selectedRecipient
-                ?.contactId;
+        final contactId = _selectedRecipient?.contactId;
 
         if (contactId != null &&
-            !contacts.any(
-              (contact) =>
-                  contact.id ==
-                  contactId,
-            )) {
-          _selectedRecipient =
-              null;
+            !contacts.any((contact) => contact.id == contactId)) {
+          _selectedRecipient = null;
         }
       });
     } catch (_) {
@@ -515,10 +351,8 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
 
       AppToast.error(
         context,
-        title:
-            'Could not refresh contacts',
-        description:
-            'Pull down to try again.',
+        title: 'Could not refresh contacts',
+        description: 'Pull down to try again.',
       );
     }
   }
@@ -529,9 +363,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
     }
 
     setState(() {
-      _searchQuery =
-          _searchController.text;
-
+      _searchQuery = _searchController.text;
       _selectedRecipient = null;
     });
   }
@@ -540,9 +372,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
     _searchController.clear();
   }
 
-  void _selectContact(
-    DeviceContact contact,
-  ) {
+  void _selectContact(DeviceContact contact) {
     if (_isStartingTransfer) {
       return;
     }
@@ -550,24 +380,17 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
     HapticFeedback.selectionClick();
 
     setState(() {
-      _selectedRecipient =
-          _RecipientSelection(
-        identifier:
-            contact.phoneNumber,
-        recipientType:
-            TransactionRecipientType
-                .phone,
+      _selectedRecipient = _RecipientSelection(
+        identifier: contact.phoneNumber,
+        recipientType: TransactionRecipientType.phone,
         title: contact.name,
-        subtitle:
-            contact.phoneNumber,
+        subtitle: contact.phoneNumber,
         contactId: contact.id,
       );
     });
   }
 
-  void _selectTypedRecipient(
-    _RecipientSelection recipient,
-  ) {
+  void _selectTypedRecipient(_RecipientSelection recipient) {
     if (_isStartingTransfer) {
       return;
     }
@@ -575,25 +398,20 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
     HapticFeedback.selectionClick();
 
     setState(() {
-      _selectedRecipient =
-          recipient;
+      _selectedRecipient = recipient;
     });
   }
 
-  Future<void>
-      _continueWithRecipient() async {
-    final recipient =
-        _selectedRecipient;
+  Future<void> _continueWithRecipient() async {
+    final recipient = _selectedRecipient;
 
     if (recipient == null) {
       return;
     }
 
     await _startTransfer(
-      receiverIdentifier:
-          recipient.identifier,
-      recipientType:
-          recipient.recipientType,
+      receiverIdentifier: recipient.identifier,
+      recipientType: recipient.recipientType,
     );
   }
 
@@ -605,25 +423,16 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
       return;
     }
 
-    if (!isValidTransactionRecipient(
-      receiverIdentifier,
-      recipientType,
-    )) {
+    if (!isValidTransactionRecipient(receiverIdentifier, recipientType)) {
       AppToast.error(
         context,
         title: 'Invalid recipient',
-        description:
-            switch (recipientType) {
-          TransactionRecipientType
-                .phone =>
+        description: switch (recipientType) {
+          TransactionRecipientType.phone =>
             'Enter a valid Rwanda phone number.',
-
-          TransactionRecipientType
-                .bankAccount =>
+          TransactionRecipientType.bankAccount =>
             'Enter a valid bank account number.',
-
-          TransactionRecipientType
-                .momoCode =>
+          TransactionRecipientType.momoCode =>
             'Enter a valid MoMo merchant code.',
         },
       );
@@ -631,27 +440,17 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
       return;
     }
 
-    final amount = int.parse(
-      widget.amount.replaceAll(
-        ',',
-        '',
-      ),
+    final amount = int.parse(widget.amount.replaceAll(',', ''));
+
+    final transferType = inferTransactionTransferType(
+      recipientIdentifier: receiverIdentifier,
+      recipientType: recipientType,
     );
 
-    final transferType =
-        inferTransactionTransferType(
-      recipientIdentifier:
-          receiverIdentifier,
-      recipientType:
-          recipientType,
-    );
-
-    if (!_ussdTransferService
-        .isSupported) {
+    if (!_ussdTransferService.isSupported) {
       AppToast.error(
         context,
-        title:
-            'USSD unavailable on this device',
+        title: 'USSD unavailable on this device',
         description:
             'Use Budgetify on an Android phone or iPhone to open the MTN transfer prompt.',
       );
@@ -663,21 +462,13 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
       amount,
       transferType.apiValue,
       recipientType.apiValue,
-      receiverIdentifier.replaceAll(
-        RegExp(r'\D'),
-        '',
-      ),
+      receiverIdentifier.replaceAll(RegExp(r'\D'), ''),
       widget.category,
     ].join(':');
 
-    if (_activeTransferSignature !=
-        transferSignature) {
-      _activeTransferSignature =
-          transferSignature;
-
-      _idempotencyKey =
-          _createIdempotencyKey();
-
+    if (_activeTransferSignature != transferSignature) {
+      _activeTransferSignature = transferSignature;
+      _idempotencyKey = _createIdempotencyKey();
       _pendingTransaction = null;
     }
 
@@ -686,9 +477,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
     });
 
     try {
-      final allowed =
-          await _ussdTransferService
-              .prepare();
+      final allowed = await _ussdTransferService.prepare();
 
       if (!allowed) {
         if (!mounted) {
@@ -697,8 +486,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
 
         AppToast.error(
           context,
-          title:
-              'Phone access required',
+          title: 'Phone access required',
           description:
               'Allow phone access so Budgetify can open the MTN transfer prompt.',
         );
@@ -708,69 +496,43 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
 
       final transaction =
           _pendingTransaction ??
-          await _transactionService
-              .create(
+          await _transactionService.create(
             amount: amount,
-            transferType:
-                transferType,
-            recipientType:
-                recipientType,
-            category:
-                TransactionCategory
-                    .fromLabel(
-              widget.category,
-            ),
-            receiverIdentifier:
-                receiverIdentifier,
-            idempotencyKey:
-                _idempotencyKey!,
+            transferType: transferType,
+            recipientType: recipientType,
+            category: TransactionCategory.fromLabel(widget.category),
+            receiverIdentifier: receiverIdentifier,
+            idempotencyKey: _idempotencyKey!,
           );
 
-      _pendingTransaction =
-          transaction;
+      _pendingTransaction = transaction;
 
-      final ussdEventId =
-          _createUssdEventId();
+      final ussdEventId = _createUssdEventId();
 
       if (supportsIosManualTransactionConfirmation) {
-        _awaitingIosManualConfirmation =
-            true;
-
-        _iosTransferLeftForeground =
-            false;
+        _awaitingIosManualConfirmation = true;
+        _iosTransferLeftForeground = false;
       }
 
       try {
-        await _ussdTransferService
-            .launch(
-          transferType:
-              transferType,
-          recipientType:
-              recipientType,
-          receiverIdentifier:
-              receiverIdentifier,
+        await _ussdTransferService.launch(
+          transferType: transferType,
+          recipientType: recipientType,
+          receiverIdentifier: receiverIdentifier,
           amount: amount,
         );
       } catch (_) {
         if (supportsIosManualTransactionConfirmation) {
-          _awaitingIosManualConfirmation =
-              false;
-
-          _iosTransferLeftForeground =
-              false;
+          _resetIosManualConfirmation();
         }
 
         rethrow;
       }
 
       try {
-        _pendingTransaction =
-            await _transactionService
-                .recordUssdOpened(
-          transactionId:
-              transaction.id,
-          clientEventId:
-              ussdEventId,
+        _pendingTransaction = await _transactionService.recordUssdOpened(
+          transactionId: transaction.id,
+          clientEventId: ussdEventId,
         );
       } on ApiException catch (error) {
         if (!mounted) {
@@ -779,8 +541,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
 
         AppToast.info(
           context,
-          title:
-              '${transferType.label} opened',
+          title: '${transferType.label} opened',
           description:
               'The MTN prompt opened, but Budgetify could not sync the transaction status: ${error.message}',
         );
@@ -793,8 +554,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
 
         AppToast.info(
           context,
-          title:
-              '${transferType.label} opened',
+          title: '${transferType.label} opened',
           description:
               'The MTN prompt opened, but Budgetify could not update the transaction status.',
         );
@@ -808,10 +568,8 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
 
       AppToast.info(
         context,
-        title:
-            '${transferType.label} opened',
-        description:
-            supportsIosManualTransactionConfirmation
+        title: '${transferType.label} opened',
+        description: supportsIosManualTransactionConfirmation
             ? 'Complete the transfer in MTN MoMo. Budgetify will ask you to confirm the result when you return.'
             : 'Complete the transfer in MTN MoMo. Budgetify is waiting for confirmation.',
       );
@@ -822,8 +580,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
 
       AppToast.error(
         context,
-        title:
-            'Could not prepare transfer',
+        title: 'Could not prepare transfer',
         description: error.message,
       );
     } on PlatformException catch (error) {
@@ -833,11 +590,8 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
 
       AppToast.error(
         context,
-        title:
-            'Could not open MTN MoMo',
-        description:
-            error.message ??
-            'Please try again.',
+        title: 'Could not open MTN MoMo',
+        description: error.message ?? 'Please try again.',
       );
     } on ArgumentError catch (error) {
       if (!mounted) {
@@ -846,12 +600,8 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
 
       AppToast.error(
         context,
-        title:
-            'Invalid transfer details',
-        description:
-            error.message
-                    ?.toString() ??
-                'Check the recipient.',
+        title: 'Invalid transfer details',
+        description: error.message?.toString() ?? 'Check the recipient.',
       );
     } catch (_) {
       if (!mounted) {
@@ -860,80 +610,62 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
 
       AppToast.error(
         context,
-        title:
-            'Transfer unavailable',
-        description:
-            'The transfer could not be started. Please try again.',
+        title: 'Transfer unavailable',
+        description: 'The transfer could not be started. Please try again.',
       );
     } finally {
       if (mounted) {
         setState(() {
-          _isStartingTransfer =
-              false;
+          _isStartingTransfer = false;
         });
 
         if (supportsIosManualTransactionConfirmation &&
             _awaitingIosManualConfirmation) {
-          unawaited(
-            _presentIosManualConfirmationIfReady(),
-          );
+          unawaited(_presentIosManualConfirmationIfReady());
         }
       }
     }
   }
 
-  Future<void>
-      _presentIosManualConfirmationIfReady() async {
+  Future<void> _presentIosManualConfirmationIfReady() async {
     if (!supportsIosManualTransactionConfirmation ||
         !_awaitingIosManualConfirmation ||
         !_iosTransferLeftForeground ||
         _isShowingIosManualConfirmation ||
         _isStartingTransfer ||
         !mounted ||
-        _lifecycleState !=
-            AppLifecycleState.resumed) {
+        _lifecycleState != AppLifecycleState.resumed) {
       return;
     }
 
-    final transaction =
-        _pendingTransaction;
+    final transaction = _pendingTransaction;
 
     if (transaction == null) {
       return;
     }
 
-    if (transaction.status !=
-            TransactionStatus.pending &&
-        transaction.status !=
-            TransactionStatus.processing) {
+    if (transaction.status != TransactionStatus.pending &&
+        transaction.status != TransactionStatus.processing) {
       _resetIosManualConfirmation();
 
       return;
     }
 
-    _isShowingIosManualConfirmation =
-        true;
+    _isShowingIosManualConfirmation = true;
 
     try {
-      await Future<void>.delayed(
-        const Duration(
-          milliseconds: 350,
-        ),
-      );
+      await Future<void>.delayed(const Duration(milliseconds: 350));
 
       if (!mounted ||
           !_awaitingIosManualConfirmation ||
           !_iosTransferLeftForeground ||
-          _lifecycleState !=
-              AppLifecycleState.resumed) {
+          _lifecycleState != AppLifecycleState.resumed) {
         return;
       }
 
-      final choice =
-          await showManualTransactionConfirmationSheet(
+      final choice = await showManualTransactionConfirmationSheet(
         context,
-        transaction:
-            transaction,
+        transaction: transaction,
       );
 
       if (!mounted) {
@@ -946,15 +678,12 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
         return;
       }
 
-      if (choice ==
-          ManualTransactionConfirmationChoice
-              .notSure) {
+      if (choice == ManualTransactionConfirmationChoice.notSure) {
         _resetIosManualConfirmation();
 
         AppToast.info(
           context,
-          title:
-              'Transaction left open',
+          title: 'Transaction left open',
           description:
               'You can confirm the payment later from its transaction details.',
         );
@@ -977,11 +706,8 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
       });
 
       try {
-        final updated =
-            await _transactionService
-                .recordManualResult(
-          transactionId:
-              transaction.id,
+        final updated = await _transactionService.recordManualResult(
+          transactionId: transaction.id,
           status: status,
         );
 
@@ -993,22 +719,18 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
         _activeTransferSignature = null;
         _idempotencyKey = null;
 
-        if (updated.status ==
-            TransactionStatus.completed) {
+        if (updated.status == TransactionStatus.completed) {
           AppToast.success(
             context,
-            title:
-                'Payment recorded',
+            title: 'Payment recorded',
             description:
                 'The transaction was manually confirmed as successful.',
           );
         } else {
           AppToast.info(
             context,
-            title:
-                'Payment recorded',
-            description:
-                'The transaction was manually confirmed as failed.',
+            title: 'Payment recorded',
+            description: 'The transaction was manually confirmed as failed.',
           );
         }
       } on ApiException catch (error) {
@@ -1018,10 +740,8 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
 
         AppToast.error(
           context,
-          title:
-              'Could not record result',
-          description:
-              error.message,
+          title: 'Could not record result',
+          description: error.message,
         );
       } catch (_) {
         if (!mounted) {
@@ -1030,45 +750,34 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
 
         AppToast.error(
           context,
-          title:
-              'Could not record result',
+          title: 'Could not record result',
           description:
               'Budgetify could not save your manual confirmation. You can try again from transaction details.',
         );
       } finally {
         if (mounted) {
           setState(() {
-            _isStartingTransfer =
-                false;
+            _isStartingTransfer = false;
           });
         }
       }
     } finally {
-      _isShowingIosManualConfirmation =
-          false;
+      _isShowingIosManualConfirmation = false;
     }
   }
 
   void _resetIosManualConfirmation() {
-    _awaitingIosManualConfirmation =
-        false;
-
-    _iosTransferLeftForeground =
-        false;
+    _awaitingIosManualConfirmation = false;
+    _iosTransferLeftForeground = false;
   }
 
   String _createIdempotencyKey() {
     final random = Random.secure();
 
-    final randomPart =
-        List<int>.generate(
+    final randomPart = List<int>.generate(
       16,
       (_) => random.nextInt(256),
-    ).map(
-      (value) => value
-          .toRadixString(16)
-          .padLeft(2, '0'),
-    ).join();
+    ).map((value) => value.toRadixString(16).padLeft(2, '0')).join();
 
     return 'ussd-${DateTime.now().microsecondsSinceEpoch}-$randomPart';
   }
@@ -1076,152 +785,82 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
   String _createUssdEventId() {
     final random = Random.secure();
 
-    final randomPart =
-        List<int>.generate(
+    final randomPart = List<int>.generate(
       16,
       (_) => random.nextInt(256),
-    ).map(
-      (value) => value
-          .toRadixString(16)
-          .padLeft(2, '0'),
-    ).join();
+    ).map((value) => value.toRadixString(16).padLeft(2, '0')).join();
 
     return 'ussd-opened-${DateTime.now().microsecondsSinceEpoch}-$randomPart';
   }
 
   @override
   Widget build(BuildContext context) {
-    final mediaQuery =
-        MediaQuery.of(context);
+    final mediaQuery = MediaQuery.of(context);
 
-    final isCompact =
-        mediaQuery.size.width < 420;
+    final isCompact = mediaQuery.size.width < 420;
 
     return Scaffold(
-      backgroundColor:
-          AppColors.background,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints:
-                const BoxConstraints(
-              maxWidth: 560,
-            ),
+            constraints: const BoxConstraints(maxWidth: 560),
             child: Padding(
-              padding:
-                  EdgeInsets.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 isCompact ? 16 : 20,
                 14,
                 isCompact ? 16 : 20,
                 18,
               ),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment
-                        .stretch,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _RecipientTopBar(
-                    onBack: () =>
-                        Navigator.of(
-                          context,
-                        ).pop(),
-                  ),
-                  SizedBox(
-                    height:
-                        isCompact
-                        ? 18
-                        : 22,
-                  ),
+                  _RecipientTopBar(onBack: () => Navigator.of(context).pop()),
+                  SizedBox(height: isCompact ? 18 : 22),
                   AppInput(
-                    controller:
-                        _searchController,
-                    hintText:
-                        'Name, phone, account, or MoMo code',
+                    controller: _searchController,
+                    hintText: 'Name, phone, account, or MoMo code',
                     borderRadius: 999,
-                    textInputAction:
-                        TextInputAction
-                            .search,
-                    enableSuggestions:
-                        false,
+                    textInputAction: TextInputAction.search,
+                    enableSuggestions: false,
                     autocorrect: false,
-                    suffixIcon:
-                        _searchController
-                            .text
-                            .isEmpty
+                    suffixIcon: _searchController.text.isEmpty
                         ? const Icon(
-                            Icons
-                                .search_rounded,
-                            color: AppColors
-                                .textSecondary,
+                            Icons.search_rounded,
+                            color: AppColors.textSecondary,
                           )
                         : IconButton(
-                            tooltip:
-                                'Clear search',
-                            onPressed:
-                                _clearSearch,
-                            icon:
-                                const Icon(
-                              Icons
-                                  .close_rounded,
-                              color: AppColors
-                                  .textSecondary,
+                            tooltip: 'Clear search',
+                            onPressed: _clearSearch,
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                   ),
-                  const SizedBox(
-                    height: 16,
-                  ),
-                  Expanded(
-                    child:
-                        _buildRecipientContent(),
-                  ),
+                  const SizedBox(height: 16),
+                  Expanded(child: _buildRecipientContent()),
                   AnimatedSwitcher(
-                    duration:
-                        mediaQuery
-                            .disableAnimations
+                    duration: mediaQuery.disableAnimations
                         ? Duration.zero
-                        : const Duration(
-                            milliseconds:
-                                160,
-                          ),
-                    child:
-                        _selectedRecipient ==
-                            null
-                        ? const SizedBox
-                            .shrink()
+                        : const Duration(milliseconds: 160),
+                    child: _selectedRecipient == null
+                        ? const SizedBox.shrink()
                         : Padding(
-                            key: ValueKey(
-                              _selectedRecipient!
-                                  .key,
-                            ),
-                            padding:
-                                const EdgeInsets
-                                    .only(
-                              top: 12,
-                            ),
-                            child:
-                                Center(
-                              child:
-                                  SizedBox(
+                            key: ValueKey(_selectedRecipient!.key),
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Center(
+                              child: SizedBox(
                                 width: 220,
-                                child:
-                                    AppButton(
-                                  label:
-                                      'Continue',
-                                  iconWidget:
-                                      const Icon(
-                                    Icons
-                                        .phone_in_talk_rounded,
-                                    color: AppColors
-                                        .background,
+                                child: AppButton(
+                                  label: 'Continue',
+                                  iconWidget: const Icon(
+                                    Icons.phone_in_talk_rounded,
+                                    color: AppColors.background,
                                   ),
-                                  size:
-                                      AppButtonSize
-                                          .md,
-                                  isLoading:
-                                      _isStartingTransfer,
-                                  onPressed:
-                                      _isStartingTransfer
+                                  size: AppButtonSize.md,
+                                  isLoading: _isStartingTransfer,
+                                  onPressed: _isStartingTransfer
                                       ? null
                                       : _continueWithRecipient,
                                 ),
@@ -1239,30 +878,18 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
   }
 
   Widget _buildRecipientContent() {
-    final typedRecipient =
-        _typedRecipient;
+    final typedRecipient = _typedRecipient;
 
     if (typedRecipient != null) {
       return _RecipientResultsList(
-        contacts:
-            _filteredContacts,
-        typedRecipient:
-            typedRecipient,
-        isSearching:
-            _searchQuery
-                .trim()
-                .isNotEmpty,
-        selectedRecipient:
-            _selectedRecipient,
-        isLoading:
-            _isStartingTransfer,
-        onContactSelected:
-            _selectContact,
-        onTypedRecipientSelected:
-            _selectTypedRecipient,
-        onRefresh:
-            _contactsView ==
-                _ContactsView.ready
+        contacts: _filteredContacts,
+        typedRecipient: typedRecipient,
+        isSearching: _searchQuery.trim().isNotEmpty,
+        selectedRecipient: _selectedRecipient,
+        isLoading: _isStartingTransfer,
+        onContactSelected: _selectContact,
+        onTypedRecipientSelected: _selectTypedRecipient,
+        onRefresh: _contactsView == _ContactsView.ready
             ? _refreshContacts
             : null,
       );
@@ -1270,44 +897,27 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {class _Selec
 
     return switch (_contactsView) {
       _ContactsView.checking ||
-      _ContactsView.loading =>
-        const _LoadingContacts(),
-
-      _ContactsView.permissionPrompt =>
-        _ContactsPermissionPrompt(
-          onAllow:
-              _requestContacts,
-        ),
-
-      _ContactsView.unavailable =>
-        _ContactsUnavailable(
-          onRetry:
-              _requestContacts,
-        ),
-
-      _ContactsView.ready =>
-        _RecipientResultsList(
-          contacts:
-              _filteredContacts,
-          typedRecipient: null,
-          isSearching:
-              _searchQuery
-                  .trim()
-                  .isNotEmpty,
-          selectedRecipient:
-              _selectedRecipient,
-          isLoading:
-              _isStartingTransfer,
-          onContactSelected:
-              _selectContact,
-          onTypedRecipientSelected:
-              _selectTypedRecipient,
-          onRefresh:
-              _refreshContacts,
-        ),
+      _ContactsView.loading => const _LoadingContacts(),
+      _ContactsView.permissionPrompt => _ContactsPermissionPrompt(
+        onAllow: _requestContacts,
+      ),
+      _ContactsView.unavailable => _ContactsUnavailable(
+        onRetry: _requestContacts,
+      ),
+      _ContactsView.ready => _RecipientResultsList(
+        contacts: _filteredContacts,
+        typedRecipient: null,
+        isSearching: _searchQuery.trim().isNotEmpty,
+        selectedRecipient: _selectedRecipient,
+        isLoading: _isStartingTransfer,
+        onContactSelected: _selectContact,
+        onTypedRecipientSelected: _selectTypedRecipient,
+        onRefresh: _refreshContacts,
+      ),
     };
   }
 }
+
 class _RecipientTopBar extends StatelessWidget {
   const _RecipientTopBar({required this.onBack});
 
@@ -1461,7 +1071,7 @@ class _ContactsUnavailable extends StatelessWidget {
             Container(
               width: 72,
               height: 72,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 color: AppColors.surfaceElevated,
               ),
@@ -1568,6 +1178,7 @@ class _RecipientResultsList extends StatelessWidget {
         }
 
         final contactIndex = index - (typed == null ? 0 : 1);
+
         final contact = contacts[contactIndex];
 
         return _ContactTile(
