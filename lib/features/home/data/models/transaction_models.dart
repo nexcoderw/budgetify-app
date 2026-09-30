@@ -107,7 +107,7 @@ enum TransactionEventType {
   ussdOpened('USSD_OPENED', 'MTN prompt opened'),
   providerResultReceived(
     'PROVIDER_RESULT_RECEIVED',
-    'Provider result received',
+    'Result evidence received',
   ),
   statusChanged('STATUS_CHANGED', 'Status changed');
 
@@ -128,7 +128,7 @@ enum TransactionEventType {
 enum TransactionEventSource {
   system('SYSTEM', 'Budgetify'),
   mobileApp('MOBILE_APP', 'Mobile app'),
-  providerSms('PROVIDER_SMS', 'Provider SMS'),
+  providerSms('PROVIDER_SMS', 'MTN SMS evidence'),
   providerApi('PROVIDER_API', 'Provider API');
 
   const TransactionEventSource(this.apiValue, this.label);
@@ -234,10 +234,13 @@ class TransactionQuote {
   }
 
   final TransactionTransferType transferType;
+
   final String currency;
+
   final int amount;
   final int feeAmount;
   final int totalAmount;
+
   final String tariffVersion;
   final String tariffSource;
 }
@@ -307,9 +310,13 @@ class PaymentTransaction {
 
   final String id;
   final String reference;
+
   final TransactionTransferType transferType;
+
   final TransactionStatus status;
+
   final TransactionCategory category;
+
   final String currency;
 
   final int amount;
@@ -317,7 +324,9 @@ class PaymentTransaction {
   final int totalAmount;
 
   final TransactionRecipientType recipientType;
+
   final String receiverIdentifier;
+
   final String? receiverName;
   final String? note;
 
@@ -332,6 +341,7 @@ class PaymentTransaction {
   final DateTime? completedAt;
   final DateTime? failedAt;
   final DateTime? cancelledAt;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -386,13 +396,18 @@ class TransactionEventRecord {
   }
 
   final String id;
+
   final TransactionEventType type;
+
   final TransactionEventSource source;
+
   final TransactionStatus? fromStatus;
   final TransactionStatus? toStatus;
+
   final String? providerReference;
   final String? failureCode;
   final String? failureReason;
+
   final DateTime occurredAt;
   final DateTime createdAt;
 }
@@ -422,6 +437,7 @@ class TransactionPagination {
   final int limit;
   final int total;
   final int totalPages;
+
   final bool hasNextPage;
   final bool hasPreviousPage;
 }
@@ -450,6 +466,7 @@ class TransactionListResult {
   }
 
   final List<PaymentTransaction> items;
+
   final TransactionPagination pagination;
 }
 
@@ -476,6 +493,7 @@ class TransactionDetail {
   }
 
   final PaymentTransaction transaction;
+
   final List<TransactionEventRecord> events;
 }
 
