@@ -12,6 +12,7 @@ import '../data/models/transaction_analytics_models.dart';
 import '../data/models/transaction_models.dart';
 import '../data/routes/transactions_api_routes.dart';
 import '../data/services/transactions_api_service.dart';
+import '../data/models/transaction_history_models.dart';
 
 class TransactionService {
   TransactionService({
@@ -239,5 +240,26 @@ class TransactionService {
     ).map((value) => value.toRadixString(16).padLeft(2, '0')).join();
 
     return 'manual-result-${DateTime.now().microsecondsSinceEpoch}-$randomPart';
+  }
+
+  Future<TransactionHistoryListResult> history({
+    int page = 1,
+    int limit = 20,
+    TransactionHistoryDirection? direction,
+    TransactionStatus? status,
+    TransactionTransferType? transferType,
+    String? search,
+  }) {
+    return _authorized((accessToken) {
+      return _transactionsApiService.history(
+        accessToken: accessToken,
+        page: page,
+        limit: limit,
+        direction: direction,
+        status: status,
+        transferType: transferType,
+        search: search,
+      );
+    });
   }
 }
