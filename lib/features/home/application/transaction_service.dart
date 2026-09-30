@@ -8,6 +8,7 @@ import '../../auth/data/models/auth_session.dart';
 import '../../auth/data/routes/auth_api_routes.dart';
 import '../../auth/data/services/auth_api_service.dart';
 import '../../auth/data/services/auth_session_storage.dart';
+import '../data/models/transaction_analytics_models.dart';
 import '../data/models/transaction_models.dart';
 import '../data/routes/transactions_api_routes.dart';
 import '../data/services/transactions_api_service.dart';
@@ -68,6 +69,19 @@ class TransactionService {
         from: from,
         to: to,
         search: search,
+      );
+    });
+  }
+
+  Future<TransactionAnalytics> analytics({
+    required DateTime from,
+    required DateTime to,
+  }) {
+    return _authorized((accessToken) {
+      return _transactionsApiService.analytics(
+        accessToken: accessToken,
+        from: from,
+        to: to,
       );
     });
   }
