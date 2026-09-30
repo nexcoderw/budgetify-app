@@ -23,6 +23,7 @@ class AppInput extends StatefulWidget {
     this.validator,
     this.onChanged,
     this.onSubmitted,
+    this.onTap,
     this.keyboardType,
     this.textInputAction,
     this.textCapitalization = TextCapitalization.none,
@@ -42,29 +43,55 @@ class AppInput extends StatefulWidget {
   });
 
   final TextEditingController controller;
+
   final FocusNode? focusNode;
+
   final String? label;
+
   final String? hintText;
+
   final List<List<dynamic>>? leadingIcon;
+
   final Widget? suffixIcon;
+
   final FormFieldValidator<String>? validator;
+
   final ValueChanged<String>? onChanged;
+
   final ValueChanged<String>? onSubmitted;
+
+  final VoidCallback? onTap;
+
   final TextInputType? keyboardType;
+
   final TextInputAction? textInputAction;
+
   final TextCapitalization textCapitalization;
+
   final Iterable<String>? autofillHints;
+
   final List<TextInputFormatter>? inputFormatters;
+
   final bool enabled;
+
   final bool enableSuggestions;
+
   final bool autocorrect;
+
   final bool obscureText;
+
   final bool readOnly;
+
   final int? maxLength;
+
   final int maxLines;
+
   final int? minLines;
+
   final AppInputVariant variant;
+
   final double borderRadius;
+
   final TextStyle? textStyle;
 
   @override
@@ -74,14 +101,16 @@ class AppInput extends StatefulWidget {
 class _AppInputState extends State<AppInput> {
   FocusNode? _internalFocusNode;
 
-  FocusNode get _focusNode =>
-      widget.focusNode ?? (_internalFocusNode ??= FocusNode());
+  FocusNode get _focusNode {
+    return widget.focusNode ?? (_internalFocusNode ??= FocusNode());
+  }
 
   bool get _isFocused => _focusNode.hasFocus;
 
   @override
   void initState() {
     super.initState();
+
     _focusNode.addListener(_handleFocusChange);
   }
 
@@ -99,6 +128,7 @@ class _AppInputState extends State<AppInput> {
 
     if (widget.focusNode != null) {
       _internalFocusNode?.dispose();
+
       _internalFocusNode = null;
     }
 
@@ -108,14 +138,18 @@ class _AppInputState extends State<AppInput> {
   @override
   void dispose() {
     _focusNode.removeListener(_handleFocusChange);
+
     _internalFocusNode?.dispose();
+
     super.dispose();
   }
 
   void _handleFocusChange() {
-    if (mounted) {
-      setState(() {});
+    if (!mounted) {
+      return;
     }
+
+    setState(() {});
   }
 
   @override
@@ -136,6 +170,7 @@ class _AppInputState extends State<AppInput> {
     }
 
     final radius = BorderRadius.circular(widget.borderRadius);
+
     final border = OutlineInputBorder(
       borderRadius: radius,
       borderSide: const BorderSide(color: AppColors.border),
@@ -224,6 +259,7 @@ class _AppInputState extends State<AppInput> {
       validator: widget.validator,
       onChanged: widget.onChanged,
       onFieldSubmitted: widget.onSubmitted,
+      onTap: widget.onTap,
       keyboardType: widget.keyboardType,
       textInputAction: widget.textInputAction,
       textCapitalization: widget.textCapitalization,
