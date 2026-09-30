@@ -13,11 +13,7 @@ import 'history_page.dart';
 import 'send_money_page.dart';
 
 class LandingPage extends StatefulWidget {
-  const LandingPage({
-    super.key,
-    required this.authService,
-    required this.user,
-  });
+  const LandingPage({super.key, required this.authService, required this.user});
 
   final AuthServiceContract authService;
 
@@ -27,8 +23,7 @@ class LandingPage extends StatefulWidget {
   State<LandingPage> createState() => _LandingPageState();
 }
 
-class _LandingPageState extends State<LandingPage>
-    with WidgetsBindingObserver {
+class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
   late AuthUser _currentUser;
 
   late final TransactionSmsReconciliationService _smsReconciliationService;
@@ -56,22 +51,14 @@ class _LandingPageState extends State<LandingPage>
     _receivedSmsReconciliationService =
         ReceivedTransactionSmsReconciliationService.createDefault();
 
-    WidgetsBinding.instance.addObserver(
-      this,
-    );
+    WidgetsBinding.instance.addObserver(this);
 
-    unawaited(
-      _reconcileSmsIfAllowed(),
-    );
+    unawaited(_reconcileSmsIfAllowed());
   }
 
   @override
-  void didUpdateWidget(
-    covariant LandingPage oldWidget,
-  ) {
-    super.didUpdateWidget(
-      oldWidget,
-    );
+  void didUpdateWidget(covariant LandingPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
 
     if (oldWidget.user.updatedAt != widget.user.updatedAt ||
         oldWidget.user.id != widget.user.id) {
@@ -80,21 +67,15 @@ class _LandingPageState extends State<LandingPage>
   }
 
   @override
-  void didChangeAppLifecycleState(
-    AppLifecycleState state,
-  ) {
+  void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      unawaited(
-        _reconcileSmsIfAllowed(),
-      );
+      unawaited(_reconcileSmsIfAllowed());
     }
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(
-      this,
-    );
+    WidgetsBinding.instance.removeObserver(this);
 
     super.dispose();
   }
@@ -112,8 +93,8 @@ class _LandingPageState extends State<LandingPage>
 
     try {
       try {
-        final outgoingSummary =
-            await _smsReconciliationService.reconcileIfPermitted();
+        final outgoingSummary = await _smsReconciliationService
+            .reconcileIfPermitted();
 
         outgoingChanged = outgoingSummary.hasChanges;
       } catch (_) {
@@ -123,8 +104,8 @@ class _LandingPageState extends State<LandingPage>
       }
 
       try {
-        final incomingSummary =
-            await _receivedSmsReconciliationService.reconcileIfPermitted();
+        final incomingSummary = await _receivedSmsReconciliationService
+            .reconcileIfPermitted();
 
         incomingActivityProcessed = incomingSummary.hasAcceptedPayments;
       } catch (_) {
@@ -158,24 +139,18 @@ class _LandingPageState extends State<LandingPage>
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return AppLayout(
       user: _currentUser,
       currentSection: _currentSection,
       onSectionSelected: _selectSection,
       onAvatarTap: _openProfile,
       child: AnimatedSwitcher(
-        duration: const Duration(
-          milliseconds: 260,
-        ),
+        duration: const Duration(milliseconds: 260),
         switchInCurve: Curves.easeOutCubic,
         switchOutCurve: Curves.easeInCubic,
         child: KeyedSubtree(
-          key: ValueKey<AppLayoutSection>(
-            _currentSection,
-          ),
+          key: ValueKey<AppLayoutSection>(_currentSection),
           child: _sectionContent(),
         ),
       ),
@@ -190,8 +165,7 @@ class _LandingPageState extends State<LandingPage>
 
       AppLayoutSection.history => HistoryPage(
         smsReconciliationService: _smsReconciliationService,
-        receivedSmsReconciliationService:
-            _receivedSmsReconciliationService,
+        receivedSmsReconciliationService: _receivedSmsReconciliationService,
         refreshToken: _historyRefreshToken,
       ),
 
@@ -199,9 +173,7 @@ class _LandingPageState extends State<LandingPage>
     };
   }
 
-  void _selectSection(
-    AppLayoutSection section,
-  ) {
+  void _selectSection(AppLayoutSection section) {
     if (_currentSection == section) {
       return;
     }
@@ -214,22 +186,12 @@ class _LandingPageState extends State<LandingPage>
   Future<void> _openProfile() async {
     await Navigator.of(context).push<void>(
       PageRouteBuilder<void>(
-        pageBuilder: (
-          context,
-          animation,
-          secondaryAnimation,
-        ) =>
-            ProfilePage(
+        pageBuilder: (context, animation, secondaryAnimation) => ProfilePage(
           authService: widget.authService,
           user: _currentUser,
           onUserChanged: _updateCurrentUser,
         ),
-        transitionsBuilder: (
-          context,
-          animation,
-          secondaryAnimation,
-          child,
-        ) {
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final curved = CurvedAnimation(
             parent: animation,
             curve: Curves.easeOutCubic,
@@ -239,14 +201,9 @@ class _LandingPageState extends State<LandingPage>
             opacity: curved,
             child: SlideTransition(
               position: Tween<Offset>(
-                begin: const Offset(
-                  0.025,
-                  0,
-                ),
+                begin: const Offset(0.025, 0),
                 end: Offset.zero,
-              ).animate(
-                curved,
-              ),
+              ).animate(curved),
               child: child,
             ),
           );
@@ -255,9 +212,7 @@ class _LandingPageState extends State<LandingPage>
     );
   }
 
-  void _updateCurrentUser(
-    AuthUser user,
-  ) {
+  void _updateCurrentUser(AuthUser user) {
     if (!mounted) {
       return;
     }
