@@ -64,6 +64,7 @@ class _DashboardPageState extends State<DashboardPage> {
     if (mounted) {
       setState(() {
         _isLoading = true;
+
         _errorMessage = null;
 
         if (!preserveCurrent) {
@@ -86,6 +87,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
       setState(() {
         _analytics = analytics;
+
         _errorMessage = null;
       });
     } on ApiException catch (error) {
@@ -451,10 +453,7 @@ class _SummaryMetric extends StatelessWidget {
                   color: AppColors.primary,
                 ),
               ),
-
-              // This Spacer is safe because Row has a bounded width.
               const Spacer(),
-
               Flexible(
                 child: Text(
                   label,
@@ -470,12 +469,7 @@ class _SummaryMetric extends StatelessWidget {
               ),
             ],
           ),
-
-          // Do not use Spacer here.
-          // This widget lives inside a Wrap, so its vertical
-          // constraints are unbounded.
           const SizedBox(height: 16),
-
           Text(
             value,
             maxLines: 1,
@@ -487,9 +481,7 @@ class _SummaryMetric extends StatelessWidget {
               color: AppColors.textPrimary,
             ),
           ),
-
           const SizedBox(height: 5),
-
           Text(
             _formatComparison(changePercentage),
             maxLines: 2,
@@ -620,36 +612,23 @@ class _ConfirmationSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final total = confirmation.total;
 
-    final providerShare = total == 0
-        ? 0.0
-        : confirmation.providerConfirmed / total;
-
     return _DashboardCard(
-      title: 'Confirmation source',
-      subtitle: 'How completed payments were confirmed',
+      title: 'Completion evidence',
+      subtitle: 'How completed outgoing payments were established',
       child: total == 0
           ? const _EmptyBreakdown(
               message: 'No completed transactions in this period.',
             )
           : Column(
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
-                  child: LinearProgressIndicator(
-                    value: providerShare,
-                    minHeight: 8,
-                    backgroundColor: AppColors.primaryMuted.withValues(
-                      alpha: 0.22,
-                    ),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      AppColors.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
                 _ConfirmationRow(
-                  label: 'Confirmed from provider',
-                  value: confirmation.providerConfirmed,
+                  label: 'MTN SMS evidence',
+                  value: confirmation.smsEvidence,
+                ),
+                const SizedBox(height: 10),
+                _ConfirmationRow(
+                  label: 'Provider API confirmed',
+                  value: confirmation.providerApiConfirmed,
                 ),
                 const SizedBox(height: 10),
                 _ConfirmationRow(
@@ -661,6 +640,25 @@ class _ConfirmationSection extends StatelessWidget {
                   _ConfirmationRow(
                     label: 'Unclassified',
                     value: confirmation.unclassified,
+                  ),
+                ],
+                if (confirmation.smsEvidence > 0) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceElevated.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Text(
+                      'SMS evidence is parsed from MTN transaction messages on the device. It is not independent provider API verification.',
+                      style: TextStyle(
+                        fontSize: 8.5,
+                        height: 1.45,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ),
                 ],
               ],
@@ -952,6 +950,7 @@ class _DashboardError extends StatelessWidget {
   const _DashboardError({required this.message, required this.onRetry});
 
   final String message;
+
   final VoidCallback onRetry;
 
   @override
