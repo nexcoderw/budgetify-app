@@ -110,11 +110,6 @@ class ReceivedTransactionSmsReconciliationService {
       limit: _maximumMessages,
     );
 
-    // Use the scan start rather than scan completion
-    // so an SMS arriving while this scan is running
-    // remains eligible on the next pass.
-    _lastSuccessfulScanAt = scanStartedAt;
-
     final parsed = _parseMessages(messages);
 
     final deduplicated = deduplicateParsedReceivedProviderSmsResults(parsed);
@@ -137,10 +132,21 @@ class ReceivedTransactionSmsReconciliationService {
         acceptedPayments++;
       } catch (_) {
         // Incoming reconciliation is opportunistic.
-        // One malformed or conflicting item must not
-        // stop other valid SMS evidence from syncing.
+        // One failed item must not stop the remaining
+        // valid SMS evidence from syncing.
         failedUpdates++;
       }
+    }
+
+    // Commit the scan watermark only after every backend
+    // write attempted during this scan succeeded.
+    //
+    // If one write fails, preserve the previous watermark so
+    // the failed SMS evidence remains eligible for the next scan.
+    // Successful records are safe to see again because the
+    // backend received-payment endpoint is idempotent.
+    if (failedUpdates == 0) {
+      _lastSuccessfulScanAt = scanStartedAt;
     }
 
     return ReceivedSmsReconciliationSummary(
