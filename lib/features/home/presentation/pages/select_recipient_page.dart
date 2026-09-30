@@ -35,13 +35,7 @@ class SelectRecipientPage extends StatefulWidget {
   State<SelectRecipientPage> createState() => _SelectRecipientPageState();
 }
 
-enum _ContactsView {
-  checking,
-  permissionPrompt,
-  loading,
-  ready,
-  unavailable,
-}
+enum _ContactsView { checking, permissionPrompt, loading, ready, unavailable }
 
 class _RecipientSelection {
   const _RecipientSelection({
@@ -85,18 +79,20 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
       return _contacts;
     }
 
-    return _contacts.where((contact) {
-      final name = contact.name.toLowerCase();
-      final phone = contact.phoneNumber.replaceAll(RegExp(r'\D'), '');
-      final queryDigits = query.replaceAll(RegExp(r'\D'), '');
-      final comparablePhone = _comparablePhone(contact.phoneNumber);
-      final comparableQuery = _comparablePhone(query);
+    return _contacts
+        .where((contact) {
+          final name = contact.name.toLowerCase();
+          final phone = contact.phoneNumber.replaceAll(RegExp(r'\D'), '');
+          final queryDigits = query.replaceAll(RegExp(r'\D'), '');
+          final comparablePhone = _comparablePhone(contact.phoneNumber);
+          final comparableQuery = _comparablePhone(query);
 
-      return name.contains(query) ||
-          (queryDigits.isNotEmpty &&
-              (phone.contains(queryDigits) ||
-                  comparablePhone.contains(comparableQuery)));
-    }).toList(growable: false);
+          return name.contains(query) ||
+              (queryDigits.isNotEmpty &&
+                  (phone.contains(queryDigits) ||
+                      comparablePhone.contains(comparableQuery)));
+        })
+        .toList(growable: false);
   }
 
   _RecipientSelection? get _typedRecipient {
@@ -115,8 +111,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
     if (type == TransactionRecipientType.phone &&
         _contacts.any(
           (contact) =>
-              _comparablePhone(contact.phoneNumber) ==
-              _comparablePhone(value),
+              _comparablePhone(contact.phoneNumber) == _comparablePhone(value),
         )) {
       return null;
     }
@@ -159,8 +154,8 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
   void initState() {
     super.initState();
 
-    _transactionService = widget.transactionService ??
-        TransactionService.createDefault();
+    _transactionService =
+        widget.transactionService ?? TransactionService.createDefault();
     _ussdTransferService =
         widget.ussdTransferService ?? const UssdTransferService();
 
@@ -452,14 +447,14 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
             amount: amount,
             transferType: transferType,
             recipientType: recipientType,
-            category: TransactionCategory.fromLabel(
-              widget.category,
-            ),
+            category: TransactionCategory.fromLabel(widget.category),
             receiverIdentifier: receiverIdentifier,
             idempotencyKey: _idempotencyKey!,
           );
 
       _pendingTransaction = transaction;
+
+      final ussdEventId = _createUssdEventId();
 
       await _ussdTransferService.launch(
         transferType: transferType,
@@ -467,6 +462,39 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
         receiverIdentifier: receiverIdentifier,
         amount: amount,
       );
+
+      try {
+        _pendingTransaction = await _transactionService.recordUssdOpened(
+          transactionId: transaction.id,
+          clientEventId: ussdEventId,
+        );
+      } on ApiException catch (error) {
+        if (!mounted) {
+          return;
+        }
+
+        AppToast.info(
+          context,
+          title: '${transferType.label} opened',
+          description:
+              'The MTN prompt opened, but Budgetify could not sync the transaction status: ${error.message}',
+        );
+
+        return;
+      } catch (_) {
+        if (!mounted) {
+          return;
+        }
+
+        AppToast.info(
+          context,
+          title: '${transferType.label} opened',
+          description:
+              'The MTN prompt opened, but Budgetify could not update the transaction status.',
+        );
+
+        return;
+      }
 
       if (!mounted) {
         return;
@@ -476,7 +504,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
         context,
         title: '${transferType.label} opened',
         description:
-            'Complete the transfer in the MTN prompt. It remains pending until confirmed.',
+            'Complete the transfer in MTN MoMo. Budgetify is waiting for confirmation.',
       );
     } on ApiException catch (error) {
       if (!mounted) {
@@ -532,11 +560,20 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
     final randomPart = List<int>.generate(
       16,
       (_) => random.nextInt(256),
-    ).map(
-      (value) => value.toRadixString(16).padLeft(2, '0'),
-    ).join();
+    ).map((value) => value.toRadixString(16).padLeft(2, '0')).join();
 
     return 'ussd-${DateTime.now().microsecondsSinceEpoch}-$randomPart';
+  }
+
+  String _createUssdEventId() {
+    final random = Random.secure();
+
+    final randomPart = List<int>.generate(
+      16,
+      (_) => random.nextInt(256),
+    ).map((value) => value.toRadixString(16).padLeft(2, '0')).join();
+
+    return 'ussd-opened-${DateTime.now().microsecondsSinceEpoch}-$randomPart';
   }
 
   @override
@@ -549,9 +586,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 560,
-            ),
+            constraints: const BoxConstraints(maxWidth: 560),
             child: Padding(
               padding: EdgeInsets.fromLTRB(
                 isCompact ? 16 : 20,
@@ -562,12 +597,8 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _RecipientTopBar(
-                    onBack: () => Navigator.of(context).pop(),
-                  ),
-                  SizedBox(
-                    height: isCompact ? 18 : 22,
-                  ),
+                  _RecipientTopBar(onBack: () => Navigator.of(context).pop()),
+                  SizedBox(height: isCompact ? 18 : 22),
                   AppInput(
                     controller: _searchController,
                     hintText: 'Name, phone, account, or MoMo code',
@@ -590,9 +621,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
                           ),
                   ),
                   const SizedBox(height: 16),
-                  Expanded(
-                    child: _buildRecipientContent(),
-                  ),
+                  Expanded(child: _buildRecipientContent()),
                   AnimatedSwitcher(
                     duration: mediaQuery.disableAnimations
                         ? Duration.zero
@@ -650,32 +679,29 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
 
     return switch (_contactsView) {
       _ContactsView.checking ||
-      _ContactsView.loading =>
-        const _LoadingContacts(),
+      _ContactsView.loading => const _LoadingContacts(),
       _ContactsView.permissionPrompt => _ContactsPermissionPrompt(
-          onAllow: _requestContacts,
-        ),
+        onAllow: _requestContacts,
+      ),
       _ContactsView.unavailable => _ContactsUnavailable(
-          onRetry: _requestContacts,
-        ),
+        onRetry: _requestContacts,
+      ),
       _ContactsView.ready => _RecipientResultsList(
-          contacts: _filteredContacts,
-          typedRecipient: null,
-          isSearching: _searchQuery.trim().isNotEmpty,
-          selectedRecipient: _selectedRecipient,
-          isLoading: _isStartingTransfer,
-          onContactSelected: _selectContact,
-          onTypedRecipientSelected: _selectTypedRecipient,
-          onRefresh: _refreshContacts,
-        ),
+        contacts: _filteredContacts,
+        typedRecipient: null,
+        isSearching: _searchQuery.trim().isNotEmpty,
+        selectedRecipient: _selectedRecipient,
+        isLoading: _isStartingTransfer,
+        onContactSelected: _selectContact,
+        onTypedRecipientSelected: _selectTypedRecipient,
+        onRefresh: _refreshContacts,
+      ),
     };
   }
 }
 
 class _RecipientTopBar extends StatelessWidget {
-  const _RecipientTopBar({
-    required this.onBack,
-  });
+  const _RecipientTopBar({required this.onBack});
 
   final VoidCallback onBack;
 
@@ -714,9 +740,7 @@ class _RecipientTopBar extends StatelessWidget {
 }
 
 class _ContactsPermissionPrompt extends StatelessWidget {
-  const _ContactsPermissionPrompt({
-    required this.onAllow,
-  });
+  const _ContactsPermissionPrompt({required this.onAllow});
 
   final VoidCallback onAllow;
 
@@ -724,9 +748,7 @@ class _ContactsPermissionPrompt extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.only(
-          top: 14,
-        ),
+        padding: const EdgeInsets.only(top: 14),
         child: Column(
           children: [
             Container(
@@ -734,9 +756,7 @@ class _ContactsPermissionPrompt extends StatelessWidget {
               height: 84,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withValues(
-                  alpha: 0.12,
-                ),
+                color: AppColors.primary.withValues(alpha: 0.12),
               ),
               alignment: Alignment.center,
               child: const Icon(
@@ -745,9 +765,7 @@ class _ContactsPermissionPrompt extends StatelessWidget {
                 color: AppColors.primary,
               ),
             ),
-            const SizedBox(
-              height: 22,
-            ),
+            const SizedBox(height: 22),
             const Text(
               'Find people faster',
               textAlign: TextAlign.center,
@@ -759,13 +777,9 @@ class _ContactsPermissionPrompt extends StatelessWidget {
                 color: AppColors.textPrimary,
               ),
             ),
-            const SizedBox(
-              height: 10,
-            ),
+            const SizedBox(height: 10),
             ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 340,
-              ),
+              constraints: const BoxConstraints(maxWidth: 340),
               child: const Text(
                 'Allow Budgetify to show names and phone numbers from your device. Choose full contact access when your phone asks.',
                 textAlign: TextAlign.center,
@@ -776,21 +790,12 @@ class _ContactsPermissionPrompt extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(
-              height: 18,
-            ),
+            const SizedBox(height: 18),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 11,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(
-                  alpha: 0.035,
-                ),
-                borderRadius: BorderRadius.circular(
-                  16,
-                ),
+                color: Colors.white.withValues(alpha: 0.035),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
@@ -800,9 +805,7 @@ class _ContactsPermissionPrompt extends StatelessWidget {
                     size: 16,
                     color: AppColors.success,
                   ),
-                  SizedBox(
-                    width: 8,
-                  ),
+                  SizedBox(width: 8),
                   Flexible(
                     child: Text(
                       'Contacts stay on your device',
@@ -816,13 +819,9 @@ class _ContactsPermissionPrompt extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(
-              height: 28,
-            ),
+            const SizedBox(height: 28),
             ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 260,
-              ),
+              constraints: const BoxConstraints(maxWidth: 260),
               child: AppButton(
                 label: 'Allow contacts',
                 iconWidget: const Icon(
@@ -841,9 +840,7 @@ class _ContactsPermissionPrompt extends StatelessWidget {
 }
 
 class _ContactsUnavailable extends StatelessWidget {
-  const _ContactsUnavailable({
-    required this.onRetry,
-  });
+  const _ContactsUnavailable({required this.onRetry});
 
   final VoidCallback onRetry;
 
@@ -867,9 +864,7 @@ class _ContactsUnavailable extends StatelessWidget {
                 color: AppColors.textSecondary,
               ),
             ),
-            const SizedBox(
-              height: 18,
-            ),
+            const SizedBox(height: 18),
             const Text(
               'Contacts are unavailable',
               textAlign: TextAlign.center,
@@ -879,13 +874,9 @@ class _ContactsUnavailable extends StatelessWidget {
                 color: AppColors.textPrimary,
               ),
             ),
-            const SizedBox(
-              height: 8,
-            ),
+            const SizedBox(height: 8),
             ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 320,
-              ),
+              constraints: const BoxConstraints(maxWidth: 320),
               child: const Text(
                 'Try contact access again, or enter a phone number, bank account, or MoMo code above.',
                 textAlign: TextAlign.center,
@@ -896,13 +887,9 @@ class _ContactsUnavailable extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(
-              height: 24,
-            ),
+            const SizedBox(height: 24),
             ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 240,
-              ),
+              constraints: const BoxConstraints(maxWidth: 240),
               child: AppButton(
                 label: 'Try again',
                 iconWidget: const Icon(
@@ -946,10 +933,7 @@ class _RecipientResultsList extends StatelessWidget {
     final itemCount = contacts.length + (typedRecipient == null ? 0 : 1);
 
     if (itemCount == 0) {
-      return _NoContactResults(
-        isSearching: isSearching,
-        onRefresh: onRefresh,
-      );
+      return _NoContactResults(isSearching: isSearching, onRefresh: onRefresh);
     }
 
     final list = ListView.separated(
@@ -971,9 +955,7 @@ class _RecipientResultsList extends StatelessWidget {
           return _TypedRecipientTile(
             recipient: typed,
             isSelected: selectedRecipient?.key == typed.key,
-            onTap: isLoading
-                ? null
-                : () => onTypedRecipientSelected(typed),
+            onTap: isLoading ? null : () => onTypedRecipientSelected(typed),
           );
         }
 
@@ -1128,45 +1110,28 @@ class _ContactTile extends StatelessWidget {
       label: '${contact.name}, ${contact.phoneNumber}',
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(
-          14,
-        ),
+        borderRadius: BorderRadius.circular(14),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(
-            14,
-          ),
+          borderRadius: BorderRadius.circular(14),
           child: AnimatedContainer(
             duration: disableAnimations
                 ? Duration.zero
-                : const Duration(
-                    milliseconds: 160,
-                  ),
+                : const Duration(milliseconds: 160),
             curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 8,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             decoration: BoxDecoration(
               color: isSelected
-                  ? AppColors.primary.withValues(
-                      alpha: 0.13,
-                    )
-                  : Colors.white.withValues(
-                      alpha: 0,
-                    ),
-              borderRadius: BorderRadius.circular(
-                14,
-              ),
+                  ? AppColors.primary.withValues(alpha: 0.13)
+                  : Colors.white.withValues(alpha: 0),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               children: [
                 AnimatedContainer(
                   duration: disableAnimations
                       ? Duration.zero
-                      : const Duration(
-                          milliseconds: 160,
-                        ),
+                      : const Duration(milliseconds: 160),
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
@@ -1187,13 +1152,10 @@ class _ContactTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(
-                  width: 13,
-                ),
+                const SizedBox(width: 13),
                 Expanded(
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         contact.name,
@@ -1206,9 +1168,7 @@ class _ContactTile extends StatelessWidget {
                           color: AppColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(
-                        height: 5,
-                      ),
+                      const SizedBox(height: 5),
                       Text(
                         contact.phoneNumber,
                         maxLines: 1,
@@ -1221,15 +1181,11 @@ class _ContactTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(
-                  width: 10,
-                ),
+                const SizedBox(width: 10),
                 AnimatedContainer(
                   duration: disableAnimations
                       ? Duration.zero
-                      : const Duration(
-                          milliseconds: 160,
-                        ),
+                      : const Duration(milliseconds: 160),
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(
@@ -1272,9 +1228,7 @@ class _LoadingContacts extends StatelessWidget {
               color: AppColors.primary,
             ),
           ),
-          SizedBox(
-            height: 14,
-          ),
+          SizedBox(height: 14),
           Text(
             'Loading contacts...',
             style: TextStyle(
@@ -1290,10 +1244,7 @@ class _LoadingContacts extends StatelessWidget {
 }
 
 class _NoContactResults extends StatelessWidget {
-  const _NoContactResults({
-    required this.isSearching,
-    required this.onRefresh,
-  });
+  const _NoContactResults({required this.isSearching, required this.onRefresh});
 
   final bool isSearching;
   final Future<void> Function()? onRefresh;
@@ -1309,9 +1260,7 @@ class _NoContactResults extends StatelessWidget {
             size: 30,
             color: AppColors.textSecondary,
           ),
-          const SizedBox(
-            height: 10,
-          ),
+          const SizedBox(height: 10),
           Text(
             isSearching ? 'No recipient found' : 'No contacts available',
             style: const TextStyle(
@@ -1320,9 +1269,7 @@ class _NoContactResults extends StatelessWidget {
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(
-            height: 5,
-          ),
+          const SizedBox(height: 5),
           Text(
             isSearching
                 ? 'Try another name, phone, account, or MoMo code.'
