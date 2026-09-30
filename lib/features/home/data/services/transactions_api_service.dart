@@ -145,10 +145,10 @@ class TransactionsApiService {
         'amount': amount,
         'status': status.apiValue,
         'occurredAt': occurredAt.toUtc().toIso8601String(),
-        if (providerReference != null) 'providerReference': providerReference,
-        if (receiverName != null) 'receiverName': receiverName,
-        if (failureCode != null) 'failureCode': failureCode,
-        if (failureReason != null) 'failureReason': failureReason,
+        'providerReference': ?providerReference,
+        'receiverName': ?receiverName,
+        'failureCode': ?failureCode,
+        'failureReason': ?failureReason,
       },
     );
 
