@@ -7,6 +7,7 @@ import '../../../auth/data/models/auth_user.dart';
 import '../../../users/presentation/pages/profile_page.dart';
 import '../../application/transaction_sms_reconciliation_service.dart';
 import '../widgets/app_layout.dart';
+import 'dashboard_page.dart';
 import 'history_page.dart';
 import 'send_money_page.dart';
 
@@ -14,6 +15,7 @@ class LandingPage extends StatefulWidget {
   const LandingPage({super.key, required this.authService, required this.user});
 
   final AuthServiceContract authService;
+
   final AuthUser user;
 
   @override
@@ -28,7 +30,10 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
   AppLayoutSection _currentSection = AppLayoutSection.sendMoney;
 
   bool _isReconcilingSms = false;
+
   int _historyRefreshToken = 0;
+
+  int _analyticsRefreshToken = 0;
 
   @override
   void initState() {
@@ -84,6 +89,8 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
 
       setState(() {
         _historyRefreshToken++;
+
+        _analyticsRefreshToken++;
       });
     } catch (_) {
       // SMS reconciliation is opportunistic.
@@ -113,14 +120,18 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
   }
 
   Widget _sectionContent() {
-    if (_currentSection == AppLayoutSection.history) {
-      return HistoryPage(
+    return switch (_currentSection) {
+      AppLayoutSection.dashboard => DashboardPage(
+        refreshToken: _analyticsRefreshToken,
+      ),
+
+      AppLayoutSection.history => HistoryPage(
         smsReconciliationService: _smsReconciliationService,
         refreshToken: _historyRefreshToken,
-      );
-    }
+      ),
 
-    return const SendMoneyPage();
+      _ => const SendMoneyPage(),
+    };
   }
 
   void _selectSection(AppLayoutSection section) {
