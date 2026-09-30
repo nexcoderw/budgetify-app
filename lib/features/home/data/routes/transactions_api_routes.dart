@@ -22,4 +22,8 @@ class TransactionsApiRoutes {
   String providerSmsResult(String transactionId) {
     return '$base/$transactionId/provider-sms-result';
   }
+
+  String manualResult(String transactionId) {
+    return '$base/$transactionId/manual-result';
+  }
 }
