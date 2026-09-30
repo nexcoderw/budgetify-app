@@ -13,6 +13,7 @@ class TransactionAnalytics {
 
   factory TransactionAnalytics.fromJson(Map<String, dynamic> json) {
     final rawCategories = json['categories'];
+
     final rawTransferTypes = json['transferTypes'];
 
     if (rawCategories is! List) {
@@ -59,11 +60,17 @@ class TransactionAnalytics {
   }
 
   final String currency;
+
   final TransactionAnalyticsPeriod period;
+
   final TransactionAnalyticsSummary summary;
+
   final TransactionAnalyticsComparison comparison;
+
   final TransactionAnalyticsConfirmation confirmation;
+
   final List<TransactionCategoryAnalytics> categories;
+
   final List<TransactionTransferTypeAnalytics> transferTypes;
 
   bool get hasCompletedActivity {
@@ -177,39 +184,52 @@ class TransactionAnalyticsComparison {
   }
 
   final int previousSentAmount;
+
   final double? sentAmountChangePercentage;
 
   final int previousFeesPaid;
+
   final double? feesPaidChangePercentage;
 
   final int previousTotalDebited;
+
   final double? totalDebitedChangePercentage;
 
   final int previousCompletedTransactions;
+
   final double? completedTransactionsChangePercentage;
 }
 
 class TransactionAnalyticsConfirmation {
   const TransactionAnalyticsConfirmation({
-    required this.providerConfirmed,
+    required this.smsEvidence,
+    required this.providerApiConfirmed,
     required this.manuallyConfirmed,
     required this.unclassified,
   });
 
   factory TransactionAnalyticsConfirmation.fromJson(Map<String, dynamic> json) {
     return TransactionAnalyticsConfirmation(
-      providerConfirmed: _requiredInt(json, 'providerConfirmed'),
+      smsEvidence: _requiredInt(json, 'smsEvidence'),
+      providerApiConfirmed: _requiredInt(json, 'providerApiConfirmed'),
       manuallyConfirmed: _requiredInt(json, 'manuallyConfirmed'),
       unclassified: _requiredInt(json, 'unclassified'),
     );
   }
 
-  final int providerConfirmed;
+  final int smsEvidence;
+
+  final int providerApiConfirmed;
+
   final int manuallyConfirmed;
+
   final int unclassified;
 
   int get total {
-    return providerConfirmed + manuallyConfirmed + unclassified;
+    return smsEvidence +
+        providerApiConfirmed +
+        manuallyConfirmed +
+        unclassified;
   }
 }
 
@@ -237,6 +257,7 @@ class TransactionCategoryAnalytics {
   }
 
   final TransactionCategory category;
+
   final int sentAmount;
   final int feesPaid;
   final int totalDebited;
@@ -268,6 +289,7 @@ class TransactionTransferTypeAnalytics {
   }
 
   final TransactionTransferType transferType;
+
   final int sentAmount;
   final int feesPaid;
   final int totalDebited;
