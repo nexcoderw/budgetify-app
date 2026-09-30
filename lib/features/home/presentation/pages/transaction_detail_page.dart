@@ -23,7 +23,9 @@ class TransactionDetailPage extends StatefulWidget {
   });
 
   final String transactionId;
+
   final TransactionService? transactionService;
+
   final TransactionSmsReconciliationService? smsReconciliationService;
 
   @override
@@ -38,9 +40,11 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
   TransactionDetail? _detail;
 
   bool _isLoading = true;
+
   bool _isCheckingStatus = false;
 
   String? _errorMessage;
+
   String? _reconciliationMessage;
 
   DateTime? _lastCheckedAt;
@@ -65,6 +69,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
     if (showLoader) {
       setState(() {
         _isLoading = true;
+
         _errorMessage = null;
       });
     }
@@ -80,6 +85,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
 
       setState(() {
         _detail = detail;
+
         _errorMessage = null;
       });
     } on ApiException catch (error) {
@@ -120,6 +126,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
 
     setState(() {
       _isCheckingStatus = true;
+
       _reconciliationMessage = null;
     });
 
@@ -147,7 +154,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
             context,
             title: 'SMS access required',
             description:
-                'Enable SMS access to let Budgetify check MTN transaction confirmations.',
+                'Enable SMS access to let Budgetify check MTN transaction evidence.',
           );
 
           return;
@@ -181,16 +188,16 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
           if (updated.status == TransactionStatus.completed) {
             AppToast.success(
               context,
-              title: 'Transaction confirmed',
+              title: 'Transaction updated',
               description:
-                  'MTN confirmation was matched safely to this transaction.',
+                  'Budgetify matched MTN SMS evidence to this transaction.',
             );
           } else {
             AppToast.info(
               context,
               title: 'Transaction status updated',
               description:
-                  'MTN reported ${updated.status.label.toLowerCase()}.',
+                  'MTN SMS evidence indicates ${updated.status.label.toLowerCase()}.',
             );
           }
 
@@ -200,15 +207,15 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
         case TransactionReconciliationOutcome.noMatch:
           AppToast.info(
             context,
-            title: 'No confirmation found',
+            title: 'No matching evidence',
             description:
-                'Budgetify found no reliable MTN message for this transaction. Its current status was not changed.',
+                'Budgetify found no matching MTN transaction message for this transaction. Its current status was not changed.',
           );
 
         case TransactionReconciliationOutcome.ambiguous:
           AppToast.info(
             context,
-            title: 'Confirmation needs review',
+            title: 'Evidence needs review',
             description:
                 'More than one MTN message could match this transaction. Budgetify did not guess or change its status.',
           );
@@ -218,7 +225,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
             context,
             title: 'Automatic check unavailable',
             description:
-                'SMS transaction confirmation is currently available on Android only.',
+                'Automatic SMS evidence matching is currently available on Android only.',
           );
 
         case TransactionReconciliationOutcome.permissionDenied:
@@ -379,17 +386,17 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
   String _messageForResult(TransactionReconciliationResult result) {
     return switch (result.outcome) {
       TransactionReconciliationOutcome.updated =>
-        'A reliable MTN confirmation was found and the transaction was updated.',
+        'Matching MTN SMS evidence was found and the transaction was updated.',
       TransactionReconciliationOutcome.alreadyResolved =>
         'This transaction already has a final status.',
       TransactionReconciliationOutcome.noMatch =>
-        'No reliable MTN confirmation was found. This does not mean the transfer failed.',
+        'No matching MTN SMS evidence was found. This does not mean the transfer failed.',
       TransactionReconciliationOutcome.ambiguous =>
         'Multiple MTN messages could match. Budgetify left the transaction unchanged rather than guessing.',
       TransactionReconciliationOutcome.permissionDenied =>
-        'SMS access is required to check transaction confirmations.',
+        'SMS access is required to check transaction evidence.',
       TransactionReconciliationOutcome.unsupported =>
-        'Automatic SMS confirmation is unavailable on this device.',
+        'Automatic SMS evidence matching is unavailable on this device.',
     };
   }
 
@@ -710,7 +717,7 @@ class _IosManualRecoveryCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       needsConfirmation
-                          ? 'Budgetify cannot automatically read MTN confirmation SMS on iPhone. Confirm the result when you know whether the payment succeeded or failed.'
+                          ? 'Budgetify cannot automatically inspect MTN transaction SMS on iPhone. Confirm the result when you know whether the payment succeeded or failed.'
                           : 'After completing the MTN payment, you can record the result here.',
                       style: const TextStyle(
                         fontSize: 10,
@@ -803,8 +810,8 @@ class _TransactionRecoveryCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       needsConfirmation
-                          ? 'Budgetify has not found reliable MTN confirmation yet. This does not mean the payment failed.'
-                          : 'Budgetify will keep this transaction open until reliable MTN confirmation is found.',
+                          ? 'Budgetify has not found matching MTN SMS evidence yet. This does not mean the payment failed.'
+                          : 'Budgetify will keep this transaction open until matching MTN SMS evidence is found.',
                       style: const TextStyle(
                         fontSize: 10,
                         height: 1.45,
@@ -901,6 +908,7 @@ class _InformationCard extends StatelessWidget {
   });
 
   final PaymentTransaction transaction;
+
   final String? confirmationSource;
 
   @override
@@ -922,7 +930,7 @@ class _InformationCard extends StatelessWidget {
           _DetailRow(label: 'Reference', value: transaction.reference),
           if (confirmationSource != null) ...[
             const _DetailDivider(),
-            _DetailRow(label: 'Confirmation', value: confirmationSource!),
+            _DetailRow(label: 'Result source', value: confirmationSource!),
           ],
           if (transaction.providerReference != null) ...[
             const _DetailDivider(),
@@ -1116,6 +1124,7 @@ class _TimelineItem extends StatelessWidget {
   const _TimelineItem({required this.event, required this.isLast});
 
   final TransactionEventRecord event;
+
   final bool isLast;
 
   @override
@@ -1300,17 +1309,17 @@ String? _confirmationSource(TransactionDetail detail) {
 
     if (event.type == TransactionEventType.providerResultReceived &&
         event.source == TransactionEventSource.providerSms) {
-      return 'Confirmed from MTN';
+      return 'MTN SMS evidence';
     }
 
     if (event.type == TransactionEventType.providerResultReceived &&
         event.source == TransactionEventSource.providerApi) {
-      return 'Confirmed by provider';
+      return 'Provider API result';
     }
 
     if (event.type == TransactionEventType.statusChanged &&
         event.source == TransactionEventSource.mobileApp) {
-      return 'Manually confirmed';
+      return 'Manually reported';
     }
   }
 
