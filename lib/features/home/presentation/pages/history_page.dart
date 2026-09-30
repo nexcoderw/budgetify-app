@@ -1,187 +1,238 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 
+import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_input.dart';
+import '../../application/transaction_service.dart';
+import '../../data/models/transaction_models.dart';
+import 'transaction_detail_page.dart';
 
-enum _TransactionFilter {
-  all,
-  sent,
-  received,
+enum _StatusFilter {
+  all(null, 'All'),
+  pending(TransactionStatus.pending, 'Pending'),
+  processing(TransactionStatus.processing, 'Processing'),
+  completed(TransactionStatus.completed, 'Completed'),
+  failed(TransactionStatus.failed, 'Failed');
+
+  const _StatusFilter(this.status, this.label);
+
+  final TransactionStatus? status;
+  final String label;
 }
 
-enum _TransactionDirection {
-  sent,
-  received,
+enum _MethodFilter {
+  all(null, 'All methods'),
+  momo(TransactionTransferType.momoToMomo, 'MTN MoMo'),
+  ekash(TransactionTransferType.momoToEkash, 'eKash'),
+  momoPay(TransactionTransferType.momoPay, 'MoMo Pay');
+
+  const _MethodFilter(this.transferType, this.label);
+
+  final TransactionTransferType? transferType;
+  final String label;
 }
-
-enum _TransactionStatus {
-  completed,
-  pending,
-}
-
-class _TransactionRecord {
-  const _TransactionRecord({
-    required this.id,
-    required this.name,
-    required this.phone,
-    required this.amount,
-    required this.direction,
-    required this.status,
-    required this.date,
-  });
-
-  final String id;
-  final String name;
-  final String phone;
-  final int amount;
-  final _TransactionDirection direction;
-  final _TransactionStatus status;
-  final DateTime date;
-}
-
-final _transactions = <_TransactionRecord>[
-  _TransactionRecord(
-    id: 'TXN-001',
-    name: 'Patrick Mugisha',
-    phone: '0788 214 560',
-    amount: 45000,
-    direction: _TransactionDirection.sent,
-    status: _TransactionStatus.completed,
-    date: DateTime(2026, 9, 28, 13, 42),
-  ),
-  _TransactionRecord(
-    id: 'TXN-002',
-    name: 'Alice Uwase',
-    phone: '0791 420 118',
-    amount: 120000,
-    direction: _TransactionDirection.received,
-    status: _TransactionStatus.completed,
-    date: DateTime(2026, 9, 28, 10, 18),
-  ),
-  _TransactionRecord(
-    id: 'TXN-003',
-    name: 'Eric Niyonzima',
-    phone: '0783 605 901',
-    amount: 18500,
-    direction: _TransactionDirection.sent,
-    status: _TransactionStatus.completed,
-    date: DateTime(2026, 9, 27, 18, 5),
-  ),
-  _TransactionRecord(
-    id: 'TXN-004',
-    name: 'Diane Mukamana',
-    phone: '0722 410 783',
-    amount: 75000,
-    direction: _TransactionDirection.received,
-    status: _TransactionStatus.completed,
-    date: DateTime(2026, 9, 27, 12, 34),
-  ),
-  _TransactionRecord(
-    id: 'TXN-005',
-    name: 'Kevin Habimana',
-    phone: '0788 934 210',
-    amount: 32500,
-    direction: _TransactionDirection.sent,
-    status: _TransactionStatus.pending,
-    date: DateTime(2026, 9, 26, 16, 21),
-  ),
-  _TransactionRecord(
-    id: 'TXN-006',
-    name: 'Sarah Uwera',
-    phone: '0790 117 354',
-    amount: 200000,
-    direction: _TransactionDirection.received,
-    status: _TransactionStatus.completed,
-    date: DateTime(2026, 9, 26, 9, 48),
-  ),
-  _TransactionRecord(
-    id: 'TXN-007',
-    name: 'Jean Claude',
-    phone: '0782 520 440',
-    amount: 25000,
-    direction: _TransactionDirection.sent,
-    status: _TransactionStatus.completed,
-    date: DateTime(2026, 9, 25, 14, 15),
-  ),
-  _TransactionRecord(
-    id: 'TXN-008',
-    name: 'Grace Ingabire',
-    phone: '0728 311 995',
-    amount: 60000,
-    direction: _TransactionDirection.received,
-    status: _TransactionStatus.completed,
-    date: DateTime(2026, 9, 25, 8, 30),
-  ),
-];
 
 class HistoryPage extends StatefulWidget {
-  const HistoryPage({super.key});
+  const HistoryPage({super.key, this.transactionService});
+
+  final TransactionService? transactionService;
 
   @override
   State<HistoryPage> createState() => _HistoryPageState();
 }
 
 class _HistoryPageState extends State<HistoryPage> {
-  _TransactionFilter _filter = _TransactionFilter.all;
+  static const _pageSize = 20;
 
-  List<_TransactionRecord> get _filteredTransactions {
-    return switch (_filter) {
-      _TransactionFilter.all => _transactions,
-      _TransactionFilter.sent => _transactions
-          .where(
-            (transaction) =>
-                transaction.direction == _TransactionDirection.sent,
-          )
-          .toList(growable: false),
-      _TransactionFilter.received => _transactions
-          .where(
-            (transaction) =>
-                transaction.direction == _TransactionDirection.received,
-          )
-          .toList(growable: false),
-    };
+  final _searchController = TextEditingController();
+
+  late final TransactionService _transactionService;
+
+  Timer? _searchDebounce;
+
+  List<PaymentTransaction> _transactions = const [];
+
+  TransactionPagination? _pagination;
+
+  _StatusFilter _statusFilter = _StatusFilter.all;
+
+  _MethodFilter _methodFilter = _MethodFilter.all;
+
+  bool _isInitialLoading = true;
+  bool _isLoadingMore = false;
+
+  String? _errorMessage;
+  String? _loadMoreError;
+
+  int _requestGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _transactionService =
+        widget.transactionService ?? TransactionService.createDefault();
+
+    _loadTransactions(reset: true);
   }
 
-  int get _totalSent {
-    return _transactions
-        .where(
-          (transaction) =>
-              transaction.direction == _TransactionDirection.sent,
-        )
-        .fold(
-          0,
-          (total, transaction) => total + transaction.amount,
-        );
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+
+    super.dispose();
   }
 
-  int get _totalReceived {
-    return _transactions
-        .where(
-          (transaction) =>
-              transaction.direction == _TransactionDirection.received,
-        )
-        .fold(
-          0,
-          (total, transaction) => total + transaction.amount,
-        );
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      _loadTransactions(reset: true);
+    });
   }
 
-  void _selectFilter(_TransactionFilter filter) {
-    if (_filter == filter) {
+  void _onSearchSubmitted(String value) {
+    _searchDebounce?.cancel();
+
+    _loadTransactions(reset: true);
+  }
+
+  void _selectStatus(_StatusFilter filter) {
+    if (_statusFilter == filter) {
       return;
     }
 
     setState(() {
-      _filter = filter;
+      _statusFilter = filter;
     });
+
+    _loadTransactions(reset: true);
+  }
+
+  void _selectMethod(_MethodFilter filter) {
+    if (_methodFilter == filter) {
+      return;
+    }
+
+    setState(() {
+      _methodFilter = filter;
+    });
+
+    _loadTransactions(reset: true);
+  }
+
+  Future<void> _loadTransactions({required bool reset}) async {
+    if (!reset) {
+      if (_isLoadingMore) {
+        return;
+      }
+
+      if (!(_pagination?.hasNextPage ?? false)) {
+        return;
+      }
+    }
+
+    final generation = reset ? ++_requestGeneration : _requestGeneration;
+
+    final page = reset ? 1 : (_pagination?.page ?? 0) + 1;
+
+    if (reset) {
+      setState(() {
+        _isInitialLoading = true;
+        _errorMessage = null;
+        _loadMoreError = null;
+        _transactions = const [];
+        _pagination = null;
+      });
+    } else {
+      setState(() {
+        _isLoadingMore = true;
+        _loadMoreError = null;
+      });
+    }
+
+    try {
+      final result = await _transactionService.list(
+        page: page,
+        limit: _pageSize,
+        status: _statusFilter.status,
+        transferType: _methodFilter.transferType,
+        search: _searchController.text.trim(),
+      );
+
+      if (!mounted || generation != _requestGeneration) {
+        return;
+      }
+
+      setState(() {
+        _transactions = reset
+            ? result.items
+            : <PaymentTransaction>[..._transactions, ...result.items];
+
+        _pagination = result.pagination;
+        _errorMessage = null;
+        _loadMoreError = null;
+      });
+    } on ApiException catch (error) {
+      if (!mounted || generation != _requestGeneration) {
+        return;
+      }
+
+      setState(() {
+        if (reset) {
+          _errorMessage = error.message;
+        } else {
+          _loadMoreError = error.message;
+        }
+      });
+    } catch (_) {
+      if (!mounted || generation != _requestGeneration) {
+        return;
+      }
+
+      setState(() {
+        if (reset) {
+          _errorMessage = 'Could not load your transactions. Please try again.';
+        } else {
+          _loadMoreError = 'Could not load more transactions.';
+        }
+      });
+    } finally {
+      if (mounted && generation == _requestGeneration) {
+        setState(() {
+          _isInitialLoading = false;
+          _isLoadingMore = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _openTransaction(PaymentTransaction transaction) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => TransactionDetailPage(
+          transactionId: transaction.id,
+          transactionService: _transactionService,
+        ),
+      ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    await _loadTransactions(reset: true);
   }
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
-    final isCompact = width < 700;
 
-    final transactions = _filteredTransactions;
+    final isCompact = width < 700;
 
     return Padding(
       padding: EdgeInsets.symmetric(
@@ -193,49 +244,106 @@ class _HistoryPageState extends State<HistoryPage> {
         children: [
           _HistoryHeader(
             compact: isCompact,
+            onRefresh: _isInitialLoading
+                ? null
+                : () {
+                    _loadTransactions(reset: true);
+                  },
           ),
-          SizedBox(
-            height: isCompact ? 24 : 30,
+          SizedBox(height: isCompact ? 22 : 28),
+          AppInput(
+            controller: _searchController,
+            hintText: 'Search recipient or reference',
+            borderRadius: 999,
+            textInputAction: TextInputAction.search,
+            onChanged: _onSearchChanged,
+            onSubmitted: _onSearchSubmitted,
           ),
-          _SummarySection(
-            totalSent: _totalSent,
-            totalReceived: _totalReceived,
-            compact: isCompact,
+          const SizedBox(height: 16),
+          _FilterScroller<_StatusFilter>(
+            values: _StatusFilter.values,
+            selected: _statusFilter,
+            labelBuilder: (filter) => filter.label,
+            onSelected: _selectStatus,
           ),
-          SizedBox(
-            height: isCompact ? 26 : 32,
+          const SizedBox(height: 10),
+          _FilterScroller<_MethodFilter>(
+            values: _MethodFilter.values,
+            selected: _methodFilter,
+            labelBuilder: (filter) => filter.label,
+            onSelected: _selectMethod,
           ),
-          _HistoryToolbar(
-            selectedFilter: _filter,
-            transactionCount: transactions.length,
-            onFilterSelected: _selectFilter,
-            compact: isCompact,
+          SizedBox(height: isCompact ? 22 : 28),
+          _buildContent(compact: isCompact),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent({required bool compact}) {
+    if (_isInitialLoading) {
+      return const _HistoryLoading();
+    }
+
+    final error = _errorMessage;
+
+    if (error != null && _transactions.isEmpty) {
+      return _HistoryError(
+        message: error,
+        onRetry: () {
+          _loadTransactions(reset: true);
+        },
+      );
+    }
+
+    if (_transactions.isEmpty) {
+      return const _EmptyHistory();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _HistoryCount(
+          loaded: _transactions.length,
+          total: _pagination?.total ?? _transactions.length,
+        ),
+        const SizedBox(height: 16),
+        _TransactionHistory(
+          transactions: _transactions,
+          compact: compact,
+          onTap: _openTransaction,
+        ),
+        if (_loadMoreError != null) ...[
+          const SizedBox(height: 14),
+          Text(
+            _loadMoreError!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 11, color: AppColors.danger),
           ),
-          SizedBox(
-            height: isCompact ? 18 : 22,
-          ),
-          AnimatedSwitcher(
-            duration: const Duration(
-              milliseconds: 180,
-            ),
-            child: _TransactionHistory(
-              key: ValueKey(_filter),
-              transactions: transactions,
-              compact: isCompact,
+        ],
+        if (_pagination?.hasNextPage ?? false) ...[
+          const SizedBox(height: 18),
+          Center(
+            child: _LoadMoreButton(
+              isLoading: _isLoadingMore,
+              onPressed: _isLoadingMore
+                  ? null
+                  : () {
+                      _loadTransactions(reset: false);
+                    },
             ),
           ),
         ],
-      ),
+      ],
     );
   }
 }
 
 class _HistoryHeader extends StatelessWidget {
-  const _HistoryHeader({
-    required this.compact,
-  });
+  const _HistoryHeader({required this.compact, required this.onRefresh});
 
   final bool compact;
+  final VoidCallback? onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -253,32 +361,23 @@ class _HistoryHeader extends StatelessWidget {
                   height: 1,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.5,
-                  color: AppColors.primary.withValues(
-                    alpha: 0.92,
-                  ),
+                  color: AppColors.primary.withValues(alpha: 0.92),
                 ),
               ),
-              const SizedBox(
-                height: 10,
-              ),
+              const SizedBox(height: 10),
               Text(
                 'Money history',
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineMedium
-                    ?.copyWith(
-                      fontSize: compact ? 26 : 32,
-                      height: 1.05,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.9,
-                      color: AppColors.textPrimary,
-                    ),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontSize: compact ? 26 : 32,
+                  height: 1.05,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.9,
+                  color: AppColors.textPrimary,
+                ),
               ),
-              const SizedBox(
-                height: 8,
-              ),
+              const SizedBox(height: 8),
               const Text(
-                'Keep track of money you have sent and received.',
+                'Track outgoing transfers recorded by Budgetify.',
                 style: TextStyle(
                   fontSize: 12,
                   height: 1.5,
@@ -288,246 +387,28 @@ class _HistoryHeader extends StatelessWidget {
             ],
           ),
         ),
-        Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
+        const SizedBox(width: 12),
+        Tooltip(
+          message: 'Refresh transactions',
+          child: Material(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(
-              16,
-            ),
-          ),
-          alignment: Alignment.center,
-          child: const HugeIcon(
-            icon: HugeIcons.strokeRoundedTransactionHistory,
-            size: 21,
-            strokeWidth: 1.8,
-            color: AppColors.textPrimary,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SummarySection extends StatelessWidget {
-  const _SummarySection({
-    required this.totalSent,
-    required this.totalReceived,
-    required this.compact,
-  });
-
-  final int totalSent;
-  final int totalReceived;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _SummaryCard(
-            label: 'Money sent',
-            amount: totalSent,
-            icon: HugeIcons.strokeRoundedMoneySendSquare,
-            accent: AppColors.danger,
-            compact: compact,
-          ),
-        ),
-        SizedBox(
-          width: compact ? 10 : 14,
-        ),
-        Expanded(
-          child: _SummaryCard(
-            label: 'Money received',
-            amount: totalReceived,
-            icon: HugeIcons.strokeRoundedMoneyReceiveCircle,
-            accent: AppColors.success,
-            compact: compact,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({
-    required this.label,
-    required this.amount,
-    required this.icon,
-    required this.accent,
-    required this.compact,
-  });
-
-  final String label;
-  final int amount;
-  final dynamic icon;
-  final Color accent;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(
-        compact ? 16 : 20,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(
-          compact ? 22 : 26,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: compact ? 36 : 40,
-                height: compact ? 36 : 40,
-                decoration: BoxDecoration(
-                  color: accent.withValues(
-                    alpha: 0.12,
-                  ),
-                  borderRadius: BorderRadius.circular(
-                    13,
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              onTap: onRefresh,
+              borderRadius: BorderRadius.circular(16),
+              child: const SizedBox(
+                width: 46,
+                height: 46,
+                child: Center(
+                  child: HugeIcon(
+                    icon: HugeIcons.strokeRoundedTransactionHistory,
+                    size: 21,
+                    strokeWidth: 1.8,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-                alignment: Alignment.center,
-                child: HugeIcon(
-                  icon: icon,
-                  size: 18,
-                  strokeWidth: 1.8,
-                  color: accent,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: accent,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(
-            height: compact ? 18 : 22,
-          ),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 11,
-              height: 1.2,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(
-            height: 6,
-          ),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              '${_formatAmount(amount)} RWF',
-              style: TextStyle(
-                fontSize: compact ? 18 : 21,
-                height: 1,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.6,
-                color: AppColors.textPrimary,
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HistoryToolbar extends StatelessWidget {
-  const _HistoryToolbar({
-    required this.selectedFilter,
-    required this.transactionCount,
-    required this.onFilterSelected,
-    required this.compact,
-  });
-
-  final _TransactionFilter selectedFilter;
-  final int transactionCount;
-  final ValueChanged<_TransactionFilter> onFilterSelected;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    if (compact) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _HistoryTitle(
-            transactionCount: transactionCount,
-          ),
-          const SizedBox(
-            height: 14,
-          ),
-          _TransactionFilters(
-            selectedFilter: selectedFilter,
-            onFilterSelected: onFilterSelected,
-          ),
-        ],
-      );
-    }
-
-    return Row(
-      children: [
-        Expanded(
-          child: _HistoryTitle(
-            transactionCount: transactionCount,
-          ),
-        ),
-        _TransactionFilters(
-          selectedFilter: selectedFilter,
-          onFilterSelected: onFilterSelected,
-        ),
-      ],
-    );
-  }
-}
-
-class _HistoryTitle extends StatelessWidget {
-  const _HistoryTitle({
-    required this.transactionCount,
-  });
-
-  final int transactionCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Recent activity',
-          style: TextStyle(
-            fontSize: 17,
-            height: 1.2,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(
-          height: 5,
-        ),
-        Text(
-          '$transactionCount ${transactionCount == 1 ? 'transaction' : 'transactions'}',
-          style: const TextStyle(
-            fontSize: 11,
-            color: AppColors.textSecondary,
           ),
         ),
       ],
@@ -535,65 +416,43 @@ class _HistoryTitle extends StatelessWidget {
   }
 }
 
-class _TransactionFilters extends StatelessWidget {
-  const _TransactionFilters({
-    required this.selectedFilter,
-    required this.onFilterSelected,
+class _FilterScroller<T> extends StatelessWidget {
+  const _FilterScroller({
+    required this.values,
+    required this.selected,
+    required this.labelBuilder,
+    required this.onSelected,
   });
 
-  final _TransactionFilter selectedFilter;
-  final ValueChanged<_TransactionFilter> onFilterSelected;
+  final List<T> values;
+  final T selected;
+  final String Function(T value) labelBuilder;
+  final ValueChanged<T> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(
-        4,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(
-          999,
-        ),
-      ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          _FilterItem(
-            label: 'All',
-            selected: selectedFilter == _TransactionFilter.all,
-            onTap: () {
-              onFilterSelected(
-                _TransactionFilter.all,
-              );
-            },
-          ),
-          _FilterItem(
-            label: 'Sent',
-            selected: selectedFilter == _TransactionFilter.sent,
-            onTap: () {
-              onFilterSelected(
-                _TransactionFilter.sent,
-              );
-            },
-          ),
-          _FilterItem(
-            label: 'Received',
-            selected: selectedFilter == _TransactionFilter.received,
-            onTap: () {
-              onFilterSelected(
-                _TransactionFilter.received,
-              );
-            },
-          ),
+          for (var index = 0; index < values.length; index++) ...[
+            if (index > 0) const SizedBox(width: 7),
+            _FilterPill(
+              label: labelBuilder(values[index]),
+              selected: values[index] == selected,
+              onTap: () {
+                onSelected(values[index]);
+              },
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _FilterItem extends StatelessWidget {
-  const _FilterItem({
+class _FilterPill extends StatelessWidget {
+  const _FilterPill({
     required this.label,
     required this.selected,
     required this.onTap,
@@ -608,39 +467,22 @@ class _FilterItem extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: '$label transactions',
       child: Material(
-        color: Colors.transparent,
+        color: selected
+            ? AppColors.primary.withValues(alpha: 0.13)
+            : AppColors.surface,
+        borderRadius: BorderRadius.circular(999),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(
-            999,
-          ),
-          child: AnimatedContainer(
-            duration: const Duration(
-              milliseconds: 160,
-            ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 10,
-            ),
-            decoration: BoxDecoration(
-              color: selected
-                  ? AppColors.primary
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(
-                999,
-              ),
-            ),
+          borderRadius: BorderRadius.circular(999),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
             child: Text(
               label,
               style: TextStyle(
                 fontSize: 11,
-                height: 1,
                 fontWeight: FontWeight.w700,
-                color: selected
-                    ? AppColors.background
-                    : AppColors.textSecondary,
+                color: selected ? AppColors.primary : AppColors.textSecondary,
               ),
             ),
           ),
@@ -650,39 +492,59 @@ class _FilterItem extends StatelessWidget {
   }
 }
 
-class _TransactionHistory extends StatelessWidget {
-  const _TransactionHistory({
-    super.key,
-    required this.transactions,
-    required this.compact,
-  });
+class _HistoryCount extends StatelessWidget {
+  const _HistoryCount({required this.loaded, required this.total});
 
-  final List<_TransactionRecord> transactions;
-  final bool compact;
+  final int loaded;
+  final int total;
 
   @override
   Widget build(BuildContext context) {
-    if (transactions.isEmpty) {
-      return const _EmptyHistory();
-    }
+    return Row(
+      children: [
+        const Text(
+          'Recent activity',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          '$loaded of $total',
+          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+        ),
+      ],
+    );
+  }
+}
 
-    final grouped = <DateTime, List<_TransactionRecord>>{};
+class _TransactionHistory extends StatelessWidget {
+  const _TransactionHistory({
+    required this.transactions,
+    required this.compact,
+    required this.onTap,
+  });
+
+  final List<PaymentTransaction> transactions;
+
+  final bool compact;
+
+  final ValueChanged<PaymentTransaction> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final grouped = <DateTime, List<PaymentTransaction>>{};
 
     for (final transaction in transactions) {
-      final date = DateTime(
-        transaction.date.year,
-        transaction.date.month,
-        transaction.date.day,
-      );
+      final local = transaction.createdAt.toLocal();
 
-      grouped.putIfAbsent(
-        date,
-        () => [],
-      );
+      final date = DateTime(local.year, local.month, local.day);
 
-      grouped[date]!.add(
-        transaction,
-      );
+      grouped.putIfAbsent(date, () => []);
+
+      grouped[date]!.add(transaction);
     }
 
     return Column(
@@ -692,11 +554,10 @@ class _TransactionHistory extends StatelessWidget {
             date: entry.key,
             transactions: entry.value,
             compact: compact,
+            onTap: onTap,
           ),
           if (entry.key != grouped.keys.last)
-            SizedBox(
-              height: compact ? 22 : 26,
-            ),
+            SizedBox(height: compact ? 22 : 26),
         ],
       ],
     );
@@ -708,11 +569,16 @@ class _DateGroup extends StatelessWidget {
     required this.date,
     required this.transactions,
     required this.compact,
+    required this.onTap,
   });
 
   final DateTime date;
-  final List<_TransactionRecord> transactions;
+
+  final List<PaymentTransaction> transactions;
+
   final bool compact;
+
+  final ValueChanged<PaymentTransaction> onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -723,43 +589,33 @@ class _DateGroup extends StatelessWidget {
           _formatDate(date),
           style: const TextStyle(
             fontSize: 10,
-            height: 1,
             fontWeight: FontWeight.w800,
             letterSpacing: 1,
             color: AppColors.textSecondary,
           ),
         ),
-        const SizedBox(
-          height: 10,
-        ),
+        const SizedBox(height: 10),
         Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(
-              compact ? 22 : 26,
-            ),
+            borderRadius: BorderRadius.circular(compact ? 22 : 26),
           ),
           child: Column(
             children: [
-              for (
-                var index = 0;
-                index < transactions.length;
-                index++
-              ) ...[
+              for (var index = 0; index < transactions.length; index++) ...[
                 _TransactionTile(
                   transaction: transactions[index],
                   compact: compact,
+                  onTap: () {
+                    onTap(transactions[index]);
+                  },
                 ),
                 if (index < transactions.length - 1)
                   Padding(
-                    padding: EdgeInsets.only(
-                      left: compact ? 66 : 74,
-                    ),
+                    padding: EdgeInsets.only(left: compact ? 66 : 74),
                     child: Container(
                       height: 1,
-                      color: Colors.white.withValues(
-                        alpha: 0.045,
-                      ),
+                      color: Colors.white.withValues(alpha: 0.045),
                     ),
                   ),
               ],
@@ -775,178 +631,219 @@ class _TransactionTile extends StatelessWidget {
   const _TransactionTile({
     required this.transaction,
     required this.compact,
+    required this.onTap,
   });
 
-  final _TransactionRecord transaction;
+  final PaymentTransaction transaction;
   final bool compact;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final isReceived =
-        transaction.direction == _TransactionDirection.received;
+    final accent = _statusColor(transaction.status);
 
-    final accent =
-        isReceived ? AppColors.success : AppColors.danger;
+    final date = transaction.createdAt.toLocal();
 
-    final icon = isReceived
-        ? HugeIcons.strokeRoundedMoneyReceiveCircle
-        : HugeIcons.strokeRoundedMoneySendSquare;
-
-    final direction =
-        isReceived ? 'Received from' : 'Sent to';
-
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? 14 : 18,
-        vertical: compact ? 14 : 16,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: compact ? 42 : 46,
-            height: compact ? 42 : 46,
-            decoration: BoxDecoration(
-              color: accent.withValues(
-                alpha: 0.11,
-              ),
-              borderRadius: BorderRadius.circular(
-                15,
-              ),
-            ),
-            alignment: Alignment.center,
-            child: HugeIcon(
-              icon: icon,
-              size: 19,
-              strokeWidth: 1.8,
-              color: accent,
-            ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 14 : 18,
+            vertical: compact ? 14 : 16,
           ),
-          SizedBox(
-            width: compact ? 12 : 14,
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  transaction.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    height: 1.2,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(
-                  height: 5,
-                ),
-                Text(
-                  '$direction ${transaction.phone}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    height: 1.3,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(
-                  height: 5,
-                ),
-                Text(
-                  _formatTime(transaction.date),
-                  style: TextStyle(
-                    fontSize: 9,
-                    height: 1,
-                    color: AppColors.textSecondary.withValues(
-                      alpha: 0.72,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(
-            width: 12,
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          child: Row(
             children: [
-              Text(
-                '${isReceived ? '+' : '-'}${_formatAmount(transaction.amount)}',
-                style: TextStyle(
-                  fontSize: compact ? 13 : 14,
-                  height: 1.1,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.25,
+              Container(
+                width: compact ? 42 : 46,
+                height: compact ? 42 : 46,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.11),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                alignment: Alignment.center,
+                child: HugeIcon(
+                  icon: HugeIcons.strokeRoundedMoneySendSquare,
+                  size: 19,
+                  strokeWidth: 1.8,
                   color: accent,
                 ),
               ),
-              const SizedBox(
-                height: 3,
-              ),
-              const Text(
-                'RWF',
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
+              SizedBox(width: compact ? 12 : 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      transaction.recipientDisplayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      '${transaction.transferType.label} • ${transaction.receiverIdentifier}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      _formatTime(date),
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: AppColors.textSecondary.withValues(alpha: 0.72),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(
-                height: 7,
-              ),
-              _StatusBadge(
-                status: transaction.status,
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '-${_formatAmount(transaction.amount)}',
+                    style: TextStyle(
+                      fontSize: compact ? 13 : 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  const Text(
+                    'RWF',
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  _StatusBadge(status: transaction.status),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.status,
-  });
+  const _StatusBadge({required this.status});
 
-  final _TransactionStatus status;
+  final TransactionStatus status;
 
   @override
   Widget build(BuildContext context) {
-    final isCompleted =
-        status == _TransactionStatus.completed;
-
-    final color = isCompleted
-        ? AppColors.success
-        : AppColors.primary;
+    final color = _statusColor(status);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 5,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(
-          alpha: 0.10,
-        ),
-        borderRadius: BorderRadius.circular(
-          999,
-        ),
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        isCompleted ? 'Completed' : 'Pending',
+        status.label,
         style: TextStyle(
           fontSize: 8,
-          height: 1,
           fontWeight: FontWeight.w700,
           color: color,
         ),
+      ),
+    );
+  }
+}
+
+class _HistoryLoading extends StatelessWidget {
+  const _HistoryLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 70),
+      child: Center(
+        child: Column(
+          children: [
+            CircularProgressIndicator(
+              strokeWidth: 2.2,
+              color: AppColors.primary,
+            ),
+            SizedBox(height: 14),
+            Text(
+              'Loading transactions...',
+              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryError extends StatelessWidget {
+  const _HistoryError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        children: [
+          const HugeIcon(
+            icon: HugeIcons.strokeRoundedTransactionHistory,
+            size: 28,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Could not load history',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              height: 1.5,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text(
+              'Try again',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -959,15 +856,10 @@ class _EmptyHistory extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 24,
-        vertical: 46,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 46),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(
-          26,
-        ),
+        borderRadius: BorderRadius.circular(26),
       ),
       child: const Column(
         children: [
@@ -977,9 +869,7 @@ class _EmptyHistory extends StatelessWidget {
             strokeWidth: 1.7,
             color: AppColors.textSecondary,
           ),
-          SizedBox(
-            height: 16,
-          ),
+          SizedBox(height: 16),
           Text(
             'No transactions found',
             style: TextStyle(
@@ -988,11 +878,9 @@ class _EmptyHistory extends StatelessWidget {
               color: AppColors.textPrimary,
             ),
           ),
-          SizedBox(
-            height: 6,
-          ),
+          SizedBox(height: 6),
           Text(
-            'Try another transaction filter.',
+            'Your transactions will appear here once you start sending money.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 11,
@@ -1006,6 +894,46 @@ class _EmptyHistory extends StatelessWidget {
   }
 }
 
+class _LoadMoreButton extends StatelessWidget {
+  const _LoadMoreButton({required this.isLoading, required this.onPressed});
+
+  final bool isLoading;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: AppColors.primary,
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+      ),
+      child: isLoading
+          ? const SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            )
+          : const Text(
+              'Load more',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+    );
+  }
+}
+
+Color _statusColor(TransactionStatus status) {
+  return switch (status) {
+    TransactionStatus.completed => AppColors.success,
+    TransactionStatus.failed || TransactionStatus.cancelled => AppColors.danger,
+    TransactionStatus.processing => AppColors.primary,
+    TransactionStatus.pending => AppColors.textSecondary,
+    TransactionStatus.reversed => AppColors.primaryMuted,
+  };
+}
+
 String _formatAmount(int amount) {
   final value = amount.toString();
   final buffer = StringBuffer();
@@ -1013,9 +941,7 @@ String _formatAmount(int amount) {
   for (var index = 0; index < value.length; index++) {
     final remaining = value.length - index;
 
-    buffer.write(
-      value[index],
-    );
+    buffer.write(value[index]);
 
     if (remaining > 1 && remaining % 3 == 1) {
       buffer.write(',');
@@ -1048,16 +974,12 @@ String _formatTime(DateTime date) {
   final hour = date.hour == 0
       ? 12
       : date.hour > 12
-          ? date.hour - 12
-          : date.hour;
+      ? date.hour - 12
+      : date.hour;
 
-  final minute = date.minute.toString().padLeft(
-        2,
-        '0',
-      );
+  final minute = date.minute.toString().padLeft(2, '0');
 
-  final period =
-      date.hour >= 12 ? 'PM' : 'AM';
+  final period = date.hour >= 12 ? 'PM' : 'AM';
 
   return '$hour:$minute $period';
 }
