@@ -3,6 +3,7 @@ import '../data/models/transaction_models.dart';
 import '../data/services/device_sms_service.dart';
 import 'mtn_transaction_sms_parser.dart';
 import 'transaction_service.dart';
+import 'transaction_sms_matcher.dart';
 
 class SmsReconciliationSummary {
   const SmsReconciliationSummary({
@@ -10,20 +11,60 @@ class SmsReconciliationSummary {
     required this.parsedMessages,
     required this.matchedTransactions,
     required this.failedUpdates,
+    required this.ambiguousMessages,
+    required this.duplicateMessages,
+    required this.unmatchedMessages,
   });
 
   const SmsReconciliationSummary.empty()
     : scannedMessages = 0,
       parsedMessages = 0,
       matchedTransactions = 0,
-      failedUpdates = 0;
+      failedUpdates = 0,
+      ambiguousMessages = 0,
+      duplicateMessages = 0,
+      unmatchedMessages = 0;
 
   final int scannedMessages;
   final int parsedMessages;
   final int matchedTransactions;
   final int failedUpdates;
+  final int ambiguousMessages;
+  final int duplicateMessages;
+  final int unmatchedMessages;
 
   bool get hasChanges => matchedTransactions > 0;
+
+  bool get hasAttentionNeeded => ambiguousMessages > 0 || failedUpdates > 0;
+}
+
+enum TransactionReconciliationOutcome {
+  updated,
+  alreadyResolved,
+  noMatch,
+  ambiguous,
+  permissionDenied,
+  unsupported,
+}
+
+class TransactionReconciliationResult {
+  const TransactionReconciliationResult({
+    required this.outcome,
+    required this.transaction,
+    required this.checkedAt,
+    required this.scannedMessages,
+    required this.parsedMessages,
+    required this.duplicateMessages,
+  });
+
+  final TransactionReconciliationOutcome outcome;
+  final PaymentTransaction transaction;
+  final DateTime checkedAt;
+  final int scannedMessages;
+  final int parsedMessages;
+  final int duplicateMessages;
+
+  bool get statusChanged => outcome == TransactionReconciliationOutcome.updated;
 }
 
 class TransactionSmsReconciliationService {
@@ -31,9 +72,11 @@ class TransactionSmsReconciliationService {
     required DeviceSmsService deviceSmsService,
     required TransactionService transactionService,
     required MtnTransactionSmsParser parser,
+    TransactionSmsMatcher matcher = const TransactionSmsMatcher(),
   }) : _deviceSmsService = deviceSmsService,
        _transactionService = transactionService,
-       _parser = parser;
+       _parser = parser,
+       _matcher = matcher;
 
   factory TransactionSmsReconciliationService.createDefault({
     TransactionService? transactionService,
@@ -48,9 +91,7 @@ class TransactionSmsReconciliationService {
 
   static const _maximumOpenPages = 5;
 
-  static const _candidateWindow = Duration(hours: 2);
-
-  static const _earlyTolerance = Duration(minutes: 5);
+  static const _scanLead = Duration(minutes: 2);
 
   static const _maximumSmsHistory = Duration(days: 7);
 
@@ -59,6 +100,8 @@ class TransactionSmsReconciliationService {
   final TransactionService _transactionService;
 
   final MtnTransactionSmsParser _parser;
+
+  final TransactionSmsMatcher _matcher;
 
   bool get isSupported => _deviceSmsService.isSupported;
 
@@ -97,77 +140,208 @@ class TransactionSmsReconciliationService {
       return const SmsReconciliationSummary.empty();
     }
 
-    final now = DateTime.now();
-
-    final oldestAllowed = now.subtract(_maximumSmsHistory);
-
-    var earliest = openTransactions.first.createdAt;
-
-    for (final transaction in openTransactions.skip(1)) {
-      if (transaction.createdAt.isBefore(earliest)) {
-        earliest = transaction.createdAt;
-      }
-    }
-
-    var since = earliest.subtract(_earlyTolerance);
-
-    if (since.isBefore(oldestAllowed)) {
-      since = oldestAllowed;
-    }
-
     final messages = await _deviceSmsService.readRecentMomoMessages(
-      since: since,
+      since: _scanStart(openTransactions),
       limit: 100,
     );
 
-    final parsedResults =
-        messages
-            .map(_parser.parse)
-            .whereType<ParsedProviderSmsResult>()
-            .toList(growable: false)
-          ..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
+    final parsedResults = _parseMessages(messages);
 
-    final remainingTransactions = <PaymentTransaction>[...openTransactions];
+    final deduplicated = deduplicateParsedProviderSmsResults(parsedResults);
 
-    var matched = 0;
-    var failed = 0;
+    final evidenceByTransaction = <String, List<ParsedProviderSmsResult>>{};
 
-    for (final result in parsedResults) {
-      final transaction = _findMatchingTransaction(
-        result,
-        remainingTransactions,
-      );
+    var ambiguousMessages = 0;
+    var unmatchedMessages = 0;
+    var failedUpdates = 0;
+    var matchedTransactions = 0;
 
-      if (transaction == null) {
+    for (final conflicting in deduplicated.conflictingResults) {
+      final match = _matcher.match(conflicting, openTransactions);
+
+      if (match.kind == TransactionSmsMatchKind.none) {
+        unmatchedMessages++;
+      } else {
+        ambiguousMessages++;
+      }
+    }
+
+    for (final result in deduplicated.results) {
+      final match = _matcher.match(result, openTransactions);
+
+      switch (match.kind) {
+        case TransactionSmsMatchKind.none:
+          unmatchedMessages++;
+
+        case TransactionSmsMatchKind.ambiguous:
+          ambiguousMessages++;
+
+        case TransactionSmsMatchKind.matched:
+          final transaction = match.transaction!;
+
+          evidenceByTransaction.putIfAbsent(transaction.id, () => []);
+
+          evidenceByTransaction[transaction.id]!.add(result);
+      }
+    }
+
+    for (final entry in evidenceByTransaction.entries) {
+      final evidence = entry.value;
+
+      // Multiple different messages matching
+      // the same transaction are not safe to
+      // auto-reconcile.
+      if (evidence.length != 1) {
+        ambiguousMessages += evidence.length;
+
         continue;
       }
 
+      final transaction = openTransactions.firstWhere(
+        (item) => item.id == entry.key,
+      );
+
       try {
-        await _transactionService.recordProviderSmsResult(
-          transactionId: transaction.id,
-          clientEventId: _clientEventId(result, transaction),
-          amount: result.amount,
-          status: result.status,
-          occurredAt: result.occurredAt,
-          providerReference: result.providerReference,
-          receiverName: result.receiverName,
-          failureCode: result.failureCode,
-          failureReason: result.failureReason,
-        );
+        await _submitProviderResult(transaction, evidence.single);
 
-        remainingTransactions.removeWhere((item) => item.id == transaction.id);
-
-        matched++;
+        matchedTransactions++;
       } catch (_) {
-        failed++;
+        failedUpdates++;
       }
     }
 
     return SmsReconciliationSummary(
       scannedMessages: messages.length,
       parsedMessages: parsedResults.length,
-      matchedTransactions: matched,
-      failedUpdates: failed,
+      matchedTransactions: matchedTransactions,
+      failedUpdates: failedUpdates,
+      ambiguousMessages: ambiguousMessages,
+      duplicateMessages: deduplicated.duplicateMessages,
+      unmatchedMessages: unmatchedMessages,
+    );
+  }
+
+  Future<TransactionReconciliationResult> reconcileTransaction(
+    PaymentTransaction transaction,
+  ) async {
+    final checkedAt = DateTime.now();
+
+    if (!isTransactionOpen(transaction)) {
+      return TransactionReconciliationResult(
+        outcome: TransactionReconciliationOutcome.alreadyResolved,
+        transaction: transaction,
+        checkedAt: checkedAt,
+        scannedMessages: 0,
+        parsedMessages: 0,
+        duplicateMessages: 0,
+      );
+    }
+
+    if (!_deviceSmsService.isSupported) {
+      return TransactionReconciliationResult(
+        outcome: TransactionReconciliationOutcome.unsupported,
+        transaction: transaction,
+        checkedAt: checkedAt,
+        scannedMessages: 0,
+        parsedMessages: 0,
+        duplicateMessages: 0,
+      );
+    }
+
+    final permission = await checkPermission();
+
+    if (permission != DeviceSmsPermission.granted) {
+      return TransactionReconciliationResult(
+        outcome: TransactionReconciliationOutcome.permissionDenied,
+        transaction: transaction,
+        checkedAt: checkedAt,
+        scannedMessages: 0,
+        parsedMessages: 0,
+        duplicateMessages: 0,
+      );
+    }
+
+    final messages = await _deviceSmsService.readRecentMomoMessages(
+      since: _scanStart(<PaymentTransaction>[transaction]),
+      limit: 100,
+    );
+
+    final parsed = _parseMessages(messages);
+
+    final deduplicated = deduplicateParsedProviderSmsResults(parsed);
+
+    var hasConflictingMatch = false;
+
+    for (final conflicting in deduplicated.conflictingResults) {
+      final match = _matcher.match(conflicting, <PaymentTransaction>[
+        transaction,
+      ]);
+
+      if (match.kind != TransactionSmsMatchKind.none) {
+        hasConflictingMatch = true;
+        break;
+      }
+    }
+
+    if (hasConflictingMatch) {
+      return TransactionReconciliationResult(
+        outcome: TransactionReconciliationOutcome.ambiguous,
+        transaction: transaction,
+        checkedAt: checkedAt,
+        scannedMessages: messages.length,
+        parsedMessages: parsed.length,
+        duplicateMessages: deduplicated.duplicateMessages,
+      );
+    }
+
+    final candidates = <ParsedProviderSmsResult>[];
+
+    var ambiguous = false;
+
+    for (final result in deduplicated.results) {
+      final match = _matcher.match(result, <PaymentTransaction>[transaction]);
+
+      if (match.kind == TransactionSmsMatchKind.ambiguous) {
+        ambiguous = true;
+        continue;
+      }
+
+      if (match.kind == TransactionSmsMatchKind.matched) {
+        candidates.add(result);
+      }
+    }
+
+    if (ambiguous || candidates.length > 1) {
+      return TransactionReconciliationResult(
+        outcome: TransactionReconciliationOutcome.ambiguous,
+        transaction: transaction,
+        checkedAt: checkedAt,
+        scannedMessages: messages.length,
+        parsedMessages: parsed.length,
+        duplicateMessages: deduplicated.duplicateMessages,
+      );
+    }
+
+    if (candidates.isEmpty) {
+      return TransactionReconciliationResult(
+        outcome: TransactionReconciliationOutcome.noMatch,
+        transaction: transaction,
+        checkedAt: checkedAt,
+        scannedMessages: messages.length,
+        parsedMessages: parsed.length,
+        duplicateMessages: deduplicated.duplicateMessages,
+      );
+    }
+
+    final updated = await _submitProviderResult(transaction, candidates.single);
+
+    return TransactionReconciliationResult(
+      outcome: TransactionReconciliationOutcome.updated,
+      transaction: updated,
+      checkedAt: checkedAt,
+      scannedMessages: messages.length,
+      parsedMessages: parsed.length,
+      duplicateMessages: deduplicated.duplicateMessages,
     );
   }
 
@@ -203,100 +377,77 @@ class TransactionSmsReconciliationService {
     return transactions;
   }
 
-  PaymentTransaction? _findMatchingTransaction(
-    ParsedProviderSmsResult result,
-    List<PaymentTransaction> transactions,
+  List<ParsedProviderSmsResult> _parseMessages(
+    List<ProviderSmsMessage> messages,
   ) {
-    var candidates = transactions
-        .where((transaction) {
-          if (transaction.amount != result.amount) {
-            return false;
-          }
+    final parsed =
+        messages
+            .map(_parser.parse)
+            .whereType<ParsedProviderSmsResult>()
+            .toList(growable: false)
+          ..sort((left, right) => left.occurredAt.compareTo(right.occurredAt));
 
-          final earliest = transaction.createdAt.subtract(_earlyTolerance);
+    return parsed;
+  }
 
-          final latest = transaction.createdAt.add(_candidateWindow);
+  DateTime _scanStart(List<PaymentTransaction> transactions) {
+    final now = DateTime.now();
 
-          return !result.occurredAt.isBefore(earliest) &&
-              !result.occurredAt.isAfter(latest);
-        })
-        .toList(growable: false);
+    final oldestAllowed = now.subtract(_maximumSmsHistory);
 
-    final resultRecipient = result.receiverIdentifier;
+    var earliest = _reconciliationAnchor(transactions.first);
 
-    if (resultRecipient != null) {
-      final recipientMatches = candidates
-          .where(
-            (transaction) => _recipientMatches(transaction, resultRecipient),
-          )
-          .toList(growable: false);
+    for (final transaction in transactions.skip(1)) {
+      final anchor = _reconciliationAnchor(transaction);
 
-      if (recipientMatches.length == 1) {
-        return recipientMatches.single;
-      }
-
-      if (recipientMatches.isNotEmpty) {
-        candidates = recipientMatches;
+      if (anchor.isBefore(earliest)) {
+        earliest = anchor;
       }
     }
 
-    // Never guess when multiple transactions
-    // could correspond to one SMS.
-    if (candidates.length != 1) {
-      return null;
+    var since = earliest.subtract(_scanLead);
+
+    if (since.isBefore(oldestAllowed)) {
+      since = oldestAllowed;
     }
 
-    return candidates.single;
+    return since;
   }
 
-  bool _recipientMatches(PaymentTransaction transaction, String smsRecipient) {
-    final stored = transaction.receiverIdentifier.replaceAll(RegExp(r'\D'), '');
-
-    final received = smsRecipient.replaceAll(RegExp(r'\D'), '');
-
-    if (stored.isEmpty || received.isEmpty) {
-      return false;
-    }
-
-    if (transaction.recipientType != TransactionRecipientType.phone) {
-      // Bank accounts and merchant codes
-      // must match exactly.
-      return stored == received;
-    }
-
-    if (stored == received) {
-      return true;
-    }
-
-    final normalizedStored = _normalizeRwandaPhone(stored);
-
-    final normalizedReceived = _normalizeRwandaPhone(received);
-
-    return normalizedStored != null && normalizedStored == normalizedReceived;
+  DateTime _reconciliationAnchor(PaymentTransaction transaction) {
+    return transaction.processedAt ?? transaction.createdAt;
   }
 
-  String? _normalizeRwandaPhone(String value) {
-    final digits = value.replaceAll(RegExp(r'\D'), '');
-
-    if (RegExp(r'^2507\d{8}$').hasMatch(digits)) {
-      return digits.substring(3);
-    }
-
-    if (RegExp(r'^07\d{8}$').hasMatch(digits)) {
-      return digits.substring(1);
-    }
-
-    if (RegExp(r'^7\d{8}$').hasMatch(digits)) {
-      return digits;
-    }
-
-    return null;
+  Future<PaymentTransaction> _submitProviderResult(
+    PaymentTransaction transaction,
+    ParsedProviderSmsResult result,
+  ) {
+    return _transactionService.recordProviderSmsResult(
+      transactionId: transaction.id,
+      clientEventId: _clientEventId(result, transaction),
+      amount: result.amount,
+      status: result.status,
+      occurredAt: result.occurredAt,
+      providerReference: result.providerReference,
+      receiverName: result.receiverName,
+      failureCode: result.failureCode,
+      failureReason: result.failureReason,
+    );
   }
 
   String _clientEventId(
     ParsedProviderSmsResult result,
     PaymentTransaction transaction,
   ) {
-    return 'sms-result-${result.messageId}-${transaction.id}';
+    final normalizedMessageId = result.messageId.replaceAll(
+      RegExp(r'[^A-Za-z0-9._:-]'),
+      '_',
+    );
+
+    final safeMessageId = normalizedMessageId.length > 36
+        ? normalizedMessageId.substring(0, 36)
+        : normalizedMessageId;
+
+    return 'sms-result-$safeMessageId-${transaction.id}';
   }
 }
