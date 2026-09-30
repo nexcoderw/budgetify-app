@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:budgetify/app/app.dart';
+import 'package:budgetify/core/widgets/app_button.dart';
 import 'package:budgetify/core/widgets/app_input.dart';
 import 'package:budgetify/features/auth/application/auth_service_contract.dart';
 import 'package:budgetify/features/auth/data/models/auth_session.dart';
@@ -181,13 +182,36 @@ Future<void> _pumpAppPastOnboarding(
     ),
   );
 
-  // Allow the onboarding completion state to resolve
-  // and the LoginPage to enter the widget tree.
+  // Resolve the onboarding preference lookup.
   await tester.pump();
 
-  // LoginPage performs its startup/session check after
-  // a short delay.
+  // Allow the LoginPage startup/session lookup to run.
   await tester.pump(const Duration(milliseconds: 1000));
+}
+
+Future<void> _tapOnboardingContinue(WidgetTester tester) async {
+  final button = find.widgetWithText(AppButton, 'Continue');
+
+  expect(button, findsOneWidget);
+
+  await tester.ensureVisible(button);
+
+  await tester.tap(button);
+
+  // Start PageController.animateToPage().
+  await tester.pump();
+
+  // Complete the 440 ms page animation.
+  await tester.pump(const Duration(milliseconds: 500));
+}
+
+Future<void> _finishOnboardingTransition(WidgetTester tester) async {
+  // Flush the Future returned by the fake preference storage
+  // and allow AnimatedSwitcher to start.
+  await tester.pump();
+
+  // AnimatedSwitcher lasts 380 ms.
+  await tester.pump(const Duration(milliseconds: 420));
 }
 
 void main() {
@@ -239,23 +263,19 @@ void main() {
         findsOneWidget,
       );
 
-      await tester.tap(find.text('Continue'));
-
-      await tester.pump(const Duration(milliseconds: 500));
+      await _tapOnboardingContinue(tester);
 
       expect(find.text('Send money with confidence.'), findsOneWidget);
 
       expect(find.text('SMARTER PAYMENTS'), findsOneWidget);
 
-      await tester.tap(find.text('Continue'));
-
-      await tester.pump(const Duration(milliseconds: 500));
+      await _tapOnboardingContinue(tester);
 
       expect(find.text('Make every franc more intentional.'), findsOneWidget);
 
       expect(find.text('MORE CONTROL'), findsOneWidget);
 
-      expect(find.text('Get started'), findsOneWidget);
+      expect(find.widgetWithText(AppButton, 'Get started'), findsOneWidget);
     });
 
     testWidgets('completes onboarding from Get started', (
@@ -274,19 +294,23 @@ void main() {
 
       await tester.pump();
 
-      await tester.tap(find.text('Continue'));
+      await _tapOnboardingContinue(tester);
 
-      await tester.pump(const Duration(milliseconds: 500));
+      await _tapOnboardingContinue(tester);
 
-      await tester.tap(find.text('Continue'));
+      final getStartedButton = find.widgetWithText(AppButton, 'Get started');
 
-      await tester.pump(const Duration(milliseconds: 500));
+      expect(getStartedButton, findsOneWidget);
 
-      await tester.tap(find.text('Get started'));
+      await tester.ensureVisible(getStartedButton);
 
-      await tester.pump(const Duration(milliseconds: 450));
+      await tester.tap(getStartedButton);
+
+      await _finishOnboardingTransition(tester);
 
       expect(onboardingPreferences.markCompletedCallCount, 1);
+
+      expect(find.text('Skip'), findsNothing);
 
       expect(
         find.text('Your money, finally in one clear place.'),
@@ -310,15 +334,22 @@ void main() {
 
       await tester.pump();
 
-      expect(find.text('Skip'), findsOneWidget);
+      final skipButton = find.text('Skip');
 
-      await tester.tap(find.text('Skip'));
+      expect(skipButton, findsOneWidget);
 
-      await tester.pump(const Duration(milliseconds: 450));
+      await tester.tap(skipButton);
+
+      await _finishOnboardingTransition(tester);
 
       expect(onboardingPreferences.markCompletedCallCount, 1);
 
       expect(find.text('Skip'), findsNothing);
+
+      expect(
+        find.text('Your money, finally in one clear place.'),
+        findsNothing,
+      );
     });
   });
 
