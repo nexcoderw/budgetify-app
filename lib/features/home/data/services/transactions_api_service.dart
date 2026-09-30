@@ -114,4 +114,44 @@ class TransactionsApiService {
 
     return PaymentTransaction.fromJson(json);
   }
+
+  Future<PaymentTransaction> recordProviderSmsResult({
+    required String accessToken,
+    required String transactionId,
+    required String clientEventId,
+    required int amount,
+    required TransactionStatus status,
+    required DateTime occurredAt,
+    String? providerReference,
+    String? receiverName,
+    String? failureCode,
+    String? failureReason,
+  }) async {
+    if (status != TransactionStatus.completed &&
+        status != TransactionStatus.failed &&
+        status != TransactionStatus.cancelled) {
+      throw ArgumentError.value(
+        status,
+        'status',
+        'Provider SMS result must be completed, failed, or cancelled.',
+      );
+    }
+
+    final json = await _apiClient.postJson(
+      _routes.providerSmsResult(transactionId),
+      headers: _authorizedHeaders(accessToken),
+      body: <String, dynamic>{
+        'clientEventId': clientEventId,
+        'amount': amount,
+        'status': status.apiValue,
+        'occurredAt': occurredAt.toUtc().toIso8601String(),
+        if (providerReference != null) 'providerReference': providerReference,
+        if (receiverName != null) 'receiverName': receiverName,
+        if (failureCode != null) 'failureCode': failureCode,
+        if (failureReason != null) 'failureReason': failureReason,
+      },
+    );
+
+    return PaymentTransaction.fromJson(json);
+  }
 }
