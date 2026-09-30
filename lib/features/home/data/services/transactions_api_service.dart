@@ -2,6 +2,7 @@ import '../../../../core/network/api_client.dart';
 import '../models/transaction_analytics_models.dart';
 import '../models/transaction_models.dart';
 import '../routes/transactions_api_routes.dart';
+import '../models/transaction_history_models.dart';
 
 class TransactionsApiService {
   TransactionsApiService({
@@ -204,5 +205,34 @@ class TransactionsApiService {
     );
 
     return PaymentTransaction.fromJson(json);
+  }
+
+  Future<TransactionHistoryListResult> history({
+    required String accessToken,
+    int page = 1,
+    int limit = 20,
+    TransactionHistoryDirection? direction,
+    TransactionStatus? status,
+    TransactionTransferType? transferType,
+    String? search,
+  }) async {
+    final normalizedSearch = search?.trim();
+
+    final json = await _apiClient.getJson(
+      _routes.history,
+      headers: _authorizedHeaders(accessToken),
+      queryParameters: <String, dynamic>{
+        'page': page,
+        'limit': limit,
+        'direction': direction?.apiValue,
+        'status': status?.apiValue,
+        'transferType': transferType?.apiValue,
+        'search': normalizedSearch == null || normalizedSearch.isEmpty
+            ? null
+            : normalizedSearch,
+      },
+    );
+
+    return TransactionHistoryListResult.fromJson(json);
   }
 }
