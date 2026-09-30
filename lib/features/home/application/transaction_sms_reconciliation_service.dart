@@ -227,10 +227,7 @@ class TransactionSmsReconciliationService {
     if (resultRecipient != null) {
       final recipientMatches = candidates
           .where(
-            (transaction) => _recipientMatches(
-              transaction.receiverIdentifier,
-              resultRecipient,
-            ),
+            (transaction) => _recipientMatches(transaction, resultRecipient),
           )
           .toList(growable: false);
 
@@ -252,21 +249,48 @@ class TransactionSmsReconciliationService {
     return candidates.single;
   }
 
-  bool _recipientMatches(String transactionRecipient, String smsRecipient) {
-    final left = transactionRecipient.replaceAll(RegExp(r'\D'), '');
+  bool _recipientMatches(PaymentTransaction transaction, String smsRecipient) {
+    final stored = transaction.receiverIdentifier.replaceAll(RegExp(r'\D'), '');
 
-    final right = smsRecipient.replaceAll(RegExp(r'\D'), '');
+    final received = smsRecipient.replaceAll(RegExp(r'\D'), '');
 
-    if (left == right) {
+    if (stored.isEmpty || received.isEmpty) {
+      return false;
+    }
+
+    if (transaction.recipientType != TransactionRecipientType.phone) {
+      // Bank accounts and merchant codes
+      // must match exactly.
+      return stored == received;
+    }
+
+    if (stored == received) {
       return true;
     }
 
-    if (left.length >= 9 && right.length >= 9) {
-      return left.substring(left.length - 9) ==
-          right.substring(right.length - 9);
+    final normalizedStored = _normalizeRwandaPhone(stored);
+
+    final normalizedReceived = _normalizeRwandaPhone(received);
+
+    return normalizedStored != null && normalizedStored == normalizedReceived;
+  }
+
+  String? _normalizeRwandaPhone(String value) {
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+
+    if (RegExp(r'^2507\d{8}$').hasMatch(digits)) {
+      return digits.substring(3);
     }
 
-    return false;
+    if (RegExp(r'^07\d{8}$').hasMatch(digits)) {
+      return digits.substring(1);
+    }
+
+    if (RegExp(r'^7\d{8}$').hasMatch(digits)) {
+      return digits;
+    }
+
+    return null;
   }
 
   String _clientEventId(
