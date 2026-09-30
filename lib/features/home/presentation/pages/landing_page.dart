@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../auth/application/auth_service_contract.dart';
 import '../../../auth/data/models/auth_user.dart';
 import '../../../users/presentation/pages/profile_page.dart';
+import '../../application/received_transaction_sms_reconciliation_service.dart';
 import '../../application/transaction_sms_reconciliation_service.dart';
 import '../widgets/app_layout.dart';
 import 'dashboard_page.dart';
@@ -27,6 +28,9 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
 
   late final TransactionSmsReconciliationService _smsReconciliationService;
 
+  late final ReceivedTransactionSmsReconciliationService
+  _receivedSmsReconciliationService;
+
   AppLayoutSection _currentSection = AppLayoutSection.sendMoney;
 
   bool _isReconcilingSms = false;
@@ -43,6 +47,9 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
 
     _smsReconciliationService =
         TransactionSmsReconciliationService.createDefault();
+
+    _receivedSmsReconciliationService =
+        ReceivedTransactionSmsReconciliationService.createDefault();
 
     WidgetsBinding.instance.addObserver(this);
 
@@ -80,10 +87,28 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
 
     _isReconcilingSms = true;
 
-    try {
-      final summary = await _smsReconciliationService.reconcileIfPermitted();
+    var outgoingChanged = false;
 
-      if (!mounted || !summary.hasChanges) {
+    try {
+      try {
+        final outgoingSummary = await _smsReconciliationService
+            .reconcileIfPermitted();
+
+        outgoingChanged = outgoingSummary.hasChanges;
+      } catch (_) {
+        // Outgoing reconciliation is opportunistic.
+        // Failure must not interrupt app usage or
+        // prevent incoming evidence from being checked.
+      }
+
+      try {
+        await _receivedSmsReconciliationService.reconcileIfPermitted();
+      } catch (_) {
+        // Incoming SMS evidence is also opportunistic.
+        // It must never interrupt normal app usage.
+      }
+
+      if (!mounted || !outgoingChanged) {
         return;
       }
 
@@ -92,9 +117,6 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
 
         _analyticsRefreshToken++;
       });
-    } catch (_) {
-      // SMS reconciliation is opportunistic.
-      // It must never interrupt normal app usage.
     } finally {
       _isReconcilingSms = false;
     }
