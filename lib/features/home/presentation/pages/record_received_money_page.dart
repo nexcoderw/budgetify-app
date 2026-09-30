@@ -600,7 +600,7 @@ class _AmountSection extends StatelessWidget {
             borderRadius: 18,
             keyboardType: TextInputType.number,
             textInputAction: TextInputAction.next,
-            inputFormatters: const [FilteringTextInputFormatter.digitsOnly],
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             validator: validator,
             textStyle: const TextStyle(
               fontSize: 20,
