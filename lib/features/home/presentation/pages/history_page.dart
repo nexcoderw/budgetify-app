@@ -8,52 +8,100 @@ import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_input.dart';
 import '../../../../core/widgets/app_toast.dart';
-import '../../application/transaction_service.dart';
-import '../../application/transaction_sms_matcher.dart';
-import '../../application/transaction_sms_reconciliation_service.dart';
-import '../../data/models/provider_sms_message.dart';
-import '../../data/models/transaction_models.dart';
-import 'transaction_detail_page.dart';
 import '../../application/received_transaction_service.dart';
 import '../../application/received_transaction_sms_reconciliation_service.dart';
+import '../../application/transaction_service.dart';
+import '../../application/transaction_sms_reconciliation_service.dart';
+import '../../data/models/provider_sms_message.dart';
 import '../../data/models/transaction_history_models.dart';
+import '../../data/models/transaction_models.dart';
 import 'received_transaction_detail_page.dart';
+import 'transaction_detail_page.dart';
 
 enum _DirectionFilter {
-  all(null, 'All'),
-  sent(TransactionHistoryDirection.sent, 'Sent'),
-  received(TransactionHistoryDirection.received, 'Received');
+  all(
+    null,
+    'All',
+  ),
+  sent(
+    TransactionHistoryDirection.sent,
+    'Sent',
+  ),
+  received(
+    TransactionHistoryDirection.received,
+    'Received',
+  );
 
-  const _DirectionFilter(this.direction, this.label);
+  const _DirectionFilter(
+    this.direction,
+    this.label,
+  );
 
   final TransactionHistoryDirection? direction;
-
   final String label;
 }
 
 enum _StatusFilter {
-  all(null, 'All statuses'),
-  pending(TransactionStatus.pending, 'Pending'),
-  processing(TransactionStatus.processing, 'Processing'),
-  completed(TransactionStatus.completed, 'Completed'),
-  failed(TransactionStatus.failed, 'Failed'),
-  cancelled(TransactionStatus.cancelled, 'Cancelled'),
-  reversed(TransactionStatus.reversed, 'Reversed');
+  all(
+    null,
+    'All statuses',
+  ),
+  pending(
+    TransactionStatus.pending,
+    'Pending',
+  ),
+  processing(
+    TransactionStatus.processing,
+    'Processing',
+  ),
+  completed(
+    TransactionStatus.completed,
+    'Completed',
+  ),
+  failed(
+    TransactionStatus.failed,
+    'Failed',
+  ),
+  cancelled(
+    TransactionStatus.cancelled,
+    'Cancelled',
+  ),
+  reversed(
+    TransactionStatus.reversed,
+    'Reversed',
+  );
 
-  const _StatusFilter(this.status, this.label);
+  const _StatusFilter(
+    this.status,
+    this.label,
+  );
 
   final TransactionStatus? status;
-
   final String label;
 }
 
 enum _MethodFilter {
-  all(null, 'All methods'),
-  momo(TransactionTransferType.momoToMomo, 'MTN MoMo'),
-  ekash(TransactionTransferType.momoToEkash, 'eKash'),
-  momoPay(TransactionTransferType.momoPay, 'MoMo Pay');
+  all(
+    null,
+    'All methods',
+  ),
+  momo(
+    TransactionTransferType.momoToMomo,
+    'MTN MoMo',
+  ),
+  ekash(
+    TransactionTransferType.momoToEkash,
+    'eKash',
+  ),
+  momoPay(
+    TransactionTransferType.momoPay,
+    'MoMo Pay',
+  );
 
-  const _MethodFilter(this.transferType, this.label);
+  const _MethodFilter(
+    this.transferType,
+    this.label,
+  );
 
   final TransactionTransferType? transferType;
   final String label;
@@ -91,20 +139,20 @@ class _HistoryPageState extends State<HistoryPage> {
 
   late final TransactionService _transactionService;
 
+  late final ReceivedTransactionService _receivedTransactionService;
+
   late final TransactionSmsReconciliationService _smsReconciliationService;
+
+  late final ReceivedTransactionSmsReconciliationService
+  _receivedSmsReconciliationService;
 
   Timer? _searchDebounce;
 
   List<TransactionHistoryItem> _transactions = const [];
 
-  late final ReceivedTransactionService _receivedTransactionService;
-
-  late final ReceivedTransactionSmsReconciliationService
-  _receivedSmsReconciliationService;
+  TransactionPagination? _pagination;
 
   _DirectionFilter _directionFilter = _DirectionFilter.all;
-
-  TransactionPagination? _pagination;
 
   _StatusFilter _statusFilter = _StatusFilter.all;
 
@@ -131,6 +179,22 @@ class _HistoryPageState extends State<HistoryPage> {
     return !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
   }
 
+  List<_StatusFilter> get _availableStatusFilters {
+    if (_directionFilter == _DirectionFilter.received) {
+      return const [
+        _StatusFilter.all,
+        _StatusFilter.completed,
+        _StatusFilter.reversed,
+      ];
+    }
+
+    return _StatusFilter.values;
+  }
+
+  bool get _shouldShowMethodFilter {
+    return _directionFilter == _DirectionFilter.sent;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -138,29 +202,50 @@ class _HistoryPageState extends State<HistoryPage> {
     _transactionService =
         widget.transactionService ?? TransactionService.createDefault();
 
+    _receivedTransactionService =
+        widget.receivedTransactionService ??
+        ReceivedTransactionService.createDefault();
+
     _smsReconciliationService =
         widget.smsReconciliationService ??
         TransactionSmsReconciliationService.createDefault(
           transactionService: _transactionService,
         );
 
+    _receivedSmsReconciliationService =
+        widget.receivedSmsReconciliationService ??
+        ReceivedTransactionSmsReconciliationService.createDefault(
+          receivedTransactionService: _receivedTransactionService,
+        );
+
     unawaited(_loadSmsPermission());
 
-    unawaited(_loadTransactions(reset: true));
+    unawaited(
+      _loadTransactions(
+        reset: true,
+      ),
+    );
   }
 
   @override
-  void didUpdateWidget(covariant HistoryPage oldWidget) {
+  void didUpdateWidget(
+    covariant HistoryPage oldWidget,
+  ) {
     super.didUpdateWidget(oldWidget);
 
     if (oldWidget.refreshToken != widget.refreshToken) {
-      unawaited(_loadTransactions(reset: true));
+      unawaited(
+        _loadTransactions(
+          reset: true,
+        ),
+      );
     }
   }
 
   @override
   void dispose() {
     _searchDebounce?.cancel();
+
     _searchController.dispose();
 
     super.dispose();
@@ -213,13 +298,15 @@ class _HistoryPageState extends State<HistoryPage> {
           context,
           title: 'SMS access not enabled',
           description:
-              'Budgetify cannot automatically confirm MoMo transactions without SMS access.',
+              'Budgetify cannot automatically reconcile MTN MoMo transactions without SMS access.',
         );
 
         return;
       }
 
-      await _syncTransactionSms(showResult: true);
+      await _syncTransactionSms(
+        showResult: true,
+      );
     } catch (_) {
       if (!mounted) {
         return;
@@ -229,7 +316,7 @@ class _HistoryPageState extends State<HistoryPage> {
         context,
         title: 'SMS access unavailable',
         description:
-            'Budgetify could not enable automatic transaction confirmation.',
+            'Budgetify could not enable automatic MTN transaction synchronization.',
       );
     } finally {
       if (mounted) {
@@ -250,7 +337,9 @@ class _HistoryPageState extends State<HistoryPage> {
     });
 
     try {
-      await _syncTransactionSms(showResult: true);
+      await _syncTransactionSms(
+        showResult: true,
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -260,80 +349,172 @@ class _HistoryPageState extends State<HistoryPage> {
     }
   }
 
-  Future<void> _syncTransactionSms({required bool showResult}) async {
+  Future<void> _syncTransactionSms({
+    required bool showResult,
+  }) async {
+    var outgoing =
+        const SmsReconciliationSummary.empty();
+
+    var incoming =
+        const ReceivedSmsReconciliationSummary.empty();
+
+    var outgoingFailed = false;
+    var incomingFailed = false;
+
     try {
-      final result = await _smsReconciliationService.reconcile();
-
-      if (!mounted) {
-        return;
-      }
-
-      if (result.hasChanges) {
-        await _loadTransactions(reset: true);
-      }
-
-      if (!mounted || !showResult) {
-        return;
-      }
-
-      if (result.hasAttentionNeeded) {
-        final parts = <String>[
-          if (result.matchedTransactions > 0)
-            '${result.matchedTransactions} updated',
-          if (result.ambiguousMessages > 0)
-            '${result.ambiguousMessages} ambiguous',
-          if (result.failedUpdates > 0)
-            '${result.failedUpdates} could not be updated',
-        ];
-
-        AppToast.info(
-          context,
-          title: 'Transaction review needed',
-          description:
-              '${parts.join(', ')}. Budgetify left uncertain transactions unchanged.',
-        );
-
-        return;
-      }
-
-      AppToast.info(
-        context,
-        title: result.hasChanges
-            ? 'Transactions updated'
-            : 'Everything is up to date',
-        description: result.hasChanges
-            ? '${result.matchedTransactions} transaction${result.matchedTransactions == 1 ? '' : 's'} confirmed from MTN MoMo messages.'
-            : 'No new reliable transaction confirmations were found.',
-      );
+      outgoing = await _smsReconciliationService.reconcile();
     } catch (_) {
-      if (!mounted || !showResult) {
-        return;
-      }
+      outgoingFailed = true;
+    }
 
+    try {
+      incoming = await _receivedSmsReconciliationService.reconcile();
+    } catch (_) {
+      incomingFailed = true;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    final hasActivityToReload =
+        outgoing.hasChanges || incoming.hasAcceptedPayments;
+
+    if (hasActivityToReload) {
+      await _loadTransactions(
+        reset: true,
+      );
+    }
+
+    if (!mounted || !showResult) {
+      return;
+    }
+
+    if (outgoingFailed && incomingFailed) {
       AppToast.error(
         context,
         title: 'Could not sync transactions',
         description:
             'Budgetify could not check recent MTN MoMo transaction messages.',
       );
+
+      return;
     }
+
+    final ambiguousCount =
+        outgoing.ambiguousMessages + incoming.conflictingMessages;
+
+    final failedCount =
+        outgoing.failedUpdates + incoming.failedUpdates;
+
+    final hasAttentionNeeded =
+        outgoingFailed ||
+        incomingFailed ||
+        ambiguousCount > 0 ||
+        failedCount > 0;
+
+    if (hasAttentionNeeded) {
+      final parts = <String>[
+        if (outgoing.matchedTransactions > 0)
+          '${outgoing.matchedTransactions} sent updated',
+        if (incoming.acceptedPayments > 0)
+          '${incoming.acceptedPayments} received processed',
+        if (ambiguousCount > 0) '$ambiguousCount uncertain',
+        if (failedCount > 0) '$failedCount could not be updated',
+        if (outgoingFailed) 'sent-payment sync unavailable',
+        if (incomingFailed) 'received-payment sync unavailable',
+      ];
+
+      AppToast.info(
+        context,
+        title: 'Transaction review needed',
+        description:
+            '${parts.join(', ')}. Budgetify left uncertain evidence unchanged.',
+      );
+
+      return;
+    }
+
+    AppToast.info(
+      context,
+      title: hasActivityToReload
+          ? 'Money history updated'
+          : 'Everything is up to date',
+      description: hasActivityToReload
+          ? 'Budgetify synchronized reliable sent and received MTN transaction evidence.'
+          : 'No new reliable transaction evidence was found.',
+    );
   }
 
-  void _onSearchChanged(String value) {
+  void _onSearchChanged(
+    String value,
+  ) {
     _searchDebounce?.cancel();
 
-    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
-      unawaited(_loadTransactions(reset: true));
+    _searchDebounce = Timer(
+      const Duration(
+        milliseconds: 350,
+      ),
+      () {
+        unawaited(
+          _loadTransactions(
+            reset: true,
+          ),
+        );
+      },
+    );
+  }
+
+  void _onSearchSubmitted(
+    String value,
+  ) {
+    _searchDebounce?.cancel();
+
+    unawaited(
+      _loadTransactions(
+        reset: true,
+      ),
+    );
+  }
+
+  void _selectDirection(
+    _DirectionFilter filter,
+  ) {
+    if (_directionFilter == filter) {
+      return;
+    }
+
+    setState(() {
+      _directionFilter = filter;
+
+      if (filter != _DirectionFilter.sent) {
+        _methodFilter = _MethodFilter.all;
+      }
+
+      if (filter == _DirectionFilter.received &&
+          !_isReceivedSupportedStatus(_statusFilter)) {
+        _statusFilter = _StatusFilter.all;
+      }
     });
+
+    unawaited(
+      _loadTransactions(
+        reset: true,
+      ),
+    );
   }
 
-  void _onSearchSubmitted(String value) {
-    _searchDebounce?.cancel();
-
-    unawaited(_loadTransactions(reset: true));
+  bool _isReceivedSupportedStatus(
+    _StatusFilter filter,
+  ) {
+    return filter == _StatusFilter.all ||
+        filter == _StatusFilter.completed ||
+        filter == _StatusFilter.reversed;
   }
 
-  void _selectStatus(_StatusFilter filter) {
+  void _selectStatus(
+    _StatusFilter filter,
+  ) {
     if (_statusFilter == filter) {
       return;
     }
@@ -342,10 +523,16 @@ class _HistoryPageState extends State<HistoryPage> {
       _statusFilter = filter;
     });
 
-    unawaited(_loadTransactions(reset: true));
+    unawaited(
+      _loadTransactions(
+        reset: true,
+      ),
+    );
   }
 
-  void _selectMethod(_MethodFilter filter) {
+  void _selectMethod(
+    _MethodFilter filter,
+  ) {
     if (_methodFilter == filter) {
       return;
     }
@@ -354,10 +541,16 @@ class _HistoryPageState extends State<HistoryPage> {
       _methodFilter = filter;
     });
 
-    unawaited(_loadTransactions(reset: true));
+    unawaited(
+      _loadTransactions(
+        reset: true,
+      ),
+    );
   }
 
-  Future<void> _loadTransactions({required bool reset}) async {
+  Future<void> _loadTransactions({
+    required bool reset,
+  }) async {
     if (!reset) {
       if (_isLoadingMore) {
         return;
@@ -368,32 +561,41 @@ class _HistoryPageState extends State<HistoryPage> {
       }
     }
 
-    final generation = reset ? ++_requestGeneration : _requestGeneration;
+    final generation =
+        reset ? ++_requestGeneration : _requestGeneration;
 
-    final page = reset ? 1 : (_pagination?.page ?? 0) + 1;
+    final page =
+        reset ? 1 : (_pagination?.page ?? 0) + 1;
 
     if (reset) {
       setState(() {
         _isInitialLoading = true;
+
         _errorMessage = null;
+
         _loadMoreError = null;
 
         _transactions = const [];
+
         _pagination = null;
       });
     } else {
       setState(() {
         _isLoadingMore = true;
+
         _loadMoreError = null;
       });
     }
 
     try {
-      final result = await _transactionService.list(
+      final result = await _transactionService.history(
         page: page,
         limit: _pageSize,
+        direction: _directionFilter.direction,
         status: _statusFilter.status,
-        transferType: _methodFilter.transferType,
+        transferType: _directionFilter == _DirectionFilter.sent
+            ? _methodFilter.transferType
+            : null,
         search: _searchController.text.trim(),
       );
 
@@ -404,11 +606,15 @@ class _HistoryPageState extends State<HistoryPage> {
       setState(() {
         _transactions = reset
             ? result.items
-            : <PaymentTransaction>[..._transactions, ...result.items];
+            : <TransactionHistoryItem>[
+                ..._transactions,
+                ...result.items,
+              ];
 
         _pagination = result.pagination;
 
         _errorMessage = null;
+
         _loadMoreError = null;
       });
     } on ApiException catch (error) {
@@ -430,41 +636,61 @@ class _HistoryPageState extends State<HistoryPage> {
 
       setState(() {
         if (reset) {
-          _errorMessage = 'Could not load your transactions. Please try again.';
+          _errorMessage =
+              'Could not load your money history. Please try again.';
         } else {
-          _loadMoreError = 'Could not load more transactions.';
+          _loadMoreError =
+              'Could not load more transactions.';
         }
       });
     } finally {
       if (mounted && generation == _requestGeneration) {
         setState(() {
           _isInitialLoading = false;
+
           _isLoadingMore = false;
         });
       }
     }
   }
 
-  Future<void> _openTransaction(PaymentTransaction transaction) async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => TransactionDetailPage(
-          transactionId: transaction.id,
-          transactionService: _transactionService,
-          smsReconciliationService: _smsReconciliationService,
+  Future<void> _openTransaction(
+    TransactionHistoryItem transaction,
+  ) async {
+    if (transaction.isSent) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => TransactionDetailPage(
+            transactionId: transaction.id,
+            transactionService: _transactionService,
+            smsReconciliationService: _smsReconciliationService,
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => ReceivedTransactionDetailPage(
+            receivedTransactionId: transaction.id,
+            receivedTransactionService: _receivedTransactionService,
+          ),
+        ),
+      );
+    }
 
     if (!mounted) {
       return;
     }
 
-    await _loadTransactions(reset: true);
+    await _loadTransactions(
+      reset: true,
+    );
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     final width = MediaQuery.sizeOf(context).width;
 
     final isCompact = width < 700;
@@ -485,67 +711,106 @@ class _HistoryPageState extends State<HistoryPage> {
                 _HistoryHeader(
                   compact: isCompact,
                   onRefresh: () {
-                    unawaited(_loadTransactions(reset: true));
+                    unawaited(
+                      _loadTransactions(
+                        reset: true,
+                      ),
+                    );
                   },
                 ),
                 if (_smsPermission != null &&
                     _smsPermission != DeviceSmsPermission.unsupported) ...[
-                  SizedBox(height: isCompact ? 16 : 18),
+                  SizedBox(
+                    height: isCompact ? 16 : 18,
+                  ),
                   _SmsReconciliationCard(
                     permission: _smsPermission!,
                     isSyncing: _isSmsSyncing,
                     onEnable: () {
-                      unawaited(_enableSmsReconciliation());
+                      unawaited(
+                        _enableSmsReconciliation(),
+                      );
                     },
                     onSync: () {
-                      unawaited(_syncSmsFromHistory());
+                      unawaited(
+                        _syncSmsFromHistory(),
+                      );
                     },
                   ),
                 ],
-                SizedBox(height: isCompact ? 22 : 28),
+                SizedBox(
+                  height: isCompact ? 22 : 28,
+                ),
                 AppInput(
                   controller: _searchController,
-                  hintText: 'Search recipient or reference',
+                  hintText: 'Search sender, recipient or reference',
                   borderRadius: 999,
                   textInputAction: TextInputAction.search,
                   onChanged: _onSearchChanged,
                   onSubmitted: _onSearchSubmitted,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(
+                  height: 16,
+                ),
+                _FilterScroller<_DirectionFilter>(
+                  values: _DirectionFilter.values,
+                  selected: _directionFilter,
+                  labelBuilder: (filter) => filter.label,
+                  onSelected: _selectDirection,
+                ),
+                const SizedBox(
+                  height: 10,
+                ),
                 _FilterScroller<_StatusFilter>(
-                  values: _StatusFilter.values,
+                  values: _availableStatusFilters,
                   selected: _statusFilter,
                   labelBuilder: (filter) => filter.label,
                   onSelected: _selectStatus,
                 ),
-                const SizedBox(height: 10),
-                _FilterScroller<_MethodFilter>(
-                  values: _MethodFilter.values,
-                  selected: _methodFilter,
-                  labelBuilder: (filter) => filter.label,
-                  onSelected: _selectMethod,
+                if (_shouldShowMethodFilter) ...[
+                  const SizedBox(
+                    height: 10,
+                  ),
+                  _FilterScroller<_MethodFilter>(
+                    values: _MethodFilter.values,
+                    selected: _methodFilter,
+                    labelBuilder: (filter) => filter.label,
+                    onSelected: _selectMethod,
+                  ),
+                ],
+                SizedBox(
+                  height: isCompact ? 22 : 28,
                 ),
-                SizedBox(height: isCompact ? 22 : 28),
-                _buildContent(compact: isCompact),
+                _buildContent(
+                  compact: isCompact,
+                ),
               ],
             ),
     );
   }
 
-  Widget _buildContent({required bool compact}) {
+  Widget _buildContent({
+    required bool compact,
+  }) {
     final error = _errorMessage;
 
     if (error != null && _transactions.isEmpty) {
       return _HistoryError(
         message: error,
         onRetry: () {
-          unawaited(_loadTransactions(reset: true));
+          unawaited(
+            _loadTransactions(
+              reset: true,
+            ),
+          );
         },
       );
     }
 
     if (_transactions.isEmpty) {
-      return const _EmptyHistory();
+      return _EmptyHistory(
+        direction: _directionFilter,
+      );
     }
 
     return Column(
@@ -555,29 +820,42 @@ class _HistoryPageState extends State<HistoryPage> {
           loaded: _transactions.length,
           total: _pagination?.total ?? _transactions.length,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(
+          height: 16,
+        ),
         _TransactionHistory(
           transactions: _transactions,
           compact: compact,
           onTap: _openTransaction,
         ),
         if (_loadMoreError != null) ...[
-          const SizedBox(height: 14),
+          const SizedBox(
+            height: 14,
+          ),
           Text(
             _loadMoreError!,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 11, color: AppColors.danger),
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.danger,
+            ),
           ),
         ],
         if (_pagination?.hasNextPage ?? false) ...[
-          const SizedBox(height: 18),
+          const SizedBox(
+            height: 18,
+          ),
           Center(
             child: _LoadMoreButton(
               isLoading: _isLoadingMore,
               onPressed: _isLoadingMore
                   ? null
                   : () {
-                      unawaited(_loadTransactions(reset: false));
+                      unawaited(
+                        _loadTransactions(
+                          reset: false,
+                        ),
+                      );
                     },
             ),
           ),
@@ -588,13 +866,18 @@ class _HistoryPageState extends State<HistoryPage> {
 }
 
 class _HistoryHeader extends StatelessWidget {
-  const _HistoryHeader({required this.compact, required this.onRefresh});
+  const _HistoryHeader({
+    required this.compact,
+    required this.onRefresh,
+  });
 
   final bool compact;
   final VoidCallback? onRefresh;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -609,10 +892,14 @@ class _HistoryHeader extends StatelessWidget {
                   height: 1,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.5,
-                  color: AppColors.primary.withValues(alpha: 0.92),
+                  color: AppColors.primary.withValues(
+                    alpha: 0.92,
+                  ),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(
+                height: 10,
+              ),
               Text(
                 'Money history',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -623,9 +910,11 @@ class _HistoryHeader extends StatelessWidget {
                   color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(
+                height: 8,
+              ),
               const Text(
-                'Track outgoing transfers recorded by Budgetify.',
+                'Track money you send and receive in one timeline.',
                 style: TextStyle(
                   fontSize: 12,
                   height: 1.5,
@@ -635,15 +924,21 @@ class _HistoryHeader extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(
+          width: 12,
+        ),
         Tooltip(
           message: 'Refresh transactions',
           child: Material(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(
+              16,
+            ),
             child: InkWell(
               onTap: onRefresh,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(
+                16,
+              ),
               child: const SizedBox(
                 width: 46,
                 height: 46,
@@ -673,24 +968,37 @@ class _SmsReconciliationCard extends StatelessWidget {
   });
 
   final DeviceSmsPermission permission;
+
   final bool isSyncing;
+
   final VoidCallback onEnable;
+
   final VoidCallback onSync;
 
   @override
-  Widget build(BuildContext context) {
-    final enabled = permission == DeviceSmsPermission.granted;
+  Widget build(
+    BuildContext context,
+  ) {
+    final enabled =
+        permission == DeviceSmsPermission.granted;
 
-    final accent = enabled ? AppColors.success : AppColors.primary;
+    final accent =
+        enabled ? AppColors.success : AppColors.primary;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(
+        16,
+      ),
       decoration: BoxDecoration(
         color: enabled
-            ? AppColors.success.withValues(alpha: 0.06)
+            ? AppColors.success.withValues(
+                alpha: 0.06,
+              )
             : AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(
+          20,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -699,8 +1007,12 @@ class _SmsReconciliationCard extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.11),
-              borderRadius: BorderRadius.circular(14),
+              color: accent.withValues(
+                alpha: 0.11,
+              ),
+              borderRadius: BorderRadius.circular(
+                14,
+              ),
             ),
             alignment: Alignment.center,
             child: HugeIcon(
@@ -710,26 +1022,30 @@ class _SmsReconciliationCard extends StatelessWidget {
               color: accent,
             ),
           ),
-          const SizedBox(width: 13),
+          const SizedBox(
+            width: 13,
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   enabled
-                      ? 'Automatic confirmation on'
-                      : 'Confirm transactions automatically',
+                      ? 'Automatic SMS sync on'
+                      : 'Sync money activity automatically',
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(
+                  height: 5,
+                ),
                 Text(
                   enabled
-                      ? 'Budgetify checks recent MTN MoMo transaction messages when the app resumes.'
-                      : 'Allow Budgetify to read transaction SMS so sent payments can update automatically.',
+                      ? 'Budgetify checks recent MTN MoMo messages for sent and received payments when the app resumes.'
+                      : 'Allow Budgetify to read transaction SMS so sent and received payments can update automatically.',
                   style: const TextStyle(
                     fontSize: 10,
                     height: 1.45,
@@ -737,20 +1053,26 @@ class _SmsReconciliationCard extends StatelessWidget {
                   ),
                 ),
                 if (!enabled) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(
+                    height: 4,
+                  ),
                   Text(
                     'Raw SMS text is never uploaded to the Budgetify API.',
                     style: TextStyle(
                       fontSize: 9,
                       height: 1.4,
-                      color: AppColors.textSecondary.withValues(alpha: 0.72),
+                      color: AppColors.textSecondary.withValues(
+                        alpha: 0.72,
+                      ),
                     ),
                   ),
                 ],
               ],
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(
+            width: 10,
+          ),
           TextButton(
             onPressed: isSyncing
                 ? null
@@ -789,25 +1111,42 @@ class _FilterScroller<T> extends StatelessWidget {
   });
 
   final List<T> values;
+
   final T selected;
 
-  final String Function(T value) labelBuilder;
+  final String Function(
+    T value,
+  )
+  labelBuilder;
 
   final ValueChanged<T> onSelected;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          for (var index = 0; index < values.length; index++) ...[
-            if (index > 0) const SizedBox(width: 7),
+          for (
+            var index = 0;
+            index < values.length;
+            index++
+          ) ...[
+            if (index > 0)
+              const SizedBox(
+                width: 7,
+              ),
             _FilterPill(
-              label: labelBuilder(values[index]),
+              label: labelBuilder(
+                values[index],
+              ),
               selected: values[index] == selected,
               onTap: () {
-                onSelected(values[index]);
+                onSelected(
+                  values[index],
+                );
               },
             ),
           ],
@@ -825,31 +1164,46 @@ class _FilterPill extends StatelessWidget {
   });
 
   final String label;
+
   final bool selected;
+
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Semantics(
       button: true,
       selected: selected,
       label: '$label filter',
       child: Material(
         color: selected
-            ? AppColors.primary.withValues(alpha: 0.13)
+            ? AppColors.primary.withValues(
+                alpha: 0.13,
+              )
             : AppColors.surface,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(
+          999,
+        ),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(
+            999,
+          ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 15,
+              vertical: 10,
+            ),
             child: Text(
               label,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: selected ? AppColors.primary : AppColors.textSecondary,
+                color: selected
+                    ? AppColors.primary
+                    : AppColors.textSecondary,
               ),
             ),
           ),
@@ -860,13 +1214,19 @@ class _FilterPill extends StatelessWidget {
 }
 
 class _HistoryCount extends StatelessWidget {
-  const _HistoryCount({required this.loaded, required this.total});
+  const _HistoryCount({
+    required this.loaded,
+    required this.total,
+  });
 
   final int loaded;
+
   final int total;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Row(
       children: [
         const Text(
@@ -880,7 +1240,10 @@ class _HistoryCount extends StatelessWidget {
         const Spacer(),
         Text(
           '$loaded of $total',
-          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+          style: const TextStyle(
+            fontSize: 11,
+            color: AppColors.textSecondary,
+          ),
         ),
       ],
     );
@@ -894,37 +1257,61 @@ class _TransactionHistory extends StatelessWidget {
     required this.onTap,
   });
 
-  final List<PaymentTransaction> transactions;
+  final List<TransactionHistoryItem> transactions;
 
   final bool compact;
 
-  final ValueChanged<PaymentTransaction> onTap;
+  final ValueChanged<TransactionHistoryItem> onTap;
 
   @override
-  Widget build(BuildContext context) {
-    final grouped = <DateTime, List<PaymentTransaction>>{};
+  Widget build(
+    BuildContext context,
+  ) {
+    final grouped =
+        <DateTime, List<TransactionHistoryItem>>{};
 
     for (final transaction in transactions) {
-      final local = transaction.createdAt.toLocal();
+      final local =
+          transaction.activityAt.toLocal();
 
-      final date = DateTime(local.year, local.month, local.day);
+      final date = DateTime(
+        local.year,
+        local.month,
+        local.day,
+      );
 
-      grouped.putIfAbsent(date, () => []);
+      grouped.putIfAbsent(
+        date,
+        () => [],
+      );
 
-      grouped[date]!.add(transaction);
+      grouped[date]!.add(
+        transaction,
+      );
     }
+
+    final entries =
+        grouped.entries.toList(
+      growable: false,
+    );
 
     return Column(
       children: [
-        for (final entry in grouped.entries) ...[
+        for (
+          var index = 0;
+          index < entries.length;
+          index++
+        ) ...[
           _DateGroup(
-            date: entry.key,
-            transactions: entry.value,
+            date: entries[index].key,
+            transactions: entries[index].value,
             compact: compact,
             onTap: onTap,
           ),
-          if (entry.key != grouped.keys.last)
-            SizedBox(height: compact ? 22 : 26),
+          if (index < entries.length - 1)
+            SizedBox(
+              height: compact ? 22 : 26,
+            ),
         ],
       ],
     );
@@ -941,19 +1328,23 @@ class _DateGroup extends StatelessWidget {
 
   final DateTime date;
 
-  final List<PaymentTransaction> transactions;
+  final List<TransactionHistoryItem> transactions;
 
   final bool compact;
 
-  final ValueChanged<PaymentTransaction> onTap;
+  final ValueChanged<TransactionHistoryItem> onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _formatDate(date),
+          _formatDate(
+            date,
+          ),
           style: const TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w800,
@@ -961,28 +1352,42 @@ class _DateGroup extends StatelessWidget {
             color: AppColors.textSecondary,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(
+          height: 10,
+        ),
         Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(compact ? 22 : 26),
+            borderRadius: BorderRadius.circular(
+              compact ? 22 : 26,
+            ),
           ),
           child: Column(
             children: [
-              for (var index = 0; index < transactions.length; index++) ...[
+              for (
+                var index = 0;
+                index < transactions.length;
+                index++
+              ) ...[
                 _TransactionTile(
                   transaction: transactions[index],
                   compact: compact,
                   onTap: () {
-                    onTap(transactions[index]);
+                    onTap(
+                      transactions[index],
+                    );
                   },
                 ),
                 if (index < transactions.length - 1)
                   Padding(
-                    padding: EdgeInsets.only(left: compact ? 66 : 74),
+                    padding: EdgeInsets.only(
+                      left: compact ? 66 : 74,
+                    ),
                     child: Container(
                       height: 1,
-                      color: Colors.white.withValues(alpha: 0.045),
+                      color: Colors.white.withValues(
+                        alpha: 0.045,
+                      ),
                     ),
                   ),
               ],
@@ -1001,21 +1406,32 @@ class _TransactionTile extends StatelessWidget {
     required this.onTap,
   });
 
-  final PaymentTransaction transaction;
+  final TransactionHistoryItem transaction;
+
   final bool compact;
+
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
-    final accent = _transactionStatusColor(transaction);
+  Widget build(
+    BuildContext context,
+  ) {
+    final accent = _transactionStatusColor(
+      transaction,
+    );
 
-    final date = transaction.createdAt.toLocal();
+    final received = transaction.isReceived;
+
+    final date =
+        transaction.activityAt.toLocal();
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(
+          18,
+        ),
         child: Padding(
           padding: EdgeInsets.symmetric(
             horizontal: compact ? 14 : 18,
@@ -1027,24 +1443,32 @@ class _TransactionTile extends StatelessWidget {
                 width: compact ? 42 : 46,
                 height: compact ? 42 : 46,
                 decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.11),
-                  borderRadius: BorderRadius.circular(15),
+                  color: accent.withValues(
+                    alpha: 0.11,
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    15,
+                  ),
                 ),
                 alignment: Alignment.center,
                 child: HugeIcon(
-                  icon: HugeIcons.strokeRoundedMoneySendSquare,
+                  icon: received
+                      ? HugeIcons.strokeRoundedMoneyReceiveCircle
+                      : HugeIcons.strokeRoundedMoneySendSquare,
                   size: 19,
                   strokeWidth: 1.8,
                   color: accent,
                 ),
               ),
-              SizedBox(width: compact ? 12 : 14),
+              SizedBox(
+                width: compact ? 12 : 14,
+              ),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      transaction.recipientDisplayName,
+                      transaction.counterpartyDisplayName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -1053,9 +1477,13 @@ class _TransactionTile extends StatelessWidget {
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(
+                      height: 5,
+                    ),
                     Text(
-                      '${transaction.transferType.label} • ${transaction.receiverIdentifier}',
+                      _subtitleForTransaction(
+                        transaction,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -1063,39 +1491,55 @@ class _TransactionTile extends StatelessWidget {
                         color: AppColors.textSecondary,
                       ),
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(
+                      height: 5,
+                    ),
                     Text(
-                      _formatTime(date),
+                      _formatTime(
+                        date,
+                      ),
                       style: TextStyle(
                         fontSize: 9,
-                        color: AppColors.textSecondary.withValues(alpha: 0.72),
+                        color: AppColors.textSecondary.withValues(
+                          alpha: 0.72,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(
+                width: 12,
+              ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '-${_formatAmount(transaction.amount)}',
+                    '${received ? '+' : '-'}${_formatAmount(transaction.amount)}',
                     style: TextStyle(
                       fontSize: compact ? 13 : 14,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
+                      color: received
+                          ? AppColors.success
+                          : AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  const Text(
-                    'RWF',
-                    style: TextStyle(
+                  const SizedBox(
+                    height: 3,
+                  ),
+                  Text(
+                    transaction.currency,
+                    style: const TextStyle(
                       fontSize: 9,
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 7),
-                  _StatusBadge(transaction: transaction),
+                  const SizedBox(
+                    height: 7,
+                  ),
+                  _StatusBadge(
+                    transaction: transaction,
+                  ),
                 ],
               ),
             ],
@@ -1107,25 +1551,39 @@ class _TransactionTile extends StatelessWidget {
 }
 
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.transaction});
+  const _StatusBadge({
+    required this.transaction,
+  });
 
-  final PaymentTransaction transaction;
+  final TransactionHistoryItem transaction;
 
   @override
-  Widget build(BuildContext context) {
-    final needsConfirmation = transactionNeedsConfirmation(transaction);
+  Widget build(
+    BuildContext context,
+  ) {
+    final needsConfirmation =
+        transaction.needsConfirmation();
 
-    final color = _transactionStatusColor(transaction);
+    final color = _transactionStatusColor(
+      transaction,
+    );
 
     final label = needsConfirmation
         ? 'Needs confirmation'
         : transaction.status.label;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 5,
+      ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(999),
+        color: color.withValues(
+          alpha: 0.10,
+        ),
+        borderRadius: BorderRadius.circular(
+          999,
+        ),
       ),
       child: Text(
         label,
@@ -1146,10 +1604,12 @@ class _HistoryPageSkeleton extends StatefulWidget {
   });
 
   final bool compact;
+
   final bool showSmsCard;
 
   @override
-  State<_HistoryPageSkeleton> createState() => _HistoryPageSkeletonState();
+  State<_HistoryPageSkeleton> createState() =>
+      _HistoryPageSkeletonState();
 }
 
 class _HistoryPageSkeletonState extends State<_HistoryPageSkeleton>
@@ -1162,7 +1622,9 @@ class _HistoryPageSkeletonState extends State<_HistoryPageSkeleton>
 
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1350),
+      duration: const Duration(
+        milliseconds: 1350,
+      ),
     )..repeat();
   }
 
@@ -1174,14 +1636,20 @@ class _HistoryPageSkeletonState extends State<_HistoryPageSkeleton>
   }
 
   @override
-  Widget build(BuildContext context) {
-    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+  Widget build(
+    BuildContext context,
+  ) {
+    final disableAnimations =
+        MediaQuery.disableAnimationsOf(context);
 
     return ExcludeSemantics(
       child: IgnorePointer(
         child: AnimatedBuilder(
           animation: _animationController,
-          builder: (context, child) {
+          builder: (
+            context,
+            child,
+          ) {
             final progress = disableAnimations
                 ? 0.35
                 : _animationController.value;
@@ -1194,36 +1662,80 @@ class _HistoryPageSkeletonState extends State<_HistoryPageSkeleton>
                   progress: progress,
                 ),
                 if (widget.showSmsCard) ...[
-                  SizedBox(height: widget.compact ? 16 : 18),
-                  _SmsCardSkeleton(progress: progress),
+                  SizedBox(
+                    height: widget.compact ? 16 : 18,
+                  ),
+                  _SmsCardSkeleton(
+                    progress: progress,
+                  ),
                 ],
-                SizedBox(height: widget.compact ? 22 : 28),
-                _SearchInputSkeleton(progress: progress),
-                const SizedBox(height: 16),
+                SizedBox(
+                  height: widget.compact ? 22 : 28,
+                ),
+                _SearchInputSkeleton(
+                  progress: progress,
+                ),
+                const SizedBox(
+                  height: 16,
+                ),
                 _FilterRowSkeleton(
                   progress: progress,
-                  widths: const [48, 72, 88, 91, 61],
+                  widths: const [
+                    48,
+                    58,
+                    82,
+                  ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(
+                  height: 10,
+                ),
                 _FilterRowSkeleton(
                   progress: progress,
-                  widths: const [92, 92, 72, 88],
+                  widths: const [
+                    90,
+                    72,
+                    88,
+                    91,
+                    61,
+                  ],
                 ),
-                SizedBox(height: widget.compact ? 22 : 28),
-                _HistoryCountSkeleton(progress: progress),
-                const SizedBox(height: 16),
+                const SizedBox(
+                  height: 10,
+                ),
+                _FilterRowSkeleton(
+                  progress: progress,
+                  widths: const [
+                    92,
+                    92,
+                    72,
+                    88,
+                  ],
+                ),
+                SizedBox(
+                  height: widget.compact ? 22 : 28,
+                ),
+                _HistoryCountSkeleton(
+                  progress: progress,
+                ),
+                const SizedBox(
+                  height: 16,
+                ),
                 _HistoryDateGroupSkeleton(
                   compact: widget.compact,
                   progress: progress,
                   rowCount: 3,
                 ),
-                SizedBox(height: widget.compact ? 22 : 26),
+                SizedBox(
+                  height: widget.compact ? 22 : 26,
+                ),
                 _HistoryDateGroupSkeleton(
                   compact: widget.compact,
                   progress: progress,
                   rowCount: 2,
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(
+                  height: 18,
+                ),
                 Center(
                   child: SizedBox(
                     height: 44,
@@ -1247,13 +1759,19 @@ class _HistoryPageSkeletonState extends State<_HistoryPageSkeleton>
 }
 
 class _HistoryHeaderSkeleton extends StatelessWidget {
-  const _HistoryHeaderSkeleton({required this.compact, required this.progress});
+  const _HistoryHeaderSkeleton({
+    required this.compact,
+    required this.progress,
+  });
 
   final bool compact;
+
   final double progress;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1267,48 +1785,78 @@ class _HistoryHeaderSkeleton extends StatelessWidget {
                 height: 10,
                 radius: 5,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(
+                height: 10,
+              ),
               _SkeletonBox(
                 progress: progress,
                 width: compact ? 176 : 218,
                 height: compact ? 27 : 32,
                 radius: 9,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(
+                height: 8,
+              ),
               FractionallySizedBox(
                 widthFactor: compact ? 0.78 : 0.64,
                 alignment: Alignment.centerLeft,
-                child: _SkeletonBox(progress: progress, height: 12, radius: 6),
+                child: _SkeletonBox(
+                  progress: progress,
+                  height: 12,
+                  radius: 6,
+                ),
               ),
             ],
           ),
         ),
-        const SizedBox(width: 12),
-        _SkeletonBox(progress: progress, width: 46, height: 46, radius: 16),
+        const SizedBox(
+          width: 12,
+        ),
+        _SkeletonBox(
+          progress: progress,
+          width: 46,
+          height: 46,
+          radius: 16,
+        ),
       ],
     );
   }
 }
 
 class _SmsCardSkeleton extends StatelessWidget {
-  const _SmsCardSkeleton({required this.progress});
+  const _SmsCardSkeleton({
+    required this.progress,
+  });
 
   final double progress;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(
+        16,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(
+          20,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _SkeletonBox(progress: progress, width: 42, height: 42, radius: 14),
-          const SizedBox(width: 13),
+          _SkeletonBox(
+            progress: progress,
+            width: 42,
+            height: 42,
+            radius: 14,
+          ),
+          const SizedBox(
+            width: 13,
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1319,22 +1867,36 @@ class _SmsCardSkeleton extends StatelessWidget {
                   height: 12,
                   radius: 6,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(
+                  height: 8,
+                ),
                 FractionallySizedBox(
                   widthFactor: 0.92,
                   alignment: Alignment.centerLeft,
-                  child: _SkeletonBox(progress: progress, height: 9, radius: 5),
+                  child: _SkeletonBox(
+                    progress: progress,
+                    height: 9,
+                    radius: 5,
+                  ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(
+                  height: 6,
+                ),
                 FractionallySizedBox(
                   widthFactor: 0.68,
                   alignment: Alignment.centerLeft,
-                  child: _SkeletonBox(progress: progress, height: 9, radius: 5),
+                  child: _SkeletonBox(
+                    progress: progress,
+                    height: 9,
+                    radius: 5,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(
+            width: 10,
+          ),
           SizedBox(
             width: 56,
             height: 44,
@@ -1354,21 +1916,31 @@ class _SmsCardSkeleton extends StatelessWidget {
 }
 
 class _SearchInputSkeleton extends StatelessWidget {
-  const _SearchInputSkeleton({required this.progress});
+  const _SearchInputSkeleton({
+    required this.progress,
+  });
 
   final double progress;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
       height: 56,
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 18,
+      ),
       alignment: Alignment.centerLeft,
       decoration: BoxDecoration(
         color: AppColors.surfaceElevated,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(
+          999,
+        ),
+        border: Border.all(
+          color: AppColors.border,
+        ),
       ),
       child: _SkeletonBox(
         progress: progress,
@@ -1381,20 +1953,33 @@ class _SearchInputSkeleton extends StatelessWidget {
 }
 
 class _FilterRowSkeleton extends StatelessWidget {
-  const _FilterRowSkeleton({required this.progress, required this.widths});
+  const _FilterRowSkeleton({
+    required this.progress,
+    required this.widths,
+  });
 
   final double progress;
+
   final List<double> widths;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       physics: const NeverScrollableScrollPhysics(),
       child: Row(
         children: [
-          for (var index = 0; index < widths.length; index++) ...[
-            if (index > 0) const SizedBox(width: 7),
+          for (
+            var index = 0;
+            index < widths.length;
+            index++
+          ) ...[
+            if (index > 0)
+              const SizedBox(
+                width: 7,
+              ),
             _SkeletonBox(
               progress: progress,
               width: widths[index],
@@ -1409,17 +1994,31 @@ class _FilterRowSkeleton extends StatelessWidget {
 }
 
 class _HistoryCountSkeleton extends StatelessWidget {
-  const _HistoryCountSkeleton({required this.progress});
+  const _HistoryCountSkeleton({
+    required this.progress,
+  });
 
   final double progress;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Row(
       children: [
-        _SkeletonBox(progress: progress, width: 122, height: 18, radius: 7),
+        _SkeletonBox(
+          progress: progress,
+          width: 122,
+          height: 18,
+          radius: 7,
+        ),
         const Spacer(),
-        _SkeletonBox(progress: progress, width: 50, height: 11, radius: 6),
+        _SkeletonBox(
+          progress: progress,
+          width: 50,
+          height: 11,
+          radius: 6,
+        ),
       ],
     );
   }
@@ -1433,24 +2032,41 @@ class _HistoryDateGroupSkeleton extends StatelessWidget {
   });
 
   final bool compact;
+
   final double progress;
+
   final int rowCount;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SkeletonBox(progress: progress, width: 82, height: 10, radius: 5),
-        const SizedBox(height: 10),
+        _SkeletonBox(
+          progress: progress,
+          width: 82,
+          height: 10,
+          radius: 5,
+        ),
+        const SizedBox(
+          height: 10,
+        ),
         Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(compact ? 22 : 26),
+            borderRadius: BorderRadius.circular(
+              compact ? 22 : 26,
+            ),
           ),
           child: Column(
             children: [
-              for (var index = 0; index < rowCount; index++) ...[
+              for (
+                var index = 0;
+                index < rowCount;
+                index++
+              ) ...[
                 _TransactionTileSkeleton(
                   compact: compact,
                   progress: progress,
@@ -1458,10 +2074,14 @@ class _HistoryDateGroupSkeleton extends StatelessWidget {
                 ),
                 if (index < rowCount - 1)
                   Padding(
-                    padding: EdgeInsets.only(left: compact ? 66 : 74),
+                    padding: EdgeInsets.only(
+                      left: compact ? 66 : 74,
+                    ),
                     child: Container(
                       height: 1,
-                      color: Colors.white.withValues(alpha: 0.045),
+                      color: Colors.white.withValues(
+                        alpha: 0.045,
+                      ),
                     ),
                   ),
               ],
@@ -1481,18 +2101,32 @@ class _TransactionTileSkeleton extends StatelessWidget {
   });
 
   final bool compact;
+
   final double progress;
+
   final int index;
 
   @override
-  Widget build(BuildContext context) {
-    final titleWidths = <double>[128, 156, 108];
+  Widget build(
+    BuildContext context,
+  ) {
+    final titleWidths = <double>[
+      128,
+      156,
+      108,
+    ];
 
-    final subtitleWidths = <double>[180, 148, 195];
+    final subtitleWidths = <double>[
+      180,
+      148,
+      195,
+    ];
 
-    final titleWidth = titleWidths[index % titleWidths.length];
+    final titleWidth =
+        titleWidths[index % titleWidths.length];
 
-    final subtitleWidth = subtitleWidths[index % subtitleWidths.length];
+    final subtitleWidth =
+        subtitleWidths[index % subtitleWidths.length];
 
     return Padding(
       padding: EdgeInsets.symmetric(
@@ -1507,7 +2141,9 @@ class _TransactionTileSkeleton extends StatelessWidget {
             height: compact ? 42 : 46,
             radius: 15,
           ),
-          SizedBox(width: compact ? 12 : 14),
+          SizedBox(
+            width: compact ? 12 : 14,
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1518,14 +2154,18 @@ class _TransactionTileSkeleton extends StatelessWidget {
                   height: 13,
                   radius: 6,
                 ),
-                const SizedBox(height: 7),
+                const SizedBox(
+                  height: 7,
+                ),
                 _SkeletonBox(
                   progress: progress,
                   width: subtitleWidth,
                   height: 10,
                   radius: 5,
                 ),
-                const SizedBox(height: 7),
+                const SizedBox(
+                  height: 7,
+                ),
                 _SkeletonBox(
                   progress: progress,
                   width: 54,
@@ -1535,7 +2175,9 @@ class _TransactionTileSkeleton extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(
+            width: 12,
+          ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -1545,9 +2187,18 @@ class _TransactionTileSkeleton extends StatelessWidget {
                 height: compact ? 13 : 14,
                 radius: 6,
               ),
-              const SizedBox(height: 5),
-              _SkeletonBox(progress: progress, width: 26, height: 9, radius: 5),
-              const SizedBox(height: 7),
+              const SizedBox(
+                height: 5,
+              ),
+              _SkeletonBox(
+                progress: progress,
+                width: 26,
+                height: 9,
+                radius: 5,
+              ),
+              const SizedBox(
+                height: 7,
+              ),
               _SkeletonBox(
                 progress: progress,
                 width: 72,
@@ -1571,28 +2222,48 @@ class _SkeletonBox extends StatelessWidget {
   });
 
   final double progress;
+
   final double? width;
+
   final double height;
+
   final double radius;
 
   @override
-  Widget build(BuildContext context) {
-    final position = -1.8 + (progress * 3.6);
+  Widget build(
+    BuildContext context,
+  ) {
+    final position =
+        -1.8 + (progress * 3.6);
 
     return Container(
       width: width,
       height: height,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(radius),
+        borderRadius: BorderRadius.circular(
+          radius,
+        ),
         gradient: LinearGradient(
-          begin: Alignment(position - 1, 0),
-          end: Alignment(position + 1, 0),
+          begin: Alignment(
+            position - 1,
+            0,
+          ),
+          end: Alignment(
+            position + 1,
+            0,
+          ),
           colors: [
             AppColors.surfaceElevated,
-            Colors.white.withValues(alpha: 0.09),
+            Colors.white.withValues(
+              alpha: 0.09,
+            ),
             AppColors.surfaceElevated,
           ],
-          stops: const [0.2, 0.5, 0.8],
+          stops: const [
+            0.2,
+            0.5,
+            0.8,
+          ],
         ),
       ),
     );
@@ -1600,19 +2271,29 @@ class _SkeletonBox extends StatelessWidget {
 }
 
 class _HistoryError extends StatelessWidget {
-  const _HistoryError({required this.message, required this.onRetry});
+  const _HistoryError({
+    required this.message,
+    required this.onRetry,
+  });
 
   final String message;
+
   final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(
+        28,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(
+          24,
+        ),
       ),
       child: Column(
         children: [
@@ -1621,7 +2302,9 @@ class _HistoryError extends StatelessWidget {
             size: 28,
             color: AppColors.textSecondary,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(
+            height: 14,
+          ),
           const Text(
             'Could not load history',
             style: TextStyle(
@@ -1630,7 +2313,9 @@ class _HistoryError extends StatelessWidget {
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 7),
+          const SizedBox(
+            height: 7,
+          ),
           Text(
             message,
             textAlign: TextAlign.center,
@@ -1640,7 +2325,9 @@ class _HistoryError extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(
+            height: 16,
+          ),
           TextButton(
             onPressed: onRetry,
             child: const Text(
@@ -1658,27 +2345,51 @@ class _HistoryError extends StatelessWidget {
 }
 
 class _EmptyHistory extends StatelessWidget {
-  const _EmptyHistory();
+  const _EmptyHistory({
+    required this.direction,
+  });
+
+  final _DirectionFilter direction;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
+    final description = switch (direction) {
+      _DirectionFilter.sent =>
+        'Payments you send will appear here once Budgetify records them.',
+
+      _DirectionFilter.received =>
+        'Payments you receive will appear here after Budgetify detects or records them.',
+
+      _DirectionFilter.all =>
+        'Money you send and receive will appear here once transactions are recorded.',
+    };
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 46),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 24,
+        vertical: 46,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(
+          26,
+        ),
       ),
-      child: const Column(
+      child: Column(
         children: [
-          HugeIcon(
+          const HugeIcon(
             icon: HugeIcons.strokeRoundedTransactionHistory,
             size: 30,
             strokeWidth: 1.7,
             color: AppColors.textSecondary,
           ),
-          SizedBox(height: 16),
-          Text(
+          const SizedBox(
+            height: 16,
+          ),
+          const Text(
             'No transactions found',
             style: TextStyle(
               fontSize: 14,
@@ -1686,11 +2397,13 @@ class _EmptyHistory extends StatelessWidget {
               color: AppColors.textPrimary,
             ),
           ),
-          SizedBox(height: 6),
+          const SizedBox(
+            height: 6,
+          ),
           Text(
-            'Your transactions will appear here once you start sending money.',
+            description,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 11,
               height: 1.5,
               color: AppColors.textSecondary,
@@ -1703,18 +2416,27 @@ class _EmptyHistory extends StatelessWidget {
 }
 
 class _LoadMoreButton extends StatelessWidget {
-  const _LoadMoreButton({required this.isLoading, required this.onPressed});
+  const _LoadMoreButton({
+    required this.isLoading,
+    required this.onPressed,
+  });
 
   final bool isLoading;
+
   final VoidCallback? onPressed;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return TextButton(
       onPressed: onPressed,
       style: TextButton.styleFrom(
         foregroundColor: AppColors.primary,
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 22,
+          vertical: 14,
+        ),
       ),
       child: isLoading
           ? const SizedBox.square(
@@ -1726,45 +2448,80 @@ class _LoadMoreButton extends StatelessWidget {
             )
           : const Text(
               'Load more',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
     );
   }
 }
 
-Color _transactionStatusColor(PaymentTransaction transaction) {
-  if (transactionNeedsConfirmation(transaction)) {
+String _subtitleForTransaction(
+  TransactionHistoryItem transaction,
+) {
+  final identifier =
+      transaction.counterpartyIdentifier?.trim();
+
+  final hasName =
+      transaction.counterpartyName?.trim().isNotEmpty ?? false;
+
+  final prefix = transaction.isReceived
+      ? 'Received'
+      : transaction.methodLabel;
+
+  if (identifier == null || identifier.isEmpty || !hasName) {
+    return prefix;
+  }
+
+  return '$prefix • $identifier';
+}
+
+Color _transactionStatusColor(
+  TransactionHistoryItem transaction,
+) {
+  if (transaction.needsConfirmation()) {
     return AppColors.primaryMuted;
   }
 
-  return _statusColor(transaction.status);
-}
-
-Color _statusColor(TransactionStatus status) {
-  return switch (status) {
+  return switch (transaction.status) {
     TransactionStatus.completed => AppColors.success,
 
-    TransactionStatus.failed || TransactionStatus.cancelled => AppColors.danger,
+    TransactionStatus.failed ||
+    TransactionStatus.cancelled =>
+      AppColors.danger,
+
+    TransactionStatus.reversed => AppColors.danger,
 
     TransactionStatus.processing => AppColors.primary,
 
     TransactionStatus.pending => AppColors.textSecondary,
-
-    TransactionStatus.reversed => AppColors.primaryMuted,
   };
 }
 
-String _formatAmount(int amount) {
-  final value = amount.toString();
+String _formatAmount(
+  int amount,
+) {
+  final value =
+      amount.toString();
 
-  final buffer = StringBuffer();
+  final buffer =
+      StringBuffer();
 
-  for (var index = 0; index < value.length; index++) {
-    final remaining = value.length - index;
+  for (
+    var index = 0;
+    index < value.length;
+    index++
+  ) {
+    final remaining =
+        value.length - index;
 
-    buffer.write(value[index]);
+    buffer.write(
+      value[index],
+    );
 
-    if (remaining > 1 && remaining % 3 == 1) {
+    if (remaining > 1 &&
+        remaining % 3 == 1) {
       buffer.write(',');
     }
   }
@@ -1772,7 +2529,9 @@ String _formatAmount(int amount) {
   return buffer.toString();
 }
 
-String _formatDate(DateTime date) {
+String _formatDate(
+  DateTime date,
+) {
   const months = [
     'Jan',
     'Feb',
@@ -1791,16 +2550,23 @@ String _formatDate(DateTime date) {
   return '${date.day} ${months[date.month - 1]} ${date.year}';
 }
 
-String _formatTime(DateTime date) {
+String _formatTime(
+  DateTime date,
+) {
   final hour = date.hour == 0
       ? 12
       : date.hour > 12
       ? date.hour - 12
       : date.hour;
 
-  final minute = date.minute.toString().padLeft(2, '0');
+  final minute =
+      date.minute.toString().padLeft(
+        2,
+        '0',
+      );
 
-  final period = date.hour >= 12 ? 'PM' : 'AM';
+  final period =
+      date.hour >= 12 ? 'PM' : 'AM';
 
   return '$hour:$minute $period';
 }
