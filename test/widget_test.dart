@@ -14,7 +14,9 @@ class _FakeAuthService implements AuthServiceContract {
   _FakeAuthService({this.restoredUser});
 
   final AuthUser? restoredUser;
+
   int updateCurrentUserNamesCallCount = 0;
+
   String? lastUpdatedFirstName;
   String? lastUpdatedLastName;
 
@@ -67,6 +69,7 @@ class _FakeAuthService implements AuthServiceContract {
   @override
   Future<AuthUser> requestCurrentUserDeletion() async {
     final user = restoredUser;
+
     if (user == null) {
       throw StateError('No restored user is available for this test.');
     }
@@ -94,7 +97,9 @@ class _FakeAuthService implements AuthServiceContract {
   }
 
   @override
-  Future<AuthUser?> restoreAuthenticatedUser() async => restoredUser;
+  Future<AuthUser?> restoreAuthenticatedUser() async {
+    return restoredUser;
+  }
 
   @override
   Future<AuthSession> signInWithGoogle() {
@@ -117,10 +122,12 @@ class _FakeAuthService implements AuthServiceContract {
     required String lastName,
   }) async {
     updateCurrentUserNamesCallCount++;
+
     lastUpdatedFirstName = firstName;
     lastUpdatedLastName = lastName;
 
     final user = restoredUser;
+
     if (user == null) {
       throw StateError('No restored user is available for this test.');
     }
@@ -143,115 +150,6 @@ class _FakeAuthService implements AuthServiceContract {
   }
 }
 
-void main() {
-  testWidgets('renders the auth login experience', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      BudgetifyApp(
-        authService: _FakeAuthService(),
-        onboardingPreferences: _FakeOnboardingPreferences(completed: true),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 1000));
-
-    expect(find.text('Budgetify'), findsOneWidget);
-    expect(find.text('Continue with Google'), findsOneWidget);
-    expect(find.text('T&T'), findsOneWidget);
-  });
-
-  testWidgets('redirects authenticated users to the landing page', (
-    WidgetTester tester,
-  ) async {
-    final restoredUser = AuthUser(
-      id: 'user-1',
-      email: 'jane@example.com',
-      firstName: 'Jane',
-      lastName: 'Doe',
-      fullName: 'Jane Doe',
-      avatarUrl: null,
-      isEmailVerified: true,
-      status: 'ACTIVE',
-      lastLoginAt: DateTime.utc(2026, 3, 6),
-      accountDeletionRequestedAt: null,
-      accountDeletionScheduledFor: null,
-      createdAt: DateTime.utc(2026, 3, 6),
-      updatedAt: DateTime.utc(2026, 3, 6),
-    );
-
-    await tester.pumpWidget(
-      BudgetifyApp(authService: _FakeAuthService(restoredUser: restoredUser)),
-    );
-    await tester.pump(const Duration(milliseconds: 1000));
-    await tester.pump(const Duration(milliseconds: 1200));
-
-    expect(find.byTooltip('Menu'), findsOneWidget);
-    expect(find.text('JD'), findsOneWidget);
-    expect(find.text('AMOUNT'), findsOneWidget);
-    expect(find.text('Send money'), findsOneWidget);
-
-    await tester.tap(find.byTooltip('Profile'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Personal details'), findsOneWidget);
-    expect(find.text('Save changes'), findsOneWidget);
-    expect(find.byTooltip('Log out'), findsOneWidget);
-    expect(find.text('Delete my account'), findsNothing);
-
-    await tester.tap(find.text('Delete account'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Delete my account'), findsOneWidget);
-  });
-
-  testWidgets(
-    'completes missing profile names before opening the landing page',
-    (WidgetTester tester) async {
-      final restoredUser = AuthUser(
-        id: 'user-2',
-        email: 'alice@example.com',
-        firstName: null,
-        lastName: null,
-        fullName: null,
-        avatarUrl: null,
-        isEmailVerified: true,
-        status: 'ACTIVE',
-        lastLoginAt: DateTime.utc(2026, 3, 29),
-        accountDeletionRequestedAt: null,
-        accountDeletionScheduledFor: null,
-        createdAt: DateTime.utc(2026, 3, 29),
-        updatedAt: DateTime.utc(2026, 3, 29),
-      );
-      final authService = _FakeAuthService(restoredUser: restoredUser);
-
-      await tester.pumpWidget(BudgetifyApp(authService: authService));
-      await tester.pump(const Duration(milliseconds: 1000));
-      await tester.pump(const Duration(milliseconds: 600));
-
-      expect(find.text('Complete your profile'), findsOneWidget);
-
-      final firstNameInput = find.descendant(
-        of: find.byType(AppInput).at(0),
-        matching: find.byType(EditableText),
-      );
-      final lastNameInput = find.descendant(
-        of: find.byType(AppInput).at(1),
-        matching: find.byType(EditableText),
-      );
-
-      await tester.enterText(firstNameInput, 'Alice');
-      await tester.enterText(lastNameInput, 'Mutoni');
-      await tester.tap(find.text('Save and continue'));
-      await tester.pump(const Duration(milliseconds: 400));
-      await tester.pump(const Duration(milliseconds: 1200));
-
-      expect(authService.updateCurrentUserNamesCallCount, 1);
-      expect(authService.lastUpdatedFirstName, 'Alice');
-      expect(authService.lastUpdatedLastName, 'Mutoni');
-      expect(find.text('AM'), findsOneWidget);
-      expect(find.text('AMOUNT'), findsOneWidget);
-    },
-  );
-}
-
 class _FakeOnboardingPreferences implements OnboardingPreferences {
   _FakeOnboardingPreferences({required bool completed})
     : _completed = completed;
@@ -270,4 +168,283 @@ class _FakeOnboardingPreferences implements OnboardingPreferences {
     _completed = true;
     markCompletedCallCount++;
   }
+}
+
+Future<void> _pumpAppPastOnboarding(
+  WidgetTester tester, {
+  required _FakeAuthService authService,
+}) async {
+  await tester.pumpWidget(
+    BudgetifyApp(
+      authService: authService,
+      onboardingPreferences: _FakeOnboardingPreferences(completed: true),
+    ),
+  );
+
+  // Allow the onboarding completion state to resolve
+  // and the LoginPage to enter the widget tree.
+  await tester.pump();
+
+  // LoginPage performs its startup/session check after
+  // a short delay.
+  await tester.pump(const Duration(milliseconds: 1000));
+}
+
+void main() {
+  group('onboarding', () {
+    testWidgets('shows onboarding before authentication on first launch', (
+      WidgetTester tester,
+    ) async {
+      final onboardingPreferences = _FakeOnboardingPreferences(
+        completed: false,
+      );
+
+      await tester.pumpWidget(
+        BudgetifyApp(
+          authService: _FakeAuthService(),
+          onboardingPreferences: onboardingPreferences,
+        ),
+      );
+
+      await tester.pump();
+
+      expect(
+        find.text('Your money, finally in one clear place.'),
+        findsOneWidget,
+      );
+
+      expect(find.text('WELCOME TO BUDGETIFY'), findsOneWidget);
+
+      expect(find.text('Skip'), findsOneWidget);
+
+      expect(find.text('Continue'), findsOneWidget);
+
+      expect(find.text('Continue with Google'), findsNothing);
+    });
+
+    testWidgets('moves through all onboarding slides', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        BudgetifyApp(
+          authService: _FakeAuthService(),
+          onboardingPreferences: _FakeOnboardingPreferences(completed: false),
+        ),
+      );
+
+      await tester.pump();
+
+      expect(
+        find.text('Your money, finally in one clear place.'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Continue'));
+
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.text('Send money with confidence.'), findsOneWidget);
+
+      expect(find.text('SMARTER PAYMENTS'), findsOneWidget);
+
+      await tester.tap(find.text('Continue'));
+
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.text('Make every franc more intentional.'), findsOneWidget);
+
+      expect(find.text('MORE CONTROL'), findsOneWidget);
+
+      expect(find.text('Get started'), findsOneWidget);
+    });
+
+    testWidgets('completes onboarding from Get started', (
+      WidgetTester tester,
+    ) async {
+      final onboardingPreferences = _FakeOnboardingPreferences(
+        completed: false,
+      );
+
+      await tester.pumpWidget(
+        BudgetifyApp(
+          authService: _FakeAuthService(),
+          onboardingPreferences: onboardingPreferences,
+        ),
+      );
+
+      await tester.pump();
+
+      await tester.tap(find.text('Continue'));
+
+      await tester.pump(const Duration(milliseconds: 500));
+
+      await tester.tap(find.text('Continue'));
+
+      await tester.pump(const Duration(milliseconds: 500));
+
+      await tester.tap(find.text('Get started'));
+
+      await tester.pump(const Duration(milliseconds: 450));
+
+      expect(onboardingPreferences.markCompletedCallCount, 1);
+
+      expect(
+        find.text('Your money, finally in one clear place.'),
+        findsNothing,
+      );
+    });
+
+    testWidgets('skips onboarding and remembers completion', (
+      WidgetTester tester,
+    ) async {
+      final onboardingPreferences = _FakeOnboardingPreferences(
+        completed: false,
+      );
+
+      await tester.pumpWidget(
+        BudgetifyApp(
+          authService: _FakeAuthService(),
+          onboardingPreferences: onboardingPreferences,
+        ),
+      );
+
+      await tester.pump();
+
+      expect(find.text('Skip'), findsOneWidget);
+
+      await tester.tap(find.text('Skip'));
+
+      await tester.pump(const Duration(milliseconds: 450));
+
+      expect(onboardingPreferences.markCompletedCallCount, 1);
+
+      expect(find.text('Skip'), findsNothing);
+    });
+  });
+
+  group('authentication', () {
+    testWidgets('renders the auth login experience after onboarding', (
+      WidgetTester tester,
+    ) async {
+      await _pumpAppPastOnboarding(tester, authService: _FakeAuthService());
+
+      expect(find.text('Budgetify'), findsOneWidget);
+
+      expect(find.text('Continue with Google'), findsOneWidget);
+
+      expect(find.text('T&T'), findsOneWidget);
+    });
+
+    testWidgets('redirects authenticated users to the landing page', (
+      WidgetTester tester,
+    ) async {
+      final restoredUser = AuthUser(
+        id: 'user-1',
+        email: 'jane@example.com',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        fullName: 'Jane Doe',
+        avatarUrl: null,
+        isEmailVerified: true,
+        status: 'ACTIVE',
+        lastLoginAt: DateTime.utc(2026, 3, 6),
+        accountDeletionRequestedAt: null,
+        accountDeletionScheduledFor: null,
+        createdAt: DateTime.utc(2026, 3, 6),
+        updatedAt: DateTime.utc(2026, 3, 6),
+      );
+
+      await _pumpAppPastOnboarding(
+        tester,
+        authService: _FakeAuthService(restoredUser: restoredUser),
+      );
+
+      await tester.pump(const Duration(milliseconds: 1200));
+
+      expect(find.byTooltip('Menu'), findsOneWidget);
+
+      expect(find.text('JD'), findsOneWidget);
+
+      expect(find.text('AMOUNT'), findsOneWidget);
+
+      expect(find.text('Send money'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Profile'));
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Personal details'), findsOneWidget);
+
+      expect(find.text('Save changes'), findsOneWidget);
+
+      expect(find.byTooltip('Log out'), findsOneWidget);
+
+      expect(find.text('Delete my account'), findsNothing);
+
+      await tester.tap(find.text('Delete account'));
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete my account'), findsOneWidget);
+    });
+
+    testWidgets(
+      'completes missing profile names before opening the landing page',
+      (WidgetTester tester) async {
+        final restoredUser = AuthUser(
+          id: 'user-2',
+          email: 'alice@example.com',
+          firstName: null,
+          lastName: null,
+          fullName: null,
+          avatarUrl: null,
+          isEmailVerified: true,
+          status: 'ACTIVE',
+          lastLoginAt: DateTime.utc(2026, 3, 29),
+          accountDeletionRequestedAt: null,
+          accountDeletionScheduledFor: null,
+          createdAt: DateTime.utc(2026, 3, 29),
+          updatedAt: DateTime.utc(2026, 3, 29),
+        );
+
+        final authService = _FakeAuthService(restoredUser: restoredUser);
+
+        await _pumpAppPastOnboarding(tester, authService: authService);
+
+        await tester.pump(const Duration(milliseconds: 600));
+
+        expect(find.text('Complete your profile'), findsOneWidget);
+
+        final firstNameInput = find.descendant(
+          of: find.byType(AppInput).at(0),
+          matching: find.byType(EditableText),
+        );
+
+        final lastNameInput = find.descendant(
+          of: find.byType(AppInput).at(1),
+          matching: find.byType(EditableText),
+        );
+
+        await tester.enterText(firstNameInput, 'Alice');
+
+        await tester.enterText(lastNameInput, 'Mutoni');
+
+        await tester.tap(find.text('Save and continue'));
+
+        await tester.pump(const Duration(milliseconds: 400));
+
+        await tester.pump(const Duration(milliseconds: 1200));
+
+        expect(authService.updateCurrentUserNamesCallCount, 1);
+
+        expect(authService.lastUpdatedFirstName, 'Alice');
+
+        expect(authService.lastUpdatedLastName, 'Mutoni');
+
+        expect(find.text('AM'), findsOneWidget);
+
+        expect(find.text('AMOUNT'), findsOneWidget);
+      },
+    );
+  });
 }
