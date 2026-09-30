@@ -8,6 +8,7 @@ import 'package:budgetify/features/auth/data/models/auth_session.dart';
 import 'package:budgetify/features/auth/data/models/auth_user.dart';
 import 'package:budgetify/features/auth/data/models/email_initiate_response.dart';
 import 'package:budgetify/features/auth/data/models/password_auth_models.dart';
+import 'package:budgetify/features/onboarding/application/onboarding_preferences.dart';
 
 class _FakeAuthService implements AuthServiceContract {
   _FakeAuthService({this.restoredUser});
@@ -144,7 +145,12 @@ class _FakeAuthService implements AuthServiceContract {
 
 void main() {
   testWidgets('renders the auth login experience', (WidgetTester tester) async {
-    await tester.pumpWidget(BudgetifyApp(authService: _FakeAuthService()));
+    await tester.pumpWidget(
+      BudgetifyApp(
+        authService: _FakeAuthService(),
+        onboardingPreferences: _FakeOnboardingPreferences(completed: true),
+      ),
+    );
     await tester.pump(const Duration(milliseconds: 1000));
 
     expect(find.text('Budgetify'), findsOneWidget);
@@ -244,4 +250,24 @@ void main() {
       expect(find.text('AMOUNT'), findsOneWidget);
     },
   );
+}
+
+class _FakeOnboardingPreferences implements OnboardingPreferences {
+  _FakeOnboardingPreferences({required bool completed})
+    : _completed = completed;
+
+  bool _completed;
+
+  int markCompletedCallCount = 0;
+
+  @override
+  Future<bool> hasCompletedOnboarding() async {
+    return _completed;
+  }
+
+  @override
+  Future<void> markOnboardingCompleted() async {
+    _completed = true;
+    markCompletedCallCount++;
+  }
 }
