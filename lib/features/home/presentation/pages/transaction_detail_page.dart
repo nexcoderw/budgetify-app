@@ -1,9 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_toast.dart';
 import '../../application/transaction_service.dart';
+import '../../application/transaction_sms_matcher.dart';
+import '../../application/transaction_sms_reconciliation_service.dart';
+import '../../data/models/provider_sms_message.dart';
 import '../../data/models/transaction_models.dart';
 
 class TransactionDetailPage extends StatefulWidget {
@@ -11,10 +18,13 @@ class TransactionDetailPage extends StatefulWidget {
     super.key,
     required this.transactionId,
     this.transactionService,
+    this.smsReconciliationService,
   });
 
   final String transactionId;
   final TransactionService? transactionService;
+
+  final TransactionSmsReconciliationService? smsReconciliationService;
 
   @override
   State<TransactionDetailPage> createState() => _TransactionDetailPageState();
@@ -23,10 +33,17 @@ class TransactionDetailPage extends StatefulWidget {
 class _TransactionDetailPageState extends State<TransactionDetailPage> {
   late final TransactionService _transactionService;
 
+  late final TransactionSmsReconciliationService _smsReconciliationService;
+
   TransactionDetail? _detail;
 
   bool _isLoading = true;
+  bool _isCheckingStatus = false;
+
   String? _errorMessage;
+  String? _reconciliationMessage;
+
+  DateTime? _lastCheckedAt;
 
   @override
   void initState() {
@@ -35,14 +52,22 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
     _transactionService =
         widget.transactionService ?? TransactionService.createDefault();
 
-    _load();
+    _smsReconciliationService =
+        widget.smsReconciliationService ??
+        TransactionSmsReconciliationService.createDefault(
+          transactionService: _transactionService,
+        );
+
+    unawaited(_load());
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  Future<void> _load({bool showLoader = true}) async {
+    if (showLoader) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
       final detail = await _transactionService.getDetail(
@@ -55,6 +80,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
 
       setState(() {
         _detail = detail;
+        _errorMessage = null;
       });
     } on ApiException catch (error) {
       if (!mounted) {
@@ -73,12 +99,177 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
         _errorMessage = 'Could not load transaction details.';
       });
     } finally {
-      if (mounted) {
+      if (mounted && showLoader) {
         setState(() {
           _isLoading = false;
         });
       }
     }
+  }
+
+  Future<void> _checkTransactionStatus() async {
+    if (_isCheckingStatus) {
+      return;
+    }
+
+    final detail = _detail;
+
+    if (detail == null) {
+      return;
+    }
+
+    setState(() {
+      _isCheckingStatus = true;
+      _reconciliationMessage = null;
+    });
+
+    try {
+      var result = await _smsReconciliationService.reconcileTransaction(
+        detail.transaction,
+      );
+
+      if (result.outcome == TransactionReconciliationOutcome.permissionDenied) {
+        final permission = await _smsReconciliationService.requestPermission();
+
+        if (!mounted) {
+          return;
+        }
+
+        if (permission != DeviceSmsPermission.granted) {
+          setState(() {
+            _lastCheckedAt = result.checkedAt;
+
+            _reconciliationMessage =
+                'SMS access is disabled. The transaction remains unchanged.';
+          });
+
+          AppToast.error(
+            context,
+            title: 'SMS access required',
+            description:
+                'Enable SMS access to let Budgetify check MTN transaction confirmations.',
+          );
+
+          return;
+        }
+
+        result = await _smsReconciliationService.reconcileTransaction(
+          detail.transaction,
+        );
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _lastCheckedAt = result.checkedAt;
+
+        _reconciliationMessage = _messageForResult(result);
+      });
+
+      switch (result.outcome) {
+        case TransactionReconciliationOutcome.updated:
+          await _load(showLoader: false);
+
+          if (!mounted) {
+            return;
+          }
+
+          final updated = result.transaction;
+
+          if (updated.status == TransactionStatus.completed) {
+            AppToast.success(
+              context,
+              title: 'Transaction confirmed',
+              description:
+                  'MTN confirmation was matched safely to this transaction.',
+            );
+          } else {
+            AppToast.info(
+              context,
+              title: 'Transaction status updated',
+              description:
+                  'MTN reported ${updated.status.label.toLowerCase()}.',
+            );
+          }
+
+        case TransactionReconciliationOutcome.alreadyResolved:
+          await _load(showLoader: false);
+
+        case TransactionReconciliationOutcome.noMatch:
+          AppToast.info(
+            context,
+            title: 'No confirmation found',
+            description:
+                'Budgetify found no reliable MTN message for this transaction. Its current status was not changed.',
+          );
+
+        case TransactionReconciliationOutcome.ambiguous:
+          AppToast.info(
+            context,
+            title: 'Confirmation needs review',
+            description:
+                'More than one MTN message could match this transaction. Budgetify did not guess or change its status.',
+          );
+
+        case TransactionReconciliationOutcome.unsupported:
+          AppToast.info(
+            context,
+            title: 'Automatic check unavailable',
+            description:
+                'SMS transaction confirmation is currently available on Android only.',
+          );
+
+        case TransactionReconciliationOutcome.permissionDenied:
+          // Handled above.
+          break;
+      }
+    } on ApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      AppToast.error(
+        context,
+        title: 'Could not check transaction',
+        description: error.message,
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      AppToast.error(
+        context,
+        title: 'Could not check transaction',
+        description:
+            'Budgetify could not safely reconcile this transaction. Please try again.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingStatus = false;
+        });
+      }
+    }
+  }
+
+  String _messageForResult(TransactionReconciliationResult result) {
+    return switch (result.outcome) {
+      TransactionReconciliationOutcome.updated =>
+        'A reliable MTN confirmation was found and the transaction was updated.',
+      TransactionReconciliationOutcome.alreadyResolved =>
+        'This transaction already has a final status.',
+      TransactionReconciliationOutcome.noMatch =>
+        'No reliable MTN confirmation was found. This does not mean the transfer failed.',
+      TransactionReconciliationOutcome.ambiguous =>
+        'Multiple MTN messages could match. Budgetify left the transaction unchanged rather than guessing.',
+      TransactionReconciliationOutcome.permissionDenied =>
+        'SMS access is required to check transaction confirmations.',
+      TransactionReconciliationOutcome.unsupported =>
+        'Automatic SMS confirmation is unavailable on this device.',
+    };
   }
 
   @override
@@ -119,7 +310,12 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
     final error = _errorMessage;
 
     if (error != null) {
-      return _DetailError(message: error, onRetry: _load);
+      return _DetailError(
+        message: error,
+        onRetry: () {
+          unawaited(_load());
+        },
+      );
     }
 
     final detail = _detail;
@@ -129,6 +325,8 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
     }
 
     final transaction = detail.transaction;
+
+    final needsConfirmation = transactionNeedsConfirmation(transaction);
 
     return SingleChildScrollView(
       child: Column(
@@ -158,11 +356,23 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                   ),
                 ),
               ),
-              _StatusBadge(status: transaction.status),
+              _StatusBadge(transaction: transaction),
             ],
           ),
           const SizedBox(height: 24),
           _AmountSummary(transaction: transaction),
+          if (isTransactionOpen(transaction)) ...[
+            const SizedBox(height: 16),
+            _TransactionRecoveryCard(
+              needsConfirmation: needsConfirmation,
+              isChecking: _isCheckingStatus,
+              lastCheckedAt: _lastCheckedAt,
+              message: _reconciliationMessage,
+              onCheck: () {
+                unawaited(_checkTransactionStatus());
+              },
+            ),
+          ],
           const SizedBox(height: 16),
           _InformationCard(transaction: transaction),
           if (transaction.failureCode != null ||
@@ -304,6 +514,120 @@ class _AmountSummary extends StatelessWidget {
   }
 }
 
+class _TransactionRecoveryCard extends StatelessWidget {
+  const _TransactionRecoveryCard({
+    required this.needsConfirmation,
+    required this.isChecking,
+    required this.lastCheckedAt,
+    required this.message,
+    required this.onCheck,
+  });
+
+  final bool needsConfirmation;
+  final bool isChecking;
+  final DateTime? lastCheckedAt;
+  final String? message;
+  final VoidCallback onCheck;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = needsConfirmation
+        ? AppColors.primaryMuted
+        : AppColors.primary;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.center,
+                child: HugeIcon(
+                  icon: HugeIcons.strokeRoundedTransactionHistory,
+                  size: 19,
+                  strokeWidth: 1.8,
+                  color: accent,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      needsConfirmation
+                          ? 'Needs confirmation'
+                          : 'Waiting for confirmation',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      needsConfirmation
+                          ? 'Budgetify has not found reliable MTN confirmation yet. This does not mean the payment failed.'
+                          : 'Budgetify will keep this transaction open until reliable MTN confirmation is found.',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        height: 1.45,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (message != null) ...[
+            const SizedBox(height: 14),
+            Text(
+              message!,
+              style: const TextStyle(
+                fontSize: 10,
+                height: 1.45,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+          if (lastCheckedAt != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Last checked ${_formatDateTime(lastCheckedAt!.toLocal())}',
+              style: TextStyle(
+                fontSize: 9,
+                color: AppColors.textSecondary.withValues(alpha: 0.72),
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          AppButton(
+            label: 'Check transaction status',
+            icon: HugeIcons.strokeRoundedTransactionHistory,
+            size: AppButtonSize.sm,
+            variant: AppButtonVariant.secondary,
+            isLoading: isChecking,
+            onPressed: isChecking ? null : onCheck,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _AmountMetric extends StatelessWidget {
   const _AmountMetric({required this.label, required this.value});
 
@@ -362,29 +686,50 @@ class _InformationCard extends StatelessWidget {
       child: Column(
         children: [
           _DetailRow(label: 'Recipient', value: transaction.receiverIdentifier),
-          _DetailDivider(),
+          const _DetailDivider(),
           _DetailRow(label: 'Method', value: transaction.transferType.label),
-          _DetailDivider(),
+          const _DetailDivider(),
           _DetailRow(label: 'Category', value: transaction.category.label),
-          _DetailDivider(),
+          const _DetailDivider(),
           _DetailRow(label: 'Reference', value: transaction.reference),
           if (transaction.providerReference != null) ...[
-            _DetailDivider(),
+            const _DetailDivider(),
             _DetailRow(
               label: 'Provider reference',
               value: transaction.providerReference!,
             ),
           ],
-          _DetailDivider(),
+          const _DetailDivider(),
           _DetailRow(
             label: 'Created',
             value: _formatDateTime(transaction.createdAt.toLocal()),
           ),
+          if (transaction.processedAt != null) ...[
+            const _DetailDivider(),
+            _DetailRow(
+              label: 'Processing',
+              value: _formatDateTime(transaction.processedAt!.toLocal()),
+            ),
+          ],
           if (transaction.completedAt != null) ...[
-            _DetailDivider(),
+            const _DetailDivider(),
             _DetailRow(
               label: 'Completed',
               value: _formatDateTime(transaction.completedAt!.toLocal()),
+            ),
+          ],
+          if (transaction.failedAt != null) ...[
+            const _DetailDivider(),
+            _DetailRow(
+              label: 'Failed',
+              value: _formatDateTime(transaction.failedAt!.toLocal()),
+            ),
+          ],
+          if (transaction.cancelledAt != null) ...[
+            const _DetailDivider(),
+            _DetailRow(
+              label: 'Cancelled',
+              value: _formatDateTime(transaction.cancelledAt!.toLocal()),
             ),
           ],
         ],
@@ -609,13 +954,21 @@ class _TimelineItem extends StatelessWidget {
 }
 
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
+  const _StatusBadge({required this.transaction});
 
-  final TransactionStatus status;
+  final PaymentTransaction transaction;
 
   @override
   Widget build(BuildContext context) {
-    final color = _statusColor(status);
+    final needsConfirmation = transactionNeedsConfirmation(transaction);
+
+    final color = needsConfirmation
+        ? AppColors.primaryMuted
+        : _statusColor(transaction.status);
+
+    final label = needsConfirmation
+        ? 'Needs confirmation'
+        : transaction.status.label;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
@@ -624,7 +977,7 @@ class _StatusBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        status.label,
+        label,
         style: TextStyle(
           fontSize: 9,
           fontWeight: FontWeight.w700,
@@ -699,6 +1052,7 @@ Color _statusColor(TransactionStatus status) {
 
 String _formatAmount(int amount) {
   final value = amount.toString();
+
   final buffer = StringBuffer();
 
   for (var index = 0; index < value.length; index++) {
