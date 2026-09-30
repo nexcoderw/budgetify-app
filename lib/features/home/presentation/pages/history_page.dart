@@ -6,7 +6,10 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_input.dart';
+import '../../../../core/widgets/app_toast.dart';
 import '../../application/transaction_service.dart';
+import '../../application/transaction_sms_reconciliation_service.dart';
+import '../../data/models/provider_sms_message.dart';
 import '../../data/models/transaction_models.dart';
 import 'transaction_detail_page.dart';
 
@@ -36,9 +39,18 @@ enum _MethodFilter {
 }
 
 class HistoryPage extends StatefulWidget {
-  const HistoryPage({super.key, this.transactionService});
+  const HistoryPage({
+    super.key,
+    this.transactionService,
+    this.smsReconciliationService,
+    this.refreshToken = 0,
+  });
 
   final TransactionService? transactionService;
+
+  final TransactionSmsReconciliationService? smsReconciliationService;
+
+  final int refreshToken;
 
   @override
   State<HistoryPage> createState() => _HistoryPageState();
@@ -51,6 +63,8 @@ class _HistoryPageState extends State<HistoryPage> {
 
   late final TransactionService _transactionService;
 
+  late final TransactionSmsReconciliationService _smsReconciliationService;
+
   Timer? _searchDebounce;
 
   List<PaymentTransaction> _transactions = const [];
@@ -61,8 +75,11 @@ class _HistoryPageState extends State<HistoryPage> {
 
   _MethodFilter _methodFilter = _MethodFilter.all;
 
+  DeviceSmsPermission? _smsPermission;
+
   bool _isInitialLoading = true;
   bool _isLoadingMore = false;
+  bool _isSmsSyncing = false;
 
   String? _errorMessage;
   String? _loadMoreError;
@@ -76,29 +93,180 @@ class _HistoryPageState extends State<HistoryPage> {
     _transactionService =
         widget.transactionService ?? TransactionService.createDefault();
 
-    _loadTransactions(reset: true);
+    _smsReconciliationService =
+        widget.smsReconciliationService ??
+        TransactionSmsReconciliationService.createDefault(
+          transactionService: _transactionService,
+        );
+
+    unawaited(_loadSmsPermission());
+
+    unawaited(_loadTransactions(reset: true));
+  }
+
+  @override
+  void didUpdateWidget(covariant HistoryPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.refreshToken != widget.refreshToken) {
+      unawaited(_loadTransactions(reset: true));
+    }
   }
 
   @override
   void dispose() {
     _searchDebounce?.cancel();
+
     _searchController.dispose();
 
     super.dispose();
+  }
+
+  Future<void> _loadSmsPermission() async {
+    try {
+      final permission = await _smsReconciliationService.checkPermission();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _smsPermission = permission;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _smsPermission = DeviceSmsPermission.unsupported;
+      });
+    }
+  }
+
+  Future<void> _enableSmsReconciliation() async {
+    if (_isSmsSyncing) {
+      return;
+    }
+
+    setState(() {
+      _isSmsSyncing = true;
+    });
+
+    try {
+      final permission = await _smsReconciliationService.requestPermission();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _smsPermission = permission;
+      });
+
+      if (permission != DeviceSmsPermission.granted) {
+        AppToast.error(
+          context,
+          title: 'SMS access not enabled',
+          description:
+              'Budgetify cannot automatically confirm MoMo transactions without SMS access.',
+        );
+
+        return;
+      }
+
+      await _syncTransactionSms(showResult: true);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      AppToast.error(
+        context,
+        title: 'SMS access unavailable',
+        description:
+            'Budgetify could not enable automatic transaction confirmation.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSmsSyncing = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _syncSmsFromHistory() async {
+    if (_isSmsSyncing) {
+      return;
+    }
+
+    setState(() {
+      _isSmsSyncing = true;
+    });
+
+    try {
+      await _syncTransactionSms(showResult: true);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSmsSyncing = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _syncTransactionSms({required bool showResult}) async {
+    try {
+      final result = await _smsReconciliationService.reconcile();
+
+      if (!mounted) {
+        return;
+      }
+
+      if (result.hasChanges) {
+        await _loadTransactions(reset: true);
+      }
+
+      if (!mounted || !showResult) {
+        return;
+      }
+
+      AppToast.info(
+        context,
+        title: result.hasChanges
+            ? 'Transactions updated'
+            : 'Everything is up to date',
+        description: result.hasChanges
+            ? '${result.matchedTransactions} transaction${result.matchedTransactions == 1 ? '' : 's'} confirmed from MTN MoMo messages.'
+            : 'No new transaction confirmations were found.',
+      );
+    } catch (_) {
+      if (!mounted || !showResult) {
+        return;
+      }
+
+      AppToast.error(
+        context,
+        title: 'Could not sync transactions',
+        description:
+            'Budgetify could not check recent MTN MoMo transaction messages.',
+      );
+    }
   }
 
   void _onSearchChanged(String value) {
     _searchDebounce?.cancel();
 
     _searchDebounce = Timer(const Duration(milliseconds: 350), () {
-      _loadTransactions(reset: true);
+      unawaited(_loadTransactions(reset: true));
     });
   }
 
   void _onSearchSubmitted(String value) {
     _searchDebounce?.cancel();
 
-    _loadTransactions(reset: true);
+    unawaited(_loadTransactions(reset: true));
   }
 
   void _selectStatus(_StatusFilter filter) {
@@ -110,7 +278,7 @@ class _HistoryPageState extends State<HistoryPage> {
       _statusFilter = filter;
     });
 
-    _loadTransactions(reset: true);
+    unawaited(_loadTransactions(reset: true));
   }
 
   void _selectMethod(_MethodFilter filter) {
@@ -122,7 +290,7 @@ class _HistoryPageState extends State<HistoryPage> {
       _methodFilter = filter;
     });
 
-    _loadTransactions(reset: true);
+    unawaited(_loadTransactions(reset: true));
   }
 
   Future<void> _loadTransactions({required bool reset}) async {
@@ -143,8 +311,10 @@ class _HistoryPageState extends State<HistoryPage> {
     if (reset) {
       setState(() {
         _isInitialLoading = true;
+
         _errorMessage = null;
         _loadMoreError = null;
+
         _transactions = const [];
         _pagination = null;
       });
@@ -174,6 +344,7 @@ class _HistoryPageState extends State<HistoryPage> {
             : <PaymentTransaction>[..._transactions, ...result.items];
 
         _pagination = result.pagination;
+
         _errorMessage = null;
         _loadMoreError = null;
       });
@@ -247,9 +418,23 @@ class _HistoryPageState extends State<HistoryPage> {
             onRefresh: _isInitialLoading
                 ? null
                 : () {
-                    _loadTransactions(reset: true);
+                    unawaited(_loadTransactions(reset: true));
                   },
           ),
+          if (_smsPermission != null &&
+              _smsPermission != DeviceSmsPermission.unsupported) ...[
+            SizedBox(height: isCompact ? 16 : 18),
+            _SmsReconciliationCard(
+              permission: _smsPermission!,
+              isSyncing: _isSmsSyncing,
+              onEnable: () {
+                unawaited(_enableSmsReconciliation());
+              },
+              onSync: () {
+                unawaited(_syncSmsFromHistory());
+              },
+            ),
+          ],
           SizedBox(height: isCompact ? 22 : 28),
           AppInput(
             controller: _searchController,
@@ -291,7 +476,7 @@ class _HistoryPageState extends State<HistoryPage> {
       return _HistoryError(
         message: error,
         onRetry: () {
-          _loadTransactions(reset: true);
+          unawaited(_loadTransactions(reset: true));
         },
       );
     }
@@ -329,7 +514,7 @@ class _HistoryPageState extends State<HistoryPage> {
               onPressed: _isLoadingMore
                   ? null
                   : () {
-                      _loadTransactions(reset: false);
+                      unawaited(_loadTransactions(reset: false));
                     },
             ),
           ),
@@ -416,6 +601,122 @@ class _HistoryHeader extends StatelessWidget {
   }
 }
 
+class _SmsReconciliationCard extends StatelessWidget {
+  const _SmsReconciliationCard({
+    required this.permission,
+    required this.isSyncing,
+    required this.onEnable,
+    required this.onSync,
+  });
+
+  final DeviceSmsPermission permission;
+  final bool isSyncing;
+  final VoidCallback onEnable;
+  final VoidCallback onSync;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = permission == DeviceSmsPermission.granted;
+
+    final accent = enabled ? AppColors.success : AppColors.primary;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: enabled
+            ? AppColors.success.withValues(alpha: 0.06)
+            : AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.11),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            alignment: Alignment.center,
+            child: HugeIcon(
+              icon: HugeIcons.strokeRoundedTransactionHistory,
+              size: 19,
+              strokeWidth: 1.8,
+              color: accent,
+            ),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  enabled
+                      ? 'Automatic confirmation on'
+                      : 'Confirm transactions automatically',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  enabled
+                      ? 'Budgetify checks recent MTN MoMo transaction messages when the app resumes.'
+                      : 'Allow Budgetify to read transaction SMS so sent payments can update automatically.',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    height: 1.45,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                if (!enabled) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Raw SMS text is never uploaded to the Budgetify API.',
+                    style: TextStyle(
+                      fontSize: 9,
+                      height: 1.4,
+                      color: AppColors.textSecondary.withValues(alpha: 0.72),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          TextButton(
+            onPressed: isSyncing
+                ? null
+                : enabled
+                ? onSync
+                : onEnable,
+            child: isSyncing
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
+                  )
+                : Text(
+                    enabled ? 'Sync' : 'Enable',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _FilterScroller<T> extends StatelessWidget {
   const _FilterScroller({
     required this.values,
@@ -426,7 +727,9 @@ class _FilterScroller<T> extends StatelessWidget {
 
   final List<T> values;
   final T selected;
+
   final String Function(T value) labelBuilder;
+
   final ValueChanged<T> onSelected;
 
   @override
@@ -467,6 +770,7 @@ class _FilterPill extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
+      label: '$label filter',
       child: Material(
         color: selected
             ? AppColors.primary.withValues(alpha: 0.13)
@@ -648,6 +952,7 @@ class _TransactionTile extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
         child: Padding(
           padding: EdgeInsets.symmetric(
             horizontal: compact ? 14 : 18,
@@ -936,6 +1241,7 @@ Color _statusColor(TransactionStatus status) {
 
 String _formatAmount(int amount) {
   final value = amount.toString();
+
   final buffer = StringBuffer();
 
   for (var index = 0; index < value.length; index++) {
