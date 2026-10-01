@@ -40,13 +40,7 @@ class SelectRecipientPage extends StatefulWidget {
   State<SelectRecipientPage> createState() => _SelectRecipientPageState();
 }
 
-enum _ContactsView {
-  checking,
-  permissionPrompt,
-  loading,
-  ready,
-  unavailable,
-}
+enum _ContactsView { checking, permissionPrompt, loading, ready, unavailable }
 
 class _SelectRecipientPageState extends State<SelectRecipientPage>
     with WidgetsBindingObserver {
@@ -73,17 +67,11 @@ class _SelectRecipientPageState extends State<SelectRecipientPage>
   AppLifecycleState? _lifecycleState;
 
   List<DeviceContact> get _filteredContacts {
-    return filterRecipientContacts(
-      contacts: _contacts,
-      query: _searchQuery,
-    );
+    return filterRecipientContacts(contacts: _contacts, query: _searchQuery);
   }
 
   RecipientSelection? get _typedRecipient {
-    return resolveTypedRecipient(
-      query: _searchQuery,
-      contacts: _contacts,
-    );
+    return resolveTypedRecipient(query: _searchQuery, contacts: _contacts);
   }
 
   @override
@@ -724,9 +712,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  RecipientTopBar(
-                    onBack: () => Navigator.of(context).pop(),
-                  ),
+                  RecipientTopBar(onBack: () => Navigator.of(context).pop()),
                   SizedBox(height: isCompact ? 18 : 22),
                   AppInput(
                     controller: _searchController,
@@ -750,9 +736,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage>
                           ),
                   ),
                   const SizedBox(height: 16),
-                  Expanded(
-                    child: _buildRecipientContent(),
-                  ),
+                  Expanded(child: _buildRecipientContent()),
                   AnimatedSwitcher(
                     duration: mediaQuery.disableAnimations
                         ? Duration.zero

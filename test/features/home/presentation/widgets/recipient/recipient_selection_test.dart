@@ -15,11 +15,7 @@ void main() {
 
   group('filterRecipientContacts', () {
     const contacts = [
-      DeviceContact(
-        id: '1',
-        name: 'Alice Example',
-        phoneNumber: '0781234567',
-      ),
+      DeviceContact(id: '1', name: 'Alice Example', phoneNumber: '0781234567'),
       DeviceContact(
         id: '2',
         name: 'Daniel Example',
@@ -48,10 +44,7 @@ void main() {
     });
 
     test('returns all contacts for empty query', () {
-      final result = filterRecipientContacts(
-        contacts: contacts,
-        query: '',
-      );
+      final result = filterRecipientContacts(contacts: contacts, query: '');
 
       expect(result, contacts);
     });
@@ -65,10 +58,7 @@ void main() {
       );
 
       expect(recipient, isNotNull);
-      expect(
-        recipient!.recipientType,
-        TransactionRecipientType.phone,
-      );
+      expect(recipient!.recipientType, TransactionRecipientType.phone);
       expect(recipient.identifier, '0791032369');
       expect(recipient.subtitle, 'MTN MoMo phone number');
     });
@@ -77,11 +67,7 @@ void main() {
       final recipient = resolveTypedRecipient(
         query: '0791032369',
         contacts: const [
-          DeviceContact(
-            id: '1',
-            name: 'Daniel',
-            phoneNumber: '+250791032369',
-          ),
+          DeviceContact(id: '1', name: 'Daniel', phoneNumber: '+250791032369'),
         ],
       );
 
@@ -95,10 +81,7 @@ void main() {
       );
 
       expect(recipient, isNotNull);
-      expect(
-        recipient!.recipientType,
-        TransactionRecipientType.momoCode,
-      );
+      expect(recipient!.recipientType, TransactionRecipientType.momoCode);
       expect(recipient.subtitle, 'MoMo Pay merchant code');
     });
 

@@ -4,10 +4,7 @@ import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/widgets/app_button.dart';
 
 class ContactsPermissionPrompt extends StatelessWidget {
-  const ContactsPermissionPrompt({
-    super.key,
-    required this.onAllow,
-  });
+  const ContactsPermissionPrompt({super.key, required this.onAllow});
 
   final VoidCallback onAllow;
 
@@ -59,10 +56,7 @@ class ContactsPermissionPrompt extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 11,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.035),
                 borderRadius: BorderRadius.circular(16),
@@ -110,10 +104,7 @@ class ContactsPermissionPrompt extends StatelessWidget {
 }
 
 class ContactsUnavailable extends StatelessWidget {
-  const ContactsUnavailable({
-    super.key,
-    required this.onRetry,
-  });
+  const ContactsUnavailable({super.key, required this.onRetry});
 
   final VoidCallback onRetry;
 
@@ -258,10 +249,7 @@ class NoContactResults extends StatelessWidget {
               onPressed: () {
                 onRefresh?.call();
               },
-              icon: const Icon(
-                Icons.refresh_rounded,
-                size: 18,
-              ),
+              icon: const Icon(Icons.refresh_rounded, size: 18),
               label: const Text('Refresh contacts'),
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.primary,

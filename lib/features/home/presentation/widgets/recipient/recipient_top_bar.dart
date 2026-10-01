@@ -4,10 +4,7 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../../core/theme/app_colors.dart';
 
 class RecipientTopBar extends StatelessWidget {
-  const RecipientTopBar({
-    super.key,
-    required this.onBack,
-  });
+  const RecipientTopBar({super.key, required this.onBack});
 
   final VoidCallback onBack;
 

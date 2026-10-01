@@ -33,10 +33,7 @@ class RecipientResultsList extends StatelessWidget {
     final itemCount = contacts.length + (typedRecipient == null ? 0 : 1);
 
     if (itemCount == 0) {
-      return NoContactResults(
-        isSearching: isSearching,
-        onRefresh: onRefresh,
-      );
+      return NoContactResults(isSearching: isSearching, onRefresh: onRefresh);
     }
 
     final list = ListView.separated(
@@ -58,9 +55,7 @@ class RecipientResultsList extends StatelessWidget {
           return _TypedRecipientTile(
             recipient: typed,
             isSelected: selectedRecipient?.key == typed.key,
-            onTap: isLoading
-                ? null
-                : () => onTypedRecipientSelected(typed),
+            onTap: isLoading ? null : () => onTypedRecipientSelected(typed),
           );
         }
 
@@ -121,10 +116,7 @@ class _TypedRecipientTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           child: Container(
             constraints: const BoxConstraints(minHeight: 58),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 8,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             decoration: BoxDecoration(
               color: isSelected
                   ? AppColors.primary.withValues(alpha: 0.13)
@@ -227,10 +219,7 @@ class _ContactTile extends StatelessWidget {
                 ? Duration.zero
                 : const Duration(milliseconds: 160),
             curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 8,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             decoration: BoxDecoration(
               color: isSelected
                   ? AppColors.primary.withValues(alpha: 0.13)
