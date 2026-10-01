@@ -19,7 +19,7 @@ abstract class AuthServiceContract {
   /// so the caller can display the appropriate OTP screen copy.
   Future<EmailInitiateResponse> initiateEmailAuth(String email);
 
-  /// Step 2: submit the 6-digit OTP received by email.
+  /// Step 2: submit the 4-digit OTP received by email.
   /// Returns a full [AuthSession] on success.
   Future<AuthSession> verifyEmailOtp(String email, String otp);
 
