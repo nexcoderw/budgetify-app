@@ -79,6 +79,19 @@ class ReceivedTransactionService {
     });
   }
 
+  Future<ReceivedTransaction> updateClassification({
+    required String receivedTransactionId,
+    required ReceivedTransactionClassification classification,
+  }) {
+    return _authorized((accessToken) {
+      return _receivedTransactionsApiService.updateClassification(
+        accessToken: accessToken,
+        receivedTransactionId: receivedTransactionId,
+        classification: classification,
+      );
+    });
+  }
+
   Future<ReceivedTransaction> recordProviderSms({
     required String clientEventId,
     required int amount,
@@ -96,6 +109,27 @@ class ReceivedTransactionService {
         occurredAt: occurredAt,
         senderIdentifier: senderIdentifier,
         senderName: senderName,
+      );
+    });
+  }
+
+  Future<ReceivedTransaction> recordManual({
+    required String clientEventId,
+    required int amount,
+    required DateTime occurredAt,
+    String? senderIdentifier,
+    String? senderName,
+    String? providerReference,
+  }) {
+    return _authorized((accessToken) {
+      return _receivedTransactionsApiService.recordManual(
+        accessToken: accessToken,
+        clientEventId: clientEventId,
+        amount: amount,
+        occurredAt: occurredAt,
+        senderIdentifier: senderIdentifier,
+        senderName: senderName,
+        providerReference: providerReference,
       );
     });
   }
@@ -134,26 +168,5 @@ class ReceivedTransactionService {
     await _sessionStorage.save(refreshed);
 
     return refreshed;
-  }
-
-  Future<ReceivedTransaction> recordManual({
-    required String clientEventId,
-    required int amount,
-    required DateTime occurredAt,
-    String? senderIdentifier,
-    String? senderName,
-    String? providerReference,
-  }) {
-    return _authorized((accessToken) {
-      return _receivedTransactionsApiService.recordManual(
-        accessToken: accessToken,
-        clientEventId: clientEventId,
-        amount: amount,
-        occurredAt: occurredAt,
-        senderIdentifier: senderIdentifier,
-        senderName: senderName,
-        providerReference: providerReference,
-      );
-    });
   }
 }
