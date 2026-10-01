@@ -13,6 +13,9 @@ import '../../data/models/password_auth_models.dart';
 import '../widgets/auth_layout.dart';
 import 'password_setup_page.dart';
 
+const int _otpLength = 4;
+const int _resendDelaySeconds = 60;
+
 class EmailOtpPage extends StatefulWidget {
   const EmailOtpPage({
     super.key,
@@ -33,46 +36,67 @@ class EmailOtpPage extends StatefulWidget {
 
 class _EmailOtpPageState extends State<EmailOtpPage> {
   bool _isVerifying = false;
+
   bool _isResending = false;
+
   String _currentOtp = '';
-  int _resendCountdown = 60;
+
+  int _resendCountdown = _resendDelaySeconds;
+
   int _otpGeneration = 0;
+
   Timer? _resendTimer;
 
   @override
   void initState() {
     super.initState();
+
     _startResendTimer();
   }
 
   @override
   void dispose() {
     _resendTimer?.cancel();
+
     super.dispose();
   }
 
   void _startResendTimer() {
-    _resendCountdown = 60;
+    _resendCountdown = _resendDelaySeconds;
+
     _resendTimer?.cancel();
+
     _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
         timer.cancel();
+
         return;
       }
+
+      if (_resendCountdown <= 1) {
+        timer.cancel();
+
+        setState(() {
+          _resendCountdown = 0;
+        });
+
+        return;
+      }
+
       setState(() {
-        if (_resendCountdown > 0) {
-          _resendCountdown--;
-        } else {
-          timer.cancel();
-        }
+        _resendCountdown--;
       });
     });
   }
 
   Future<void> _verify() async {
-    if (_currentOtp.length != 6) return;
+    if (_currentOtp.length != _otpLength || _isVerifying || _isResending) {
+      return;
+    }
 
-    setState(() => _isVerifying = true);
+    setState(() {
+      _isVerifying = true;
+    });
 
     try {
       final grant = await widget.authService.verifyPasswordChallenge(
@@ -80,7 +104,9 @@ class _EmailOtpPageState extends State<EmailOtpPage> {
         _currentOtp,
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       await Navigator.of(context).pushReplacement<void, void>(
         MaterialPageRoute<void>(
@@ -92,58 +118,85 @@ class _EmailOtpPageState extends State<EmailOtpPage> {
         ),
       );
     } catch (error) {
-      if (mounted) {
-        AppToast.error(
-          context,
-          title: 'Invalid code',
-          description: _readableError(error),
-        );
+      if (!mounted) {
+        return;
       }
+
+      AppToast.error(
+        context,
+        title: 'Invalid code',
+        description: _readableError(error),
+      );
     } finally {
-      if (mounted) setState(() => _isVerifying = false);
+      if (mounted) {
+        setState(() {
+          _isVerifying = false;
+        });
+      }
     }
   }
 
   Future<void> _resend() async {
-    setState(() => _isResending = true);
+    if (_resendCountdown > 0 || _isResending || _isVerifying) {
+      return;
+    }
+
+    setState(() {
+      _isResending = true;
+    });
 
     try {
-      await widget.authService.requestPasswordChallenge(widget.email);
+      final challenge = await widget.authService.requestPasswordChallenge(
+        widget.email,
+      );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       AppToast.success(
         context,
-        title: 'Code resent',
-        description: 'A new code was sent to ${widget.challenge.maskedEmail}.',
+        title: 'Code sent',
+        description: 'A new 4-digit code was sent to ${challenge.maskedEmail}.',
       );
 
       setState(() {
         _currentOtp = '';
+
         _otpGeneration++;
       });
+
       _startResendTimer();
     } catch (error) {
-      if (mounted) {
-        AppToast.error(
-          context,
-          title: 'Could not resend code',
-          description: _readableError(error),
-        );
+      if (!mounted) {
+        return;
       }
+
+      AppToast.error(
+        context,
+        title: 'Could not send another code',
+        description: _readableError(error),
+      );
     } finally {
-      if (mounted) setState(() => _isResending = false);
+      if (mounted) {
+        setState(() {
+          _isResending = false;
+        });
+      }
     }
   }
 
   String _readableError(Object error) {
     final message = error.toString().trim();
+
     if (message.startsWith('Exception: ')) {
       return message.replaceFirst('Exception: ', '');
     }
+
     if (message.startsWith('StateError: ')) {
       return message.replaceFirst('StateError: ', '');
     }
+
     return message;
   }
 
@@ -154,12 +207,17 @@ class _EmailOtpPageState extends State<EmailOtpPage> {
           ? _OtpCountdown(seconds: _resendCountdown)
           : null,
       child: _OtpForm(
+        email: widget.challenge.maskedEmail,
         otpGeneration: _otpGeneration,
-        isCodeComplete: _currentOtp.length == 6,
+        isCodeComplete: _currentOtp.length == _otpLength,
         isVerifying: _isVerifying,
         isResending: _isResending,
         resendCountdown: _resendCountdown,
-        onOtpChanged: (otp) => setState(() => _currentOtp = otp),
+        onOtpChanged: (otp) {
+          setState(() {
+            _currentOtp = otp;
+          });
+        },
         onVerify: _verify,
         onResend: _resend,
       ),
@@ -175,7 +233,9 @@ class _OtpCountdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final minutes = seconds ~/ 60;
+
     final remainingSeconds = seconds % 60;
+
     final value =
         '${minutes.toString().padLeft(2, '0')}:'
         '${remainingSeconds.toString().padLeft(2, '0')}';
@@ -196,6 +256,7 @@ class _OtpCountdown extends StatelessWidget {
 
 class _OtpForm extends StatelessWidget {
   const _OtpForm({
+    required this.email,
     required this.otpGeneration,
     required this.isCodeComplete,
     required this.isVerifying,
@@ -206,20 +267,31 @@ class _OtpForm extends StatelessWidget {
     required this.onResend,
   });
 
+  final String email;
+
   final int otpGeneration;
+
   final bool isCodeComplete;
+
   final bool isVerifying;
+
   final bool isResending;
+
   final int resendCountdown;
+
   final ValueChanged<String> onOtpChanged;
+
   final VoidCallback onVerify;
+
   final VoidCallback onResend;
 
   @override
   Widget build(BuildContext context) {
     final isCompact = MediaQuery.sizeOf(context).width < 420;
+
     final titleSize = isCompact ? 22.0 : 25.0;
-    final hasActiveCode = resendCountdown > 0;
+
+    final canRequestAnother = resendCountdown == 0;
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: isCompact ? 0 : 12),
@@ -235,42 +307,71 @@ class _OtpForm extends StatelessWidget {
               color: AppColors.textPrimary,
             ),
           ),
+
+          const SizedBox(height: 8),
+
+          Text(
+            'Enter the 4-digit code sent to $email.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontSize: 12,
+              height: 1.5,
+              color: AppColors.textSecondary,
+            ),
+          ),
+
           SizedBox(height: isCompact ? 24 : 30),
+
           _OtpFieldsRow(
             key: ValueKey<int>(otpGeneration),
             onChanged: onOtpChanged,
           ),
+
           const SizedBox(height: 22),
+
+          AppButton(
+            label: 'Verify email',
+            isLoading: isVerifying,
+            size: AppButtonSize.md,
+            icon: HugeIcons.strokeRoundedCheckmarkCircle02,
+            onPressed: isCodeComplete && !isResending ? onVerify : null,
+          ),
+
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 180),
             switchInCurve: Curves.easeOutCubic,
             switchOutCurve: Curves.easeInCubic,
-            child: hasActiveCode
-                ? AppButton(
-                    key: const ValueKey('verify-otp'),
-                    label: 'Verify email',
-                    isLoading: isVerifying,
-                    size: AppButtonSize.md,
-                    icon: HugeIcons.strokeRoundedCheckmarkCircle02,
-                    onPressed: isCodeComplete ? onVerify : null,
+            child: canRequestAnother
+                ? Padding(
+                    key: const ValueKey('request-another-code'),
+                    padding: const EdgeInsets.only(top: 12),
+                    child: AppButton(
+                      label: 'Request another code',
+                      isLoading: isResending,
+                      size: AppButtonSize.md,
+                      variant: AppButtonVariant.secondary,
+                      icon: HugeIcons.strokeRoundedReload,
+                      onPressed: isResending || isVerifying ? null : onResend,
+                    ),
                   )
-                : AppButton(
-                    key: const ValueKey('resend-otp'),
-                    label: 'Resend code',
-                    isLoading: isResending,
-                    size: AppButtonSize.md,
-                    icon: HugeIcons.strokeRoundedReload,
-                    onPressed: isResending ? null : onResend,
+                : const SizedBox.shrink(
+                    key: ValueKey('request-another-code-hidden'),
                   ),
           ),
+
           const SizedBox(height: 14),
+
           Align(
             alignment: Alignment.center,
             child: Semantics(
               button: true,
               label: 'Go back to login',
               child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: isVerifying || isResending
+                    ? null
+                    : () {
+                        Navigator.of(context).pop();
+                      },
                 style: TextButton.styleFrom(
                   foregroundColor: AppColors.textSecondary,
                   minimumSize: const Size(44, 44),
@@ -297,8 +398,6 @@ class _OtpForm extends StatelessWidget {
   }
 }
 
-// ── OTP input row ────────────────────────────────────────────────────────────
-
 class _OtpFieldsRow extends StatefulWidget {
   const _OtpFieldsRow({super.key, required this.onChanged});
 
@@ -310,24 +409,34 @@ class _OtpFieldsRow extends StatefulWidget {
 
 class _OtpFieldsRowState extends State<_OtpFieldsRow> {
   late final TextEditingController _controller;
+
   late final FocusNode _focusNode;
+
   bool _isFocused = false;
 
   @override
   void initState() {
     super.initState();
+
     _controller = TextEditingController();
+
     _focusNode = FocusNode();
+
     _controller.addListener(_handleCodeChanged);
+
     _focusNode.addListener(_handleFocusChanged);
   }
 
   @override
   void dispose() {
     _controller.removeListener(_handleCodeChanged);
+
     _focusNode.removeListener(_handleFocusChanged);
+
     _controller.dispose();
+
     _focusNode.dispose();
+
     super.dispose();
   }
 
@@ -336,8 +445,8 @@ class _OtpFieldsRowState extends State<_OtpFieldsRow> {
   void _handleCodeChanged() {
     var digits = _controller.text.replaceAll(RegExp(r'\D'), '');
 
-    if (digits.length > 6) {
-      digits = digits.substring(0, 6);
+    if (digits.length > _otpLength) {
+      digits = digits.substring(0, _otpLength);
     }
 
     if (digits != _controller.text) {
@@ -345,12 +454,13 @@ class _OtpFieldsRowState extends State<_OtpFieldsRow> {
         text: digits,
         selection: TextSelection.collapsed(offset: digits.length),
       );
+
       return;
     }
 
     widget.onChanged(digits);
 
-    if (digits.length == 6 && _focusNode.hasFocus) {
+    if (digits.length == _otpLength && _focusNode.hasFocus) {
       _focusNode.unfocus();
     }
 
@@ -364,7 +474,9 @@ class _OtpFieldsRowState extends State<_OtpFieldsRow> {
       return;
     }
 
-    setState(() => _isFocused = _focusNode.hasFocus);
+    setState(() {
+      _isFocused = _focusNode.hasFocus;
+    });
   }
 
   void _focusInput() {
@@ -378,9 +490,14 @@ class _OtpFieldsRowState extends State<_OtpFieldsRow> {
   @override
   Widget build(BuildContext context) {
     final isCompact = MediaQuery.sizeOf(context).width < 390;
-    final spacing = isCompact ? 5.0 : 8.0;
-    final cellHeight = isCompact ? 54.0 : 62.0;
-    final activeIndex = _code.length >= 6 ? 5 : _code.length;
+
+    final spacing = isCompact ? 8.0 : 12.0;
+
+    final cellHeight = isCompact ? 58.0 : 66.0;
+
+    final activeIndex = _code.length >= _otpLength
+        ? _otpLength - 1
+        : _code.length;
 
     return Column(
       children: [
@@ -388,14 +505,18 @@ class _OtpFieldsRowState extends State<_OtpFieldsRow> {
           behavior: HitTestBehavior.opaque,
           onTap: _focusInput,
           child: Row(
-            children: List.generate(6, (index) {
+            children: List.generate(_otpLength, (index) {
               final digit = index < _code.length ? _code[index] : '';
+
               final isActive = _isFocused && index == activeIndex;
+
               final isFilled = digit.isNotEmpty;
 
               return Expanded(
                 child: Padding(
-                  padding: EdgeInsets.only(right: index == 5 ? 0 : spacing),
+                  padding: EdgeInsets.only(
+                    right: index == _otpLength - 1 ? 0 : spacing,
+                  ),
                   child: _OtpDigitCell(
                     digit: digit,
                     isActive: isActive,
@@ -407,6 +528,7 @@ class _OtpFieldsRowState extends State<_OtpFieldsRow> {
             }),
           ),
         ),
+
         SizedBox(
           width: 1,
           height: 1,
@@ -423,7 +545,7 @@ class _OtpFieldsRowState extends State<_OtpFieldsRow> {
               textInputAction: TextInputAction.done,
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(6),
+                LengthLimitingTextInputFormatter(_otpLength),
               ],
             ),
           ),
@@ -442,8 +564,11 @@ class _OtpDigitCell extends StatelessWidget {
   });
 
   final String digit;
+
   final bool isActive;
+
   final bool isFilled;
+
   final double height;
 
   @override
@@ -470,7 +595,7 @@ class _OtpDigitCell extends StatelessWidget {
                   digit,
                   key: ValueKey<String>('digit-$digit'),
                   style: const TextStyle(
-                    fontSize: 24,
+                    fontSize: 26,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                     fontFamily: 'DMSans',
