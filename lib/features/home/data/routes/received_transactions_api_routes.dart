@@ -14,4 +14,8 @@ class ReceivedTransactionsApiRoutes {
   String detail(String receivedTransactionId) {
     return '$base/$receivedTransactionId';
   }
+
+  String classification(String receivedTransactionId) {
+    return '$base/$receivedTransactionId/classification';
+  }
 }
