@@ -62,6 +62,20 @@ class ReceivedTransactionsApiService {
     return ReceivedTransaction.fromJson(json);
   }
 
+  Future<ReceivedTransaction> updateClassification({
+    required String accessToken,
+    required String receivedTransactionId,
+    required ReceivedTransactionClassification classification,
+  }) async {
+    final json = await _apiClient.patchJson(
+      _routes.classification(receivedTransactionId),
+      headers: _authorizedHeaders(accessToken),
+      body: <String, dynamic>{'classification': classification.apiValue},
+    );
+
+    return ReceivedTransaction.fromJson(json);
+  }
+
   Future<ReceivedTransaction> recordProviderSms({
     required String accessToken,
     required String clientEventId,
