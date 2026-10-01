@@ -4,8 +4,10 @@ import '../models/email_initiate_response.dart';
 import '../routes/auth_api_routes.dart';
 
 /// Handles the two-step email OTP authentication flow:
-///   Step 1 — [initiateEmailAuth]: submit email → API sends OTP
-///   Step 2 — [verifyEmailOtp]:    submit OTP   → API returns JWT tokens
+///
+/// Step 1 — submit the email and request an OTP.
+///
+/// Step 2 — submit the 4-digit OTP and receive the authenticated session.
 class EmailOtpApiService {
   EmailOtpApiService({
     required ApiClient apiClient,
@@ -14,13 +16,9 @@ class EmailOtpApiService {
        _routes = routes;
 
   final ApiClient _apiClient;
+
   final AuthApiRoutes _routes;
 
-  /// Step 1: send email to receive an OTP.
-  ///
-  /// Returns [EmailInitiateResponse] whose [action] field indicates
-  /// whether this is a "login" (existing user) or "register" (new user) flow,
-  /// so the UI can show the appropriate message on the OTP screen.
   Future<EmailInitiateResponse> initiateEmailAuth(String email) async {
     final json = await _apiClient.postJson(
       _routes.emailInitiate,
@@ -30,9 +28,7 @@ class EmailOtpApiService {
     return EmailInitiateResponse.fromJson(json);
   }
 
-  /// Step 2: submit the 6-digit OTP to complete sign-in or registration.
-  ///
-  /// On success the API creates (or reuses) a session and returns JWT tokens.
+  /// Submits the 4-digit OTP to complete sign-in or registration.
   Future<AuthSession> verifyEmailOtp(String email, String otp) async {
     final json = await _apiClient.postJson(
       _routes.emailVerify,
