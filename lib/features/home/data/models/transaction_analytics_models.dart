@@ -1,3 +1,4 @@
+import 'received_transaction_models.dart';
 import 'transaction_models.dart';
 
 class TransactionAnalytics {
@@ -7,14 +8,18 @@ class TransactionAnalytics {
     required this.summary,
     required this.comparison,
     required this.confirmation,
+    required this.receivedEvidence,
     required this.categories,
     required this.transferTypes,
+    required this.receivedClassifications,
   });
 
   factory TransactionAnalytics.fromJson(Map<String, dynamic> json) {
     final rawCategories = json['categories'];
 
     final rawTransferTypes = json['transferTypes'];
+
+    final rawReceivedClassifications = json['receivedClassifications'];
 
     if (rawCategories is! List) {
       throw const FormatException(
@@ -25,6 +30,12 @@ class TransactionAnalytics {
     if (rawTransferTypes is! List) {
       throw const FormatException(
         'Transaction analytics transfer types are invalid.',
+      );
+    }
+
+    if (rawReceivedClassifications is! List) {
+      throw const FormatException(
+        'Received transaction classifications are invalid.',
       );
     }
 
@@ -42,6 +53,9 @@ class TransactionAnalytics {
       confirmation: TransactionAnalyticsConfirmation.fromJson(
         _requiredMap(json['confirmation'], 'confirmation'),
       ),
+      receivedEvidence: ReceivedTransactionAnalyticsEvidence.fromJson(
+        _requiredMap(json['receivedEvidence'], 'received evidence'),
+      ),
       categories: rawCategories
           .map(
             (item) => TransactionCategoryAnalytics.fromJson(
@@ -53,6 +67,13 @@ class TransactionAnalytics {
           .map(
             (item) => TransactionTransferTypeAnalytics.fromJson(
               _requiredMap(item, 'transfer type analytics'),
+            ),
+          )
+          .toList(growable: false),
+      receivedClassifications: rawReceivedClassifications
+          .map(
+            (item) => ReceivedTransactionClassificationAnalytics.fromJson(
+              _requiredMap(item, 'received classification analytics'),
             ),
           )
           .toList(growable: false),
@@ -69,12 +90,18 @@ class TransactionAnalytics {
 
   final TransactionAnalyticsConfirmation confirmation;
 
+  final ReceivedTransactionAnalyticsEvidence receivedEvidence;
+
   final List<TransactionCategoryAnalytics> categories;
 
   final List<TransactionTransferTypeAnalytics> transferTypes;
 
+  final List<ReceivedTransactionClassificationAnalytics>
+  receivedClassifications;
+
   bool get hasCompletedActivity {
-    return summary.completedTransactions > 0;
+    return summary.completedTransactions > 0 ||
+        summary.receivedTransactions > 0;
   }
 }
 
@@ -96,63 +123,99 @@ class TransactionAnalyticsPeriod {
   }
 
   final DateTime from;
+
   final DateTime to;
+
   final DateTime previousFrom;
+
   final DateTime previousTo;
 }
 
 class TransactionAnalyticsSummary {
   const TransactionAnalyticsSummary({
     required this.sentAmount,
+    required this.receivedAmount,
     required this.feesPaid,
     required this.totalDebited,
+    required this.netCashMovement,
     required this.completedTransactions,
+    required this.receivedTransactions,
     required this.pendingTransactions,
     required this.processingTransactions,
     required this.needsConfirmation,
     required this.failedTransactions,
     required this.cancelledTransactions,
     required this.reversedTransactions,
+    required this.receivedReversedTransactions,
   });
 
   factory TransactionAnalyticsSummary.fromJson(Map<String, dynamic> json) {
     return TransactionAnalyticsSummary(
       sentAmount: _requiredInt(json, 'sentAmount'),
+      receivedAmount: _requiredInt(json, 'receivedAmount'),
       feesPaid: _requiredInt(json, 'feesPaid'),
       totalDebited: _requiredInt(json, 'totalDebited'),
+      netCashMovement: _requiredInt(json, 'netCashMovement'),
       completedTransactions: _requiredInt(json, 'completedTransactions'),
+      receivedTransactions: _requiredInt(json, 'receivedTransactions'),
       pendingTransactions: _requiredInt(json, 'pendingTransactions'),
       processingTransactions: _requiredInt(json, 'processingTransactions'),
       needsConfirmation: _requiredInt(json, 'needsConfirmation'),
       failedTransactions: _requiredInt(json, 'failedTransactions'),
       cancelledTransactions: _requiredInt(json, 'cancelledTransactions'),
       reversedTransactions: _requiredInt(json, 'reversedTransactions'),
+      receivedReversedTransactions: _requiredInt(
+        json,
+        'receivedReversedTransactions',
+      ),
     );
   }
 
   final int sentAmount;
+
+  final int receivedAmount;
+
   final int feesPaid;
+
   final int totalDebited;
 
+  final int netCashMovement;
+
   final int completedTransactions;
+
+  final int receivedTransactions;
+
   final int pendingTransactions;
+
   final int processingTransactions;
+
   final int needsConfirmation;
+
   final int failedTransactions;
+
   final int cancelledTransactions;
+
   final int reversedTransactions;
+
+  final int receivedReversedTransactions;
 }
 
 class TransactionAnalyticsComparison {
   const TransactionAnalyticsComparison({
     required this.previousSentAmount,
     required this.sentAmountChangePercentage,
+    required this.previousReceivedAmount,
+    required this.receivedAmountChangePercentage,
     required this.previousFeesPaid,
     required this.feesPaidChangePercentage,
     required this.previousTotalDebited,
     required this.totalDebitedChangePercentage,
+    required this.previousNetCashMovement,
+    required this.netCashMovementChange,
     required this.previousCompletedTransactions,
     required this.completedTransactionsChangePercentage,
+    required this.previousReceivedTransactions,
+    required this.receivedTransactionsChangePercentage,
   });
 
   factory TransactionAnalyticsComparison.fromJson(Map<String, dynamic> json) {
@@ -161,6 +224,11 @@ class TransactionAnalyticsComparison {
       sentAmountChangePercentage: _optionalDouble(
         json,
         'sentAmountChangePercentage',
+      ),
+      previousReceivedAmount: _requiredInt(json, 'previousReceivedAmount'),
+      receivedAmountChangePercentage: _optionalDouble(
+        json,
+        'receivedAmountChangePercentage',
       ),
       previousFeesPaid: _requiredInt(json, 'previousFeesPaid'),
       feesPaidChangePercentage: _optionalDouble(
@@ -172,6 +240,8 @@ class TransactionAnalyticsComparison {
         json,
         'totalDebitedChangePercentage',
       ),
+      previousNetCashMovement: _requiredInt(json, 'previousNetCashMovement'),
+      netCashMovementChange: _requiredInt(json, 'netCashMovementChange'),
       previousCompletedTransactions: _requiredInt(
         json,
         'previousCompletedTransactions',
@@ -180,12 +250,24 @@ class TransactionAnalyticsComparison {
         json,
         'completedTransactionsChangePercentage',
       ),
+      previousReceivedTransactions: _requiredInt(
+        json,
+        'previousReceivedTransactions',
+      ),
+      receivedTransactionsChangePercentage: _optionalDouble(
+        json,
+        'receivedTransactionsChangePercentage',
+      ),
     );
   }
 
   final int previousSentAmount;
 
   final double? sentAmountChangePercentage;
+
+  final int previousReceivedAmount;
+
+  final double? receivedAmountChangePercentage;
 
   final int previousFeesPaid;
 
@@ -195,9 +277,17 @@ class TransactionAnalyticsComparison {
 
   final double? totalDebitedChangePercentage;
 
+  final int previousNetCashMovement;
+
+  final int netCashMovementChange;
+
   final int previousCompletedTransactions;
 
   final double? completedTransactionsChangePercentage;
+
+  final int previousReceivedTransactions;
+
+  final double? receivedTransactionsChangePercentage;
 }
 
 class TransactionAnalyticsConfirmation {
@@ -233,6 +323,34 @@ class TransactionAnalyticsConfirmation {
   }
 }
 
+class ReceivedTransactionAnalyticsEvidence {
+  const ReceivedTransactionAnalyticsEvidence({
+    required this.smsEvidence,
+    required this.providerApiEvidence,
+    required this.manualEntries,
+  });
+
+  factory ReceivedTransactionAnalyticsEvidence.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return ReceivedTransactionAnalyticsEvidence(
+      smsEvidence: _requiredInt(json, 'smsEvidence'),
+      providerApiEvidence: _requiredInt(json, 'providerApiEvidence'),
+      manualEntries: _requiredInt(json, 'manualEntries'),
+    );
+  }
+
+  final int smsEvidence;
+
+  final int providerApiEvidence;
+
+  final int manualEntries;
+
+  int get total {
+    return smsEvidence + providerApiEvidence + manualEntries;
+  }
+}
+
 class TransactionCategoryAnalytics {
   const TransactionCategoryAnalytics({
     required this.category,
@@ -259,9 +377,13 @@ class TransactionCategoryAnalytics {
   final TransactionCategory category;
 
   final int sentAmount;
+
   final int feesPaid;
+
   final int totalDebited;
+
   final int transactions;
+
   final double percentage;
 }
 
@@ -291,9 +413,43 @@ class TransactionTransferTypeAnalytics {
   final TransactionTransferType transferType;
 
   final int sentAmount;
+
   final int feesPaid;
+
   final int totalDebited;
+
   final int transactions;
+
+  final double percentage;
+}
+
+class ReceivedTransactionClassificationAnalytics {
+  const ReceivedTransactionClassificationAnalytics({
+    required this.classification,
+    required this.receivedAmount,
+    required this.transactions,
+    required this.percentage,
+  });
+
+  factory ReceivedTransactionClassificationAnalytics.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return ReceivedTransactionClassificationAnalytics(
+      classification: ReceivedTransactionClassification.fromApiValue(
+        _requiredString(json, 'classification'),
+      ),
+      receivedAmount: _requiredInt(json, 'receivedAmount'),
+      transactions: _requiredInt(json, 'transactions'),
+      percentage: _requiredDouble(json, 'percentage'),
+    );
+  }
+
+  final ReceivedTransactionClassification classification;
+
+  final int receivedAmount;
+
+  final int transactions;
+
   final double percentage;
 }
 

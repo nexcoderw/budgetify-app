@@ -109,7 +109,7 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
 
         incomingActivityProcessed = incomingSummary.hasAcceptedPayments;
       } catch (_) {
-        // Incoming reconciliation is also opportunistic.
+        // Incoming reconciliation is opportunistic.
         // Failure must never interrupt normal app usage.
       }
 
@@ -117,21 +117,19 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
         return;
       }
 
-      if (!outgoingChanged && !incomingActivityProcessed) {
+      final moneyActivityChanged = outgoingChanged || incomingActivityProcessed;
+
+      if (!moneyActivityChanged) {
         return;
       }
 
       setState(() {
-        if (outgoingChanged || incomingActivityProcessed) {
-          _historyRefreshToken++;
-        }
+        _historyRefreshToken++;
 
-        // The current dashboard analytics endpoint still
-        // covers sent transactions only. Received-money
-        // analytics will be connected in Step 10D.
-        if (outgoingChanged) {
-          _analyticsRefreshToken++;
-        }
+        // Step 10D analytics now includes both
+        // sent and received money, so either
+        // reconciliation path can change dashboard totals.
+        _analyticsRefreshToken++;
       });
     } finally {
       _isReconcilingSms = false;

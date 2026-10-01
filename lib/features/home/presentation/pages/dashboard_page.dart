@@ -104,7 +104,7 @@ class _DashboardPageState extends State<DashboardPage> {
       }
 
       setState(() {
-        _errorMessage = 'Could not load your transaction analytics.';
+        _errorMessage = 'Could not load your money analytics.';
       });
     } finally {
       if (mounted && requestId == _requestId) {
@@ -137,7 +137,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
     if (analytics == null) {
       return _DashboardError(
-        message: _errorMessage ?? 'Could not load transaction analytics.',
+        message: _errorMessage ?? 'Could not load money analytics.',
         onRetry: () {
           unawaited(_loadAnalytics());
         },
@@ -164,6 +164,13 @@ class _DashboardPageState extends State<DashboardPage> {
         _SummarySection(analytics: analytics),
         const SizedBox(height: 16),
         _StatusSection(summary: analytics.summary),
+        const SizedBox(height: 16),
+        _ReceivedClassificationSection(
+          classifications: analytics.receivedClassifications,
+          currency: analytics.currency,
+        ),
+        const SizedBox(height: 16),
+        _ReceivedEvidenceSection(evidence: analytics.receivedEvidence),
         const SizedBox(height: 16),
         _ConfirmationSection(confirmation: analytics.confirmation),
         const SizedBox(height: 16),
@@ -350,7 +357,11 @@ class _SummarySection extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final columns = constraints.maxWidth >= 720 ? 4 : 2;
+          final columns = constraints.maxWidth >= 900
+              ? 5
+              : constraints.maxWidth >= 720
+              ? 4
+              : 2;
 
           const gap = 10.0;
 
@@ -364,11 +375,25 @@ class _SummarySection extends StatelessWidget {
               SizedBox(
                 width: width,
                 child: _SummaryMetric(
+                  label: 'Received',
+                  value:
+                      '${_formatAmount(summary.receivedAmount)} ${analytics.currency}',
+                  icon: HugeIcons.strokeRoundedMoneyReceiveCircle,
+                  comparisonText: _formatComparison(
+                    comparison.receivedAmountChangePercentage,
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: width,
+                child: _SummaryMetric(
                   label: 'Sent',
                   value:
                       '${_formatAmount(summary.sentAmount)} ${analytics.currency}',
                   icon: HugeIcons.strokeRoundedMoneySendSquare,
-                  changePercentage: comparison.sentAmountChangePercentage,
+                  comparisonText: _formatComparison(
+                    comparison.sentAmountChangePercentage,
+                  ),
                 ),
               ),
               SizedBox(
@@ -378,27 +403,34 @@ class _SummarySection extends StatelessWidget {
                   value:
                       '${_formatAmount(summary.feesPaid)} ${analytics.currency}',
                   icon: HugeIcons.strokeRoundedWallet02,
-                  changePercentage: comparison.feesPaidChangePercentage,
+                  comparisonText: _formatComparison(
+                    comparison.feesPaidChangePercentage,
+                  ),
                 ),
               ),
               SizedBox(
                 width: width,
                 child: _SummaryMetric(
-                  label: 'Total debited',
+                  label: 'Money out',
                   value:
                       '${_formatAmount(summary.totalDebited)} ${analytics.currency}',
-                  icon: HugeIcons.strokeRoundedMoneyReceiveCircle,
-                  changePercentage: comparison.totalDebitedChangePercentage,
+                  icon: HugeIcons.strokeRoundedMoneySendSquare,
+                  comparisonText: _formatComparison(
+                    comparison.totalDebitedChangePercentage,
+                  ),
                 ),
               ),
               SizedBox(
                 width: width,
                 child: _SummaryMetric(
-                  label: 'Completed',
-                  value: summary.completedTransactions.toString(),
+                  label: 'Net movement',
+                  value:
+                      '${_formatSignedAmount(summary.netCashMovement)} ${analytics.currency}',
                   icon: HugeIcons.strokeRoundedTransactionHistory,
-                  changePercentage:
-                      comparison.completedTransactionsChangePercentage,
+                  comparisonText: _formatNetComparison(
+                    comparison.netCashMovementChange,
+                    analytics.currency,
+                  ),
                 ),
               ),
             ],
@@ -414,13 +446,16 @@ class _SummaryMetric extends StatelessWidget {
     required this.label,
     required this.value,
     required this.icon,
-    required this.changePercentage,
+    required this.comparisonText,
   });
 
   final String label;
+
   final String value;
+
   final dynamic icon;
-  final double? changePercentage;
+
+  final String comparisonText;
 
   @override
   Widget build(BuildContext context) {
@@ -483,7 +518,7 @@ class _SummaryMetric extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           Text(
-            _formatComparison(changePercentage),
+            comparisonText,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
@@ -506,15 +541,20 @@ class _StatusSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _DashboardCard(
-      title: 'Transaction status',
-      subtitle: 'Current lifecycle state for this period',
+      title: 'Money activity status',
+      subtitle: 'Current sent and received transaction states for this period',
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
         children: [
           _StatusMetric(
-            label: 'Completed',
+            label: 'Sent completed',
             value: summary.completedTransactions,
+            color: AppColors.success,
+          ),
+          _StatusMetric(
+            label: 'Received',
+            value: summary.receivedTransactions,
             color: AppColors.success,
           ),
           _StatusMetric(
@@ -525,18 +565,23 @@ class _StatusSection extends StatelessWidget {
                 '${summary.pendingTransactions} pending • ${summary.processingTransactions} processing',
           ),
           _StatusMetric(
-            label: 'Failed',
+            label: 'Sent failed',
             value: summary.failedTransactions,
             color: AppColors.danger,
           ),
           _StatusMetric(
-            label: 'Cancelled',
+            label: 'Sent cancelled',
             value: summary.cancelledTransactions,
             color: AppColors.textSecondary,
           ),
           _StatusMetric(
-            label: 'Reversed',
+            label: 'Sent reversed',
             value: summary.reversedTransactions,
+            color: AppColors.primaryMuted,
+          ),
+          _StatusMetric(
+            label: 'Received reversed',
+            value: summary.receivedReversedTransactions,
             color: AppColors.primaryMuted,
           ),
         ],
@@ -554,8 +599,11 @@ class _StatusMetric extends StatelessWidget {
   });
 
   final String label;
+
   final int value;
+
   final Color color;
+
   final String? detail;
 
   @override
@@ -603,6 +651,108 @@ class _StatusMetric extends StatelessWidget {
   }
 }
 
+class _ReceivedClassificationSection extends StatelessWidget {
+  const _ReceivedClassificationSection({
+    required this.classifications,
+    required this.currency,
+  });
+
+  final List<ReceivedTransactionClassificationAnalytics> classifications;
+
+  final String currency;
+
+  @override
+  Widget build(BuildContext context) {
+    return _DashboardCard(
+      title: 'Received money classification',
+      subtitle: 'What completed incoming payments currently represent',
+      child: classifications.isEmpty
+          ? const _EmptyBreakdown(
+              message: 'No completed received payments in this period.',
+            )
+          : Column(
+              children: [
+                for (
+                  var index = 0;
+                  index < classifications.length;
+                  index++
+                ) ...[
+                  if (index > 0) const SizedBox(height: 14),
+                  _BreakdownRow(
+                    label: classifications[index].classification.label,
+                    amount: classifications[index].receivedAmount,
+                    currency: currency,
+                    transactions: classifications[index].transactions,
+                    percentage: classifications[index].percentage,
+                  ),
+                ],
+              ],
+            ),
+    );
+  }
+}
+
+class _ReceivedEvidenceSection extends StatelessWidget {
+  const _ReceivedEvidenceSection({required this.evidence});
+
+  final ReceivedTransactionAnalyticsEvidence evidence;
+
+  @override
+  Widget build(BuildContext context) {
+    if (evidence.total == 0) {
+      return const _DashboardCard(
+        title: 'Received payment evidence',
+        subtitle: 'How completed received payments were recorded',
+        child: _EmptyBreakdown(
+          message: 'No completed received-payment evidence in this period.',
+        ),
+      );
+    }
+
+    return _DashboardCard(
+      title: 'Received payment evidence',
+      subtitle: 'How completed received payments were recorded',
+      child: Column(
+        children: [
+          _ConfirmationRow(
+            label: 'MTN SMS evidence',
+            value: evidence.smsEvidence,
+          ),
+          const SizedBox(height: 10),
+          _ConfirmationRow(
+            label: 'Provider API evidence',
+            value: evidence.providerApiEvidence,
+          ),
+          const SizedBox(height: 10),
+          _ConfirmationRow(
+            label: 'Manual entry',
+            value: evidence.manualEntries,
+          ),
+          if (evidence.smsEvidence > 0) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceElevated.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Text(
+                'MTN SMS evidence is parsed on the device. It is not independent provider API verification.',
+                style: TextStyle(
+                  fontSize: 8.5,
+                  height: 1.45,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _ConfirmationSection extends StatelessWidget {
   const _ConfirmationSection({required this.confirmation});
 
@@ -613,11 +763,11 @@ class _ConfirmationSection extends StatelessWidget {
     final total = confirmation.total;
 
     return _DashboardCard(
-      title: 'Completion evidence',
-      subtitle: 'How completed outgoing payments were established',
+      title: 'Outgoing completion evidence',
+      subtitle: 'How completed sent payments were established',
       child: total == 0
           ? const _EmptyBreakdown(
-              message: 'No completed transactions in this period.',
+              message: 'No completed outgoing transactions in this period.',
             )
           : Column(
               children: [
@@ -671,6 +821,7 @@ class _ConfirmationRow extends StatelessWidget {
   const _ConfirmationRow({required this.label, required this.value});
 
   final String label;
+
   final int value;
 
   @override
@@ -709,11 +860,11 @@ class _CategorySection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _DashboardCard(
-      title: 'Spending by category',
-      subtitle: 'Completed transfer amounts only',
+      title: 'Outgoing spending by category',
+      subtitle: 'Completed sent transfer principal only',
       child: categories.isEmpty
           ? const _EmptyBreakdown(
-              message: 'No completed payments to categorize yet.',
+              message: 'No completed outgoing payments to categorize yet.',
             )
           : Column(
               children: [
@@ -746,11 +897,11 @@ class _TransferTypeSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _DashboardCard(
-      title: 'Payment methods',
-      subtitle: 'How your completed transfers were sent',
+      title: 'Outgoing payment methods',
+      subtitle: 'How completed transfers were sent',
       child: transferTypes.isEmpty
           ? const _EmptyBreakdown(
-              message: 'No completed payment methods to show yet.',
+              message: 'No completed outgoing payment methods to show yet.',
             )
           : Column(
               children: [
@@ -780,9 +931,13 @@ class _BreakdownRow extends StatelessWidget {
   });
 
   final String label;
+
   final int amount;
+
   final String currency;
+
   final int transactions;
+
   final double percentage;
 
   @override
@@ -859,7 +1014,9 @@ class _DashboardCard extends StatelessWidget {
   });
 
   final String title;
+
   final String subtitle;
+
   final Widget child;
 
   @override
@@ -1026,6 +1183,8 @@ class _DashboardSkeleton extends StatelessWidget {
         const _SkeletonBlock(width: double.infinity, height: 180, radius: 24),
         const SizedBox(height: 16),
         const _SkeletonBlock(width: double.infinity, height: 220, radius: 24),
+        const SizedBox(height: 16),
+        const _SkeletonBlock(width: double.infinity, height: 180, radius: 24),
       ],
     );
   }
@@ -1039,7 +1198,9 @@ class _SkeletonBlock extends StatelessWidget {
   });
 
   final double width;
+
   final double height;
+
   final double radius;
 
   @override
@@ -1069,6 +1230,14 @@ String _formatComparison(double? percentage) {
   return '$prefix${_formatPercentage(percentage)} vs previous period';
 }
 
+String _formatNetComparison(int change, String currency) {
+  if (change == 0) {
+    return 'No change vs previous period';
+  }
+
+  return '${_formatSignedAmount(change)} $currency vs previous period';
+}
+
 String _formatPercentage(double value) {
   final isWhole = value == value.roundToDouble();
 
@@ -1076,7 +1245,9 @@ String _formatPercentage(double value) {
 }
 
 String _formatAmount(int amount) {
-  final value = amount.toString();
+  final isNegative = amount < 0;
+
+  final value = amount.abs().toString();
 
   final buffer = StringBuffer();
 
@@ -1090,7 +1261,17 @@ String _formatAmount(int amount) {
     }
   }
 
-  return buffer.toString();
+  final formatted = buffer.toString();
+
+  return isNegative ? '-$formatted' : formatted;
+}
+
+String _formatSignedAmount(int amount) {
+  if (amount > 0) {
+    return '+${_formatAmount(amount)}';
+  }
+
+  return _formatAmount(amount);
 }
 
 String _formatPeriodRange(TransactionAnalyticsPeriod period) {
