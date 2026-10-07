@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/widgets/app_dropdown.dart';
 import '../../../../../core/widgets/app_input.dart';
 import '../../../data/models/transaction_history_models.dart';
 import '../../../data/models/transaction_models.dart';
@@ -11,6 +12,7 @@ import '../record_received_money/received_date_sheet.dart';
 enum _InsightsPeriod {
   thisMonth('This month'),
   thisWeek('This week'),
+  lastMonth('Last month'),
   lastYear('Last year'),
   custom('Custom');
 
@@ -76,6 +78,10 @@ class _HistoryInsightsState extends State<HistoryInsights> {
       _InsightsPeriod.lastYear => (
         from: DateTime(now.year - 1),
         until: DateTime(now.year),
+      ),
+      _InsightsPeriod.lastMonth => (
+        from: DateTime(now.year, now.month - 1),
+        until: DateTime(now.year, now.month),
       ),
       _InsightsPeriod.custom => (
         from: _customFrom,
@@ -147,43 +153,19 @@ class _HistoryInsightsState extends State<HistoryInsights> {
       children: [
         Align(
           alignment: Alignment.centerLeft,
-          child: PopupMenuButton<_InsightsPeriod>(
+          child: AppDropdown<_InsightsPeriod>(
             tooltip: 'Choose insights period',
-            initialValue: _period,
+            label: _period.label,
+            isActive: true,
             onSelected: (period) => setState(() => _period = period),
-            itemBuilder: (_) => [
+            items: [
               for (final period in _InsightsPeriod.values)
-                CheckedPopupMenuItem(
+                AppDropdownItem(
                   value: period,
-                  checked: _period == period,
-                  child: Text(period.label),
+                  selected: _period == period,
+                  label: period.label,
                 ),
             ],
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 44),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _period.label,
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    color: AppColors.primary,
-                  ),
-                ],
-              ),
-            ),
           ),
         ),
         if (_period == _InsightsPeriod.custom) ...[
