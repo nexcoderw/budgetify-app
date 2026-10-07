@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/widgets/app_dropdown.dart';
+import '../../../../core/widgets/app_toast.dart';
 import '../../../auth/application/auth_service_contract.dart';
 import '../../../auth/data/models/auth_user.dart';
 import '../../../users/presentation/pages/profile_page.dart';
@@ -196,6 +197,21 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
   }
 
   void _selectSection(AppLayoutSection section) {
+    if (section != AppLayoutSection.dashboard &&
+        section != AppLayoutSection.history &&
+        section != AppLayoutSection.sendMoney) {
+      final destination = defaultAppNavDestinations.firstWhere(
+        (item) => item.section == section,
+        orElse: () => defaultAppNavDestinations.first,
+      );
+      AppToast.info(
+        context,
+        title: '${destination.label} is not available yet',
+        description: 'This section has not been connected in the app.',
+      );
+      return;
+    }
+
     if (_currentSection == section) {
       return;
     }
