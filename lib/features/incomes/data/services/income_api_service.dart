@@ -14,6 +14,8 @@ class IncomeApiService {
     required int page,
     String? status,
     String? search,
+    DateTime? from,
+    DateTime? to,
   }) async {
     final json = await client.getJson(
       IncomeRoutes.list,
@@ -22,6 +24,8 @@ class IncomeApiService {
         'page': page,
         'limit': 20,
         'status': status,
+        if (from != null) 'from': from.toUtc().toIso8601String(),
+        if (to != null) 'to': to.toUtc().toIso8601String(),
         if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
       },
     );
