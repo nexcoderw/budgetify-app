@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/widgets/app_dropdown.dart';
 import '../../../../../core/widgets/app_input.dart';
 import '../../../data/models/transaction_history_models.dart';
 import '../../../data/models/transaction_models.dart';
@@ -115,16 +115,12 @@ class HistoryFilterControls extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        PopupMenuButton<Object>(
+        AppDropdown<Object>(
           tooltip: 'Filter transactions',
-          icon: Icon(
-            Icons.tune_rounded,
-            color: direction != HistoryDirectionFilter.all ||
-                    status != HistoryStatusFilter.all ||
-                    method != HistoryMethodFilter.all
-                ? AppColors.primary
-                : AppColors.textSecondary,
-          ),
+          icon: Icons.tune_rounded,
+          isActive: direction != HistoryDirectionFilter.all ||
+              status != HistoryStatusFilter.all ||
+              method != HistoryMethodFilter.all,
           onSelected: (value) {
             if (value is HistoryDirectionFilter) {
               onDirectionSelected(value);
@@ -134,39 +130,28 @@ class HistoryFilterControls extends StatelessWidget {
               onMethodSelected(value);
             }
           },
-          itemBuilder: (_) => [
-            const PopupMenuItem<Object>(
-              enabled: false,
-              child: Text('Direction'),
-            ),
+          items: [
+            const AppDropdownItem<Object>.heading('Direction'),
             for (final value in HistoryDirectionFilter.values)
-              CheckedPopupMenuItem<Object>(
+              AppDropdownItem<Object>(
                 value: value,
-                checked: direction == value,
-                child: Text(value.label),
+                selected: direction == value,
+                label: value.label,
               ),
-            const PopupMenuDivider(),
-            const PopupMenuItem<Object>(
-              enabled: false,
-              child: Text('Status'),
-            ),
+            const AppDropdownItem<Object>.heading('Status'),
             for (final value in _availableStatuses)
-              CheckedPopupMenuItem<Object>(
+              AppDropdownItem<Object>(
                 value: value,
-                checked: status == value,
-                child: Text(value.label),
+                selected: status == value,
+                label: value.label,
               ),
             if (_showMethodFilter) ...[
-              const PopupMenuDivider(),
-              const PopupMenuItem<Object>(
-                enabled: false,
-                child: Text('Method'),
-              ),
+              const AppDropdownItem<Object>.heading('Method'),
               for (final value in HistoryMethodFilter.values)
-                CheckedPopupMenuItem<Object>(
+                AppDropdownItem<Object>(
                   value: value,
-                  checked: method == value,
-                  child: Text(value.label),
+                  selected: method == value,
+                  label: value.label,
                 ),
             ],
           ],
