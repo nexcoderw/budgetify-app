@@ -31,7 +31,12 @@ class AppNavbar extends StatelessWidget {
         ),
         const Spacer(),
         if (trailing != null)
-          Flexible(child: trailing!)
+          Flexible(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: trailing!,
+            ),
+          )
         else ...[
           _NavbarAction(
             tooltip: 'Notifications',
