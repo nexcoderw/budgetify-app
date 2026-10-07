@@ -13,6 +13,7 @@ import '../../application/income_service.dart';
 import '../../data/models/income.dart';
 import '../widgets/income_form_sheet.dart';
 import '../widgets/income_payment_sheet.dart';
+import '../widgets/income_period_filter.dart';
 
 class IncomePage extends StatefulWidget {
   const IncomePage({super.key, this.service, this.onChanged});
@@ -34,11 +35,19 @@ class _IncomePageState extends State<IncomePage> {
   int _page = 0;
   bool _loading = false;
   bool _busy = false;
+  bool _refreshFailed = false;
+  bool _refreshing = false;
+  IncomePeriod _period = IncomePeriod.thisMonth;
+  late DateTime _from;
+  late DateTime _to;
 
   @override
   void initState() {
     super.initState();
     _service = widget.service ?? IncomeService.createDefault();
+    final now = DateTime.now();
+    _from = DateTime(now.year, now.month);
+    _to = DateTime(now.year, now.month + 1, 0);
     unawaited(_load());
   }
 
@@ -50,14 +59,20 @@ class _IncomePageState extends State<IncomePage> {
     super.dispose();
   }
 
-  Future<void> _load({bool more = false}) async {
-    if (more && (_loading || !(_result?.hasNextPage ?? false))) return;
+  Future<void> _load({bool more = false, bool refresh = false}) async {
+    if (more &&
+        (_loading || (_debounce?.isActive ?? false) ||
+            !(_result?.hasNextPage ?? false))) {
+      return;
+    }
     final generation = ++_generation;
     final page = more ? _page + 1 : 1;
     setState(() {
       _loading = true;
       _error = null;
-      if (!more) {
+      _refreshFailed = false;
+      _refreshing = refresh;
+      if (!more && !refresh) {
         _items.clear();
         _result = null;
       }
@@ -67,22 +82,87 @@ class _IncomePageState extends State<IncomePage> {
         page: page,
         status: _status,
         search: _search.text,
+        from: _from,
+        to: DateTime(_to.year, _to.month, _to.day + 1)
+            .subtract(const Duration(milliseconds: 1)),
       );
       if (!mounted || generation != _generation) return;
       setState(() {
         _result = result;
+        if (!more) {
+          _items.clear();
+        }
         _items.addAll(result.items);
         _page = page;
       });
     } catch (error) {
       if (mounted && generation == _generation) {
-        setState(() => _error = _message(error));
+        setState(() {
+          _error = _message(error);
+          _refreshFailed = refresh;
+        });
       }
     } finally {
       if (mounted && generation == _generation) {
-        setState(() => _loading = false);
+        setState(() {
+          _loading = false;
+          _refreshing = false;
+        });
       }
     }
+  }
+
+  Future<void> _refresh() async {
+    if (_busy || _loading) {
+      return;
+    }
+    _debounce?.cancel();
+    await _load(refresh: true);
+  }
+
+  void _selectPeriod(IncomePeriod period) {
+    if (_period == period) {
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    _debounce?.cancel();
+    final now = DateTime.now();
+    final monday = DateTime(now.year, now.month, now.day - now.weekday + 1);
+    setState(() {
+      _period = period;
+      switch (period) {
+        case IncomePeriod.thisMonth:
+          _from = DateTime(now.year, now.month);
+          _to = DateTime(now.year, now.month + 1, 0);
+        case IncomePeriod.lastWeek:
+          _from = DateTime(monday.year, monday.month, monday.day - 7);
+          _to = DateTime(monday.year, monday.month, monday.day - 1);
+        case IncomePeriod.lastMonth:
+          _from = DateTime(now.year, now.month - 1);
+          _to = DateTime(now.year, now.month, 0);
+        case IncomePeriod.custom:
+          break;
+      }
+    });
+    unawaited(_load());
+  }
+
+  void _selectDate(bool isFrom, DateTime date) {
+    _debounce?.cancel();
+    setState(() {
+      if (isFrom) {
+        _from = date;
+        if (_to.isBefore(date)) {
+          _to = date;
+        }
+      } else {
+        _to = date;
+        if (_from.isAfter(date)) {
+          _from = date;
+        }
+      }
+    });
+    unawaited(_load());
   }
 
   String _message(Object error) => error is ApiException
@@ -201,8 +281,14 @@ class _IncomePageState extends State<IncomePage> {
   }
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget build(BuildContext context) => RefreshIndicator.adaptive(
+    onRefresh: _refresh,
+    color: AppColors.primary,
+    backgroundColor: AppColors.surface,
+    child: ListView(
+    physics: const AlwaysScrollableScrollPhysics(),
+    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+    padding: const EdgeInsets.only(bottom: 20),
     children: [
       Row(
         children: [
@@ -216,36 +302,26 @@ class _IncomePageState extends State<IncomePage> {
               ),
             ),
           ),
-          AppDropdown<String>(
-            tooltip: 'Income actions',
-            enabled: !_busy,
-            items: const [
-              AppDropdownItem(
-                value: 'add',
-                label: 'Add income',
-                icon: Icons.add_rounded,
-              ),
-              AppDropdownItem(
-                value: 'refresh',
-                label: 'Refresh',
-                icon: Icons.refresh_rounded,
-              ),
-            ],
-            onSelected: (action) {
-              if (action == 'add') {
-                unawaited(_form());
-              } else {
-                _debounce?.cancel();
-                unawaited(_load());
-              }
-            },
+          const SizedBox(width: 12),
+          Flexible(
+            child: AppButton(
+              label: 'Add income',
+              iconWidget: const Icon(Icons.add_rounded),
+              size: AppButtonSize.sm,
+              fullWidth: false,
+              onPressed: _busy ? null : () => _form(),
+            ),
           ),
         ],
       ),
-      const SizedBox(height: 8),
-      const Text(
-        'Plan what is coming. Track what has arrived.',
-        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+      const SizedBox(height: 20),
+      IncomePeriodFilter(
+        period: _period,
+        from: _from,
+        to: _to,
+        enabled: !_busy,
+        onPeriodSelected: _selectPeriod,
+        onDateSelected: _selectDate,
       ),
       const SizedBox(height: 20),
       if (_loading && _result == null)
@@ -272,7 +348,8 @@ class _IncomePageState extends State<IncomePage> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'All dates · Expected income is not counted as received',
+          'Received and expected income for this period',
+          textAlign: TextAlign.center,
           style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
         ),
       ],
@@ -284,6 +361,7 @@ class _IncomePageState extends State<IncomePage> {
         borderRadius: 999,
         onChanged: (_) {
           _debounce?.cancel();
+          _generation++;
           _debounce = Timer(
             const Duration(milliseconds: 350),
             () => unawaited(_load()),
@@ -297,6 +375,7 @@ class _IncomePageState extends State<IncomePage> {
       ),
       const SizedBox(height: 12),
       Wrap(
+        alignment: WrapAlignment.center,
         spacing: 8,
         runSpacing: 4,
         children: [
@@ -321,6 +400,8 @@ class _IncomePageState extends State<IncomePage> {
               backgroundColor: AppColors.surface,
               selectedColor: AppColors.primary,
               side: BorderSide.none,
+              shape: const StadiumBorder(),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               labelStyle: TextStyle(
                 fontSize: 11,
                 color: _status == status
@@ -341,13 +422,7 @@ class _IncomePageState extends State<IncomePage> {
       const SizedBox(height: 16),
       if (_loading && _items.isEmpty)
         for (var index = 0; index < 3; index++) ...[
-          Container(
-            height: 100,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
+          const _IncomeRecordSkeleton(),
           const SizedBox(height: 10),
         ],
       if (_error != null) ...[
@@ -357,7 +432,10 @@ class _IncomePageState extends State<IncomePage> {
           style: const TextStyle(fontSize: 12, color: AppColors.danger),
         ),
         TextButton(
-          onPressed: () => _load(more: _items.isNotEmpty),
+          onPressed: () => _load(
+            more: !_refreshFailed && _items.isNotEmpty,
+            refresh: _refreshFailed,
+          ),
           child: const Text('Try again'),
         ),
       ],
@@ -377,7 +455,7 @@ class _IncomePageState extends State<IncomePage> {
               ),
               const SizedBox(height: 12),
               const Text(
-                'No income records here',
+                'No income in this view',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -386,22 +464,12 @@ class _IncomePageState extends State<IncomePage> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Add expected income or money already received.',
+                'Try another period or status, or add income using the button above.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 11,
                   height: 1.5,
                   color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: 180,
-                child: AppButton(
-                  label: 'Add income',
-                  iconWidget: const Icon(Icons.add_rounded),
-                  size: AppButtonSize.sm,
-                  onPressed: _busy ? null : () => _form(),
                 ),
               ),
             ],
@@ -416,7 +484,7 @@ class _IncomePageState extends State<IncomePage> {
         ),
         const SizedBox(height: 10),
       ],
-      if (_loading && _items.isNotEmpty)
+      if (_loading && !_refreshing && _items.isNotEmpty)
         const Padding(
           padding: EdgeInsets.all(20),
           child: Center(
@@ -432,6 +500,7 @@ class _IncomePageState extends State<IncomePage> {
           child: const Text('Load more income'),
         ),
     ],
+    ),
   );
 }
 
@@ -454,7 +523,13 @@ class _IncomeTotal extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, color: color)),
+        Row(children: [
+          Icon(label == 'Received' ? Icons.south_west_rounded : Icons.schedule_rounded,
+            size: 15, color: color),
+          const SizedBox(width: 7),
+          Flexible(child: Text(label,
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: color))),
+        ]),
         const SizedBox(height: 14),
         FittedBox(
           fit: BoxFit.scaleDown,
@@ -501,13 +576,36 @@ class _IncomeTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 3, right: 12),
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.backgroundSecondary,
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(switch (income.category) {
+                IncomeCategory.salary => Icons.work_outline_rounded,
+                IncomeCategory.freelance => Icons.laptop_mac_rounded,
+                IncomeCategory.dividends => Icons.trending_up_rounded,
+                IncomeCategory.rental => Icons.home_outlined,
+                IncomeCategory.sideHustle => Icons.storefront_outlined,
+                IncomeCategory.loanRecovery => Icons.assignment_return_outlined,
+                IncomeCategory.other => Icons.south_west_rounded,
+              }, size: 18, color: AppColors.primary),
+            ),
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   income.label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -516,13 +614,13 @@ class _IncomeTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  '${income.category.label} · ${formatReceivedDate(income.date)}',
+                  income.category.label,
                   style: const TextStyle(
                     fontSize: 10,
                     color: AppColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Text(
                   '${formatIncomeAmount(income.amount)} RWF',
                   style: const TextStyle(
@@ -555,14 +653,18 @@ class _IncomeTile extends StatelessWidget {
                       ),
                     ),
                     if (income.paymentReference != null)
-                      Text(
-                        'Linked payment',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: AppColors.textSecondary,
-                        ),
+                      const Tooltip(
+                        message: 'Linked to a received payment',
+                        child: Icon(Icons.link_rounded, size: 18,
+                          color: AppColors.textSecondary),
                       ),
                   ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${income.isExpected ? 'Expected' : 'Received'} ${formatReceivedDate(income.date)}',
+                  style: const TextStyle(fontSize: 10, height: 1.4,
+                    color: AppColors.textSecondary),
                 ),
               ],
             ),
@@ -616,7 +718,7 @@ class _IncomeSkeleton extends StatelessWidget {
                 if (index > 0) const SizedBox(width: 12),
                 Expanded(
                   child: Container(
-                    height: 104,
+                    height: 114,
                     decoration: BoxDecoration(
                       color: AppColors.surfaceElevated,
                       borderRadius: BorderRadius.circular(22),
@@ -627,6 +729,41 @@ class _IncomeSkeleton extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    ),
+  );
+}
+
+class _IncomeRecordSkeleton extends StatelessWidget {
+  const _IncomeRecordSkeleton();
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: 'Loading income record',
+    child: ExcludeSemantics(
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(width: 38, height: 38,
+            decoration: BoxDecoration(color: AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(13))),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final width in [0.65, 0.4, 0.8, 0.45]) ...[
+                FractionallySizedBox(widthFactor: width,
+                  child: Container(height: 12,
+                    decoration: BoxDecoration(color: AppColors.surfaceElevated,
+                      borderRadius: BorderRadius.circular(6)))),
+                const SizedBox(height: 12),
+              ],
+            ],
+          )),
+        ]),
       ),
     ),
   );
