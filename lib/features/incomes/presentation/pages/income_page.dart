@@ -75,11 +75,13 @@ class _IncomePageState extends State<IncomePage> {
         _page = page;
       });
     } catch (error) {
-      if (mounted && generation == _generation)
+      if (mounted && generation == _generation) {
         setState(() => _error = _message(error));
+      }
     } finally {
-      if (mounted && generation == _generation)
+      if (mounted && generation == _generation) {
         setState(() => _loading = false);
+      }
     }
   }
 
@@ -186,12 +188,13 @@ class _IncomePageState extends State<IncomePage> {
         await _load();
       }
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         AppToast.error(
           context,
           title: 'Could not update income',
           description: _message(error),
         );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
