@@ -13,6 +13,7 @@ import '../../data/models/transaction_models.dart';
 import '../widgets/history/history_content.dart';
 import '../widgets/history/history_filter_controls.dart';
 import '../widgets/history/history_header.dart';
+import '../widgets/history/history_insights.dart';
 import '../widgets/history/history_page_skeleton.dart';
 import '../widgets/history/history_sms_reconciliation_card.dart';
 import 'received_transaction_detail_page.dart';
@@ -80,6 +81,64 @@ class _HistoryPageState extends State<HistoryPage> {
 
   int _requestGeneration = 0;
 
+  HistoryTab _selectedTab = HistoryTab.transactions;
+  List<TransactionHistoryItem>? _insightTransactions;
+  bool _isLoadingInsights = false;
+  String? _insightsError;
+  int _insightsGeneration = 0;
+
+  void _selectTab(HistoryTab tab) {
+    FocusScope.of(context).unfocus();
+    setState(() => _selectedTab = tab);
+    if (tab == HistoryTab.insights &&
+        _insightTransactions == null &&
+        !_isLoadingInsights) {
+      unawaited(_loadInsights());
+    }
+  }
+
+  Future<void> _loadInsights() async {
+    final generation = ++_insightsGeneration;
+    setState(() {
+      _isLoadingInsights = true;
+      _insightsError = null;
+    });
+    try {
+      final items = <TransactionHistoryItem>[];
+      var page = 1;
+      while (true) {
+        final result = await _transactionService.history(
+          page: page,
+          limit: 100,
+          direction: TransactionHistoryDirection.sent,
+          status: TransactionStatus.completed,
+        );
+        if (!mounted || generation != _insightsGeneration) {
+          return;
+        }
+        items.addAll(result.items);
+        if (!result.pagination.hasNextPage) {
+          break;
+        }
+        if (result.items.isEmpty || page >= 100) {
+          throw StateError('Incomplete spending history.');
+        }
+        page++;
+      }
+      setState(() => _insightTransactions = items);
+    } catch (_) {
+      if (mounted && generation == _insightsGeneration) {
+        setState(() {
+          _insightsError = 'Could not load your category insights. Try again.';
+        });
+      }
+    } finally {
+      if (mounted && generation == _insightsGeneration) {
+        setState(() => _isLoadingInsights = false);
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -117,6 +176,7 @@ class _HistoryPageState extends State<HistoryPage> {
 
   @override
   void dispose() {
+    _insightsGeneration++;
     _searchDebounce?.cancel();
 
     _searchController.dispose();
@@ -226,6 +286,12 @@ class _HistoryPageState extends State<HistoryPage> {
     final page = reset ? 1 : (_pagination?.page ?? 0) + 1;
 
     if (reset) {
+      _insightsGeneration++;
+      _isLoadingInsights = false;
+      _insightTransactions = null;
+      if (_selectedTab == HistoryTab.insights) {
+        unawaited(_loadInsights());
+      }
       setState(() {
         _isInitialLoading = true;
 
@@ -339,79 +405,76 @@ class _HistoryPageState extends State<HistoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-
-    final isCompact = width < 700;
-
+    final isCompact = MediaQuery.sizeOf(context).width < 700;
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: isCompact ? 0 : 4,
         vertical: isCompact ? 4 : 8,
       ),
-      child: _isInitialLoading
-          ? HistoryPageSkeleton(
-              compact: isCompact,
-              showSmsCard: _smsReconciliationService.isSupported,
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                HistoryHeader(
-                  compact: isCompact,
-                  onRecordReceived: supportsManualReceivedPaymentEntry
-                      ? () {
-                          unawaited(_recordReceivedMoney());
-                        }
-                      : null,
-                  onRefresh: () {
-                    unawaited(_loadTransactions(reset: true));
-                  },
-                ),
-                if (_smsReconciliationService.isSupported) ...[
-                  SizedBox(height: isCompact ? 16 : 18),
-                  HistorySmsReconciliationCard(
-                    smsReconciliationService: _smsReconciliationService,
-                    receivedSmsReconciliationService:
-                        _receivedSmsReconciliationService,
-                    onHistoryChanged: () {
-                      return _loadTransactions(reset: true);
-                    },
-                  ),
-                ],
-                SizedBox(height: isCompact ? 22 : 28),
-                HistoryFilterControls(
-                  searchController: _searchController,
-                  direction: _directionFilter,
-                  status: _statusFilter,
-                  method: _methodFilter,
-                  onSearchChanged: _onSearchChanged,
-                  onSearchSubmitted: _onSearchSubmitted,
-                  onDirectionSelected: _selectDirection,
-                  onStatusSelected: _selectStatus,
-                  onMethodSelected: _selectMethod,
-                ),
-                SizedBox(height: isCompact ? 22 : 28),
-                HistoryContent(
-                  transactions: _transactions,
-                  direction: _directionFilter.direction,
-                  total: _pagination?.total ?? _transactions.length,
-                  compact: isCompact,
-                  errorMessage: _errorMessage,
-                  loadMoreError: _loadMoreError,
-                  hasNextPage: _pagination?.hasNextPage ?? false,
-                  isLoadingMore: _isLoadingMore,
-                  onRetry: () {
-                    unawaited(_loadTransactions(reset: true));
-                  },
-                  onLoadMore: () {
-                    unawaited(_loadTransactions(reset: false));
-                  },
-                  onTransactionTap: (transaction) {
-                    unawaited(_openTransaction(transaction));
-                  },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          HistoryHeader(
+            selectedTab: _selectedTab,
+            onTabSelected: _selectTab,
+            onRecordReceived: supportsManualReceivedPaymentEntry
+                ? () => unawaited(_recordReceivedMoney())
+                : null,
+            onRefresh: () => unawaited(_loadTransactions(reset: true)),
+          ),
+          const SizedBox(height: 20),
+          if (_selectedTab == HistoryTab.insights)
+            if (_isLoadingInsights)
+              HistoryPageSkeleton(compact: isCompact, insights: true)
+            else
+              HistoryInsights(
+                transactions: _insightTransactions ?? const [],
+                errorMessage: _insightsError,
+                onRetry: () => unawaited(_loadInsights()),
+              )
+          else ...[
+            HistoryFilterControls(
+              searchController: _searchController,
+              direction: _directionFilter,
+              status: _statusFilter,
+              method: _methodFilter,
+              onSearchChanged: _onSearchChanged,
+              onSearchSubmitted: _onSearchSubmitted,
+              onDirectionSelected: _selectDirection,
+              onStatusSelected: _selectStatus,
+              onMethodSelected: _selectMethod,
+            ),
+            const SizedBox(height: 20),
+            if (_isInitialLoading)
+              HistoryPageSkeleton(compact: isCompact)
+            else ...[
+              HistoryContent(
+                transactions: _transactions,
+                direction: _directionFilter.direction,
+                total: _pagination?.total ?? _transactions.length,
+                compact: isCompact,
+                errorMessage: _errorMessage,
+                loadMoreError: _loadMoreError,
+                hasNextPage: _pagination?.hasNextPage ?? false,
+                isLoadingMore: _isLoadingMore,
+                onRetry: () => unawaited(_loadTransactions(reset: true)),
+                onLoadMore: () => unawaited(_loadTransactions(reset: false)),
+                onTransactionTap: (transaction) =>
+                    unawaited(_openTransaction(transaction)),
+              ),
+              if (_smsReconciliationService.isSupported) ...[
+                const SizedBox(height: 20),
+                HistorySmsReconciliationCard(
+                  smsReconciliationService: _smsReconciliationService,
+                  receivedSmsReconciliationService:
+                      _receivedSmsReconciliationService,
+                  onHistoryChanged: () => _loadTransactions(reset: true),
                 ),
               ],
-            ),
+            ],
+          ],
+        ],
+      ),
     );
   }
 }
