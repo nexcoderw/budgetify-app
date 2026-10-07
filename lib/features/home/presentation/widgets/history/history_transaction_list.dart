@@ -134,6 +134,7 @@ class _TransactionTile extends StatelessWidget {
     final accent = _transactionStatusColor(transaction);
 
     final local = transaction.activityAt.toLocal();
+    final fee = transaction.feeAmount;
 
     return Material(
       color: Colors.transparent,
@@ -197,6 +198,18 @@ class _TransactionTile extends StatelessWidget {
                         color: AppColors.textSecondary.withValues(alpha: 0.72),
                       ),
                     ),
+                    if (transaction.isSent) ...[
+                      const SizedBox(height: 5),
+                      Text(
+                        fee == null || fee < 0
+                            ? 'Fee unavailable'
+                            : 'Fee ${_formatAmount(fee)} ${transaction.currency}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
