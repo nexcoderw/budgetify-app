@@ -53,12 +53,13 @@ class _IncomePaymentSheetState extends State<IncomePaymentSheet> {
         _page++;
       });
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _error = error is ApiException
               ? error.message
               : 'Could not load received payments.',
         );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -76,13 +77,14 @@ class _IncomePaymentSheetState extends State<IncomePaymentSheet> {
       setState(() => _saving = false);
       Navigator.of(context).pop(true);
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _saving = false;
           _error = error is ApiException
               ? error.message
               : 'Could not link this payment.';
         });
+      }
     }
   }
 
