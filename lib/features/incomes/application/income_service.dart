@@ -52,8 +52,9 @@ class IncomeService {
 
   Future<T> _authorized<T>(Future<T> Function(String token) request) async {
     var session = await _storage.read();
-    if (session == null)
+    if (session == null) {
       throw StateError('No authenticated session was found.');
+    }
     if (session.needsRefresh) session = await _refresh(session);
     try {
       return await request(session.accessToken);
