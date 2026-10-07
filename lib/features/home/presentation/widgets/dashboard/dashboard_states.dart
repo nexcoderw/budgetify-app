@@ -89,56 +89,61 @@ class DashboardSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _DashboardSkeletonBlock(width: 86, height: 10),
-        const SizedBox(height: 10),
-        const _DashboardSkeletonBlock(width: 220, height: 30),
-        const SizedBox(height: 8),
-        const _DashboardSkeletonBlock(width: 150, height: 11),
-        const SizedBox(height: 22),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const NeverScrollableScrollPhysics(),
-          child: Row(
-            children: [
-              for (var index = 0; index < 4; index++) ...[
-                if (index > 0) const SizedBox(width: 8),
-                const _DashboardSkeletonBlock(
-                  width: 74,
-                  height: 34,
-                  radius: 999,
-                ),
+    return Semantics(
+      label: 'Loading overview',
+      child: ExcludeSemantics(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: _DashboardSkeletonBlock(width: 100, height: 22),
+            ),
+            const SizedBox(height: 16),
+            const Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _DashboardSkeletonBlock(width: 120, height: 44, radius: 999),
+                _DashboardSkeletonBlock(width: 160, height: 11),
               ],
-            ],
-          ),
+            ),
+            const SizedBox(height: 18),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                const card = _DashboardSkeletonBlock(width: double.infinity, height: 126, radius: 22);
+                if (constraints.maxWidth < 300 ||
+                    MediaQuery.textScalerOf(context).scale(12) > 18) {
+                  return const Column(children: [card, SizedBox(height: 12), card]);
+                }
+                return const Row(
+                  children: [Expanded(child: card), SizedBox(width: 12), Expanded(child: card)],
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: _DashboardSkeletonBlock(width: 150, height: 11),
+            ),
+            const SizedBox(height: 16),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                const categories = _DashboardSkeletonBlock(width: double.infinity, height: 230, radius: 22);
+                const methods = _DashboardSkeletonBlock(width: double.infinity, height: 310, radius: 22);
+                if (constraints.maxWidth < 720) {
+                  return const Column(children: [categories, SizedBox(height: 16), methods]);
+                }
+                return const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [Expanded(child: categories), SizedBox(width: 16), Expanded(child: methods)],
+                );
+              },
+            ),
+          ],
         ),
-        const SizedBox(height: 20),
-        const _DashboardSkeletonBlock(
-          width: double.infinity,
-          height: 286,
-          radius: 28,
-        ),
-        const SizedBox(height: 16),
-        const _DashboardSkeletonBlock(
-          width: double.infinity,
-          height: 180,
-          radius: 24,
-        ),
-        const SizedBox(height: 16),
-        const _DashboardSkeletonBlock(
-          width: double.infinity,
-          height: 220,
-          radius: 24,
-        ),
-        const SizedBox(height: 16),
-        const _DashboardSkeletonBlock(
-          width: double.infinity,
-          height: 180,
-          radius: 24,
-        ),
-      ],
+      ),
     );
   }
 }
