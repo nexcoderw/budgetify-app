@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../../../core/theme/app_colors.dart';
-import '../../../../../core/widgets/app_dropdown.dart';
 import '../../../../../core/widgets/app_input.dart';
 import '../../../data/models/transaction_history_models.dart';
 import '../../../data/models/transaction_models.dart';
@@ -151,22 +150,35 @@ class _HistoryInsightsState extends State<HistoryInsights> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: AppDropdown<_InsightsPeriod>(
-            tooltip: 'Choose insights period',
-            label: _period.label,
-            isActive: true,
-            onSelected: (period) => setState(() => _period = period),
-            items: [
-              for (final period in _InsightsPeriod.values)
-                AppDropdownItem(
-                  value: period,
-                  selected: _period == period,
-                  label: period.label,
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            for (final period in _InsightsPeriod.values)
+              ChoiceChip(
+                label: Text(period.label),
+                selected: _period == period,
+                onSelected: (_) {
+                  FocusScope.of(context).unfocus();
+                  setState(() => _period = period);
+                },
+                showCheckmark: false,
+                backgroundColor: AppColors.surface,
+                selectedColor: AppColors.primary,
+                side: BorderSide.none,
+                shape: const StadiumBorder(),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                labelStyle: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _period == period
+                      ? AppColors.background
+                      : AppColors.textSecondary,
                 ),
-            ],
-          ),
+                materialTapTargetSize: MaterialTapTargetSize.padded,
+              ),
+          ],
         ),
         if (_period == _InsightsPeriod.custom) ...[
           const SizedBox(height: 16),
@@ -212,6 +224,29 @@ class _HistoryInsightsState extends State<HistoryInsights> {
           ),
         ],
         const SizedBox(height: 20),
+        if (!invalidRange) ...[
+          Text(
+            '${formatReceivedDate(range.from)} – '
+            '${formatReceivedDate(DateTime(range.until.year, range.until.month, range.until.day - 1))}',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12,
+              height: 1.4,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Completed payments and recorded fees',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11,
+              height: 1.5,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
         if (invalidRange)
           const Text(
             'From date must be on or before To date.',
@@ -235,6 +270,8 @@ class _HistoryInsightsState extends State<HistoryInsights> {
     }
 
     final totals = <TransactionCategory, int>{};
+    var fees = 0;
+    var missingFees = 0;
     for (final transaction in widget.transactions) {
       final activityAt = transaction.activityAt.toLocal();
       if (!transaction.isSent ||
@@ -251,10 +288,27 @@ class _HistoryInsightsState extends State<HistoryInsights> {
         (value) => value + transaction.amount,
         ifAbsent: () => transaction.amount,
       );
+      final fee = transaction.feeAmount;
+      if (fee == null || fee < 0) {
+        missingFees++;
+      } else {
+        fees += fee;
+      }
     }
     final categories = totals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    final total = categories.fold<int>(0, (sum, item) => sum + item.value);
+    final payments = categories.fold<int>(0, (sum, item) => sum + item.value);
+    final total = payments + fees;
+    final breakdown = <({String label, int amount, Color color})>[
+      for (final item in categories)
+        (
+          label: item.key.label,
+          amount: item.value,
+          color: _colors[item.key.index % _colors.length],
+        ),
+      if (payments > 0)
+        (label: 'Transaction fees', amount: fees, color: AppColors.primaryMuted),
+    ];
 
     if (total == 0) {
       return const Padding(
@@ -272,30 +326,42 @@ class _HistoryInsightsState extends State<HistoryInsights> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Spending by category',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+        Text.rich(
+          TextSpan(
+            text: _amount(total),
+            style: const TextStyle(
+              fontSize: 28,
+              height: 1.2,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+            children: const [
+              TextSpan(
+                text: ' RWF',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
           ),
+          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 6),
         Text(
-          '${formatReceivedDate(from)} – '
-          '${formatReceivedDate(DateTime(until.year, until.month, until.day - 1))}'
-          '\nCompleted payments · Excludes fees',
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          'Payments ${_amount(payments)} RWF · Fees ${_amount(fees)} RWF',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
         ),
-        const SizedBox(height: 20),
-        Text(
-          '${_amount(total)} RWF',
-          style: const TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+        if (missingFees > 0) ...[
+          const SizedBox(height: 6),
+          Text(
+            'Fees unavailable for $missingFees payment(s); not included in total.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
           ),
-        ),
+        ],
         Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
@@ -305,11 +371,8 @@ class _HistoryInsightsState extends State<HistoryInsights> {
                 child: RepaintBoundary(
                   child: CustomPaint(
                     painter: _CategoryPiePainter(
-                      amounts: categories.map((item) => item.value).toList(),
-                      colors: [
-                        for (final item in categories)
-                          _colors[item.key.index % _colors.length],
-                      ],
+                      amounts: breakdown.map((item) => item.amount).toList(),
+                      colors: breakdown.map((item) => item.color).toList(),
                       total: total,
                     ),
                   ),
@@ -319,7 +382,7 @@ class _HistoryInsightsState extends State<HistoryInsights> {
           ),
         ),
         const SizedBox(height: 12),
-        for (final item in categories)
+        for (final item in breakdown)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Row(
@@ -329,14 +392,14 @@ class _HistoryInsightsState extends State<HistoryInsights> {
                   height: 10,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _colors[item.key.index % _colors.length],
+                    color: item.color,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Flexible(
                   fit: FlexFit.tight,
                   child: Text(
-                    item.key.label,
+                    item.label,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: AppColors.textPrimary),
@@ -346,7 +409,7 @@ class _HistoryInsightsState extends State<HistoryInsights> {
                 Flexible(
                   fit: FlexFit.tight,
                   child: Text(
-                    '${_amount(item.value)} RWF',
+                    '${_amount(item.amount)} RWF',
                     textAlign: TextAlign.end,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -360,7 +423,7 @@ class _HistoryInsightsState extends State<HistoryInsights> {
                 SizedBox(
                   width: 48,
                   child: Text(
-                    '${(item.value / total * 100).toStringAsFixed(1)}%',
+                    '${(item.amount / total * 100).toStringAsFixed(1)}%',
                     textAlign: TextAlign.end,
                     style: const TextStyle(
                       fontSize: 11,
