@@ -79,16 +79,27 @@ class AppLayout extends StatelessWidget {
                     ),
                     SizedBox(height: isCompact ? 20 : 28),
                     Expanded(
-                      child: _AppContent(
-                        scrollChild: scrollChild,
-                        child: child,
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: _AppContent(
+                              scrollChild: scrollChild,
+                              bottomPadding: isCompact ? 84 : 96,
+                              child: child,
+                            ),
+                          ),
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: AppBottomNavBar(
+                              currentSection: currentSection,
+                              destinations: bottomAppNavDestinations,
+                              onSectionSelected: onSectionSelected,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    SizedBox(height: isCompact ? 16 : 22),
-                    AppBottomNavBar(
-                      currentSection: currentSection,
-                      destinations: bottomAppNavDestinations,
-                      onSectionSelected: onSectionSelected,
                     ),
                   ],
                 ),
@@ -105,10 +116,12 @@ class _AppContent extends StatelessWidget {
   const _AppContent({
     required this.scrollChild,
     required this.child,
+    required this.bottomPadding,
   });
 
   final bool scrollChild;
   final Widget child;
+  final double bottomPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -117,16 +130,20 @@ class _AppContent extends StatelessWidget {
     );
 
     if (!scrollChild) {
-      return Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: constraints,
-          child: child,
+      return Padding(
+        padding: EdgeInsets.only(bottom: bottomPadding),
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: constraints,
+            child: child,
+          ),
         ),
       );
     }
 
     return SingleChildScrollView(
+      padding: EdgeInsets.only(bottom: bottomPadding),
       child: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
