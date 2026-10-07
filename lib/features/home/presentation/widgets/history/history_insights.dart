@@ -3,10 +3,22 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/widgets/app_input.dart';
 import '../../../data/models/transaction_history_models.dart';
 import '../../../data/models/transaction_models.dart';
+import '../record_received_money/received_date_sheet.dart';
 
-class HistoryInsights extends StatelessWidget {
+enum _InsightsPeriod {
+  thisMonth('This month'),
+  thisWeek('This week'),
+  lastYear('Last year'),
+  custom('Custom');
+
+  const _InsightsPeriod(this.label);
+  final String label;
+}
+
+class HistoryInsights extends StatefulWidget {
   const HistoryInsights({
     super.key,
     required this.transactions,
@@ -17,6 +29,94 @@ class HistoryInsights extends StatelessWidget {
   final List<TransactionHistoryItem> transactions;
   final String? errorMessage;
   final VoidCallback onRetry;
+
+  @override
+  State<HistoryInsights> createState() => _HistoryInsightsState();
+}
+
+class _HistoryInsightsState extends State<HistoryInsights> {
+  _InsightsPeriod _period = _InsightsPeriod.thisMonth;
+  late DateTime _customFrom;
+  late DateTime _customTo;
+  final _fromController = TextEditingController();
+  final _toController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _customFrom = DateTime(now.year, now.month);
+    _customTo = DateTime(now.year, now.month, now.day);
+    _syncDates();
+  }
+
+  @override
+  void dispose() {
+    _fromController.dispose();
+    _toController.dispose();
+    super.dispose();
+  }
+
+  void _syncDates() {
+    _fromController.text = formatReceivedDate(_customFrom);
+    _toController.text = formatReceivedDate(_customTo);
+  }
+
+  ({DateTime from, DateTime until}) _range(DateTime now) {
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    return switch (_period) {
+      _InsightsPeriod.thisMonth => (
+        from: DateTime(now.year, now.month),
+        until: tomorrow,
+      ),
+      _InsightsPeriod.thisWeek => (
+        from: DateTime(now.year, now.month, now.day - now.weekday + 1),
+        until: tomorrow,
+      ),
+      _InsightsPeriod.lastYear => (
+        from: DateTime(now.year - 1),
+        until: DateTime(now.year),
+      ),
+      _InsightsPeriod.custom => (
+        from: _customFrom,
+        until: DateTime(_customTo.year, _customTo.month, _customTo.day + 1),
+      ),
+    };
+  }
+
+  Future<void> _chooseDate({required bool from}) async {
+    FocusScope.of(context).unfocus();
+    final now = DateTime.now();
+    var firstYear = now.year - 10;
+    for (final transaction in widget.transactions) {
+      firstYear = math.min(firstYear, transaction.activityAt.toLocal().year);
+    }
+    final selected = await showModalBottomSheet<DateTime>(
+      context: context,
+      useRootNavigator: true,
+      useSafeArea: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.72),
+      builder: (_) => ReceivedDateSheet(
+        initialDate: from ? _customFrom : _customTo,
+        firstYear: firstYear,
+        lastDate: now,
+      ),
+    );
+    if (!mounted || selected == null) {
+      return;
+    }
+    setState(() {
+      final date = DateTime(selected.year, selected.month, selected.day);
+      if (from) {
+        _customFrom = date;
+      } else {
+        _customTo = date;
+      }
+      _syncDates();
+    });
+  }
 
   static const _colors = [
     AppColors.primary,
@@ -39,22 +139,128 @@ class HistoryInsights extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final error = errorMessage;
+    final invalidRange = _period == _InsightsPeriod.custom &&
+        _customFrom.isAfter(_customTo);
+    final range = _range(DateTime.now());
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: PopupMenuButton<_InsightsPeriod>(
+            tooltip: 'Choose insights period',
+            initialValue: _period,
+            onSelected: (period) => setState(() => _period = period),
+            itemBuilder: (_) => [
+              for (final period in _InsightsPeriod.values)
+                CheckedPopupMenuItem(
+                  value: period,
+                  checked: _period == period,
+                  child: Text(period.label),
+                ),
+            ],
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 44),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _period.label,
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: AppColors.primary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (_period == _InsightsPeriod.custom) ...[
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final fields = [
+                AppInput(
+                  controller: _fromController,
+                  label: 'From date',
+                  readOnly: true,
+                  borderRadius: 28,
+                  onTap: () => _chooseDate(from: true),
+                  suffixIcon: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: AppColors.primary,
+                  ),
+                ),
+                AppInput(
+                  controller: _toController,
+                  label: 'To date',
+                  readOnly: true,
+                  borderRadius: 28,
+                  onTap: () => _chooseDate(from: false),
+                  suffixIcon: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ];
+              if (constraints.maxWidth < 420) {
+                return Column(
+                  children: [fields[0], const SizedBox(height: 12), fields[1]],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: fields[0]),
+                  const SizedBox(width: 12),
+                  Expanded(child: fields[1]),
+                ],
+              );
+            },
+          ),
+        ],
+        const SizedBox(height: 20),
+        if (invalidRange)
+          const Text(
+            'From date must be on or before To date.',
+            style: TextStyle(color: AppColors.danger),
+          )
+        else
+          _buildSummary(context, range.from, range.until),
+      ],
+    );
+  }
+
+  Widget _buildSummary(BuildContext context, DateTime from, DateTime until) {
+    final error = widget.errorMessage;
     if (error != null) {
       return Column(
         children: [
           Text(error, style: const TextStyle(color: AppColors.textSecondary)),
-          TextButton(onPressed: onRetry, child: const Text('Try again')),
+          TextButton(onPressed: widget.onRetry, child: const Text('Try again')),
         ],
       );
     }
 
     final totals = <TransactionCategory, int>{};
-    for (final transaction in transactions) {
+    for (final transaction in widget.transactions) {
+      final activityAt = transaction.activityAt.toLocal();
       if (!transaction.isSent ||
           transaction.status != TransactionStatus.completed ||
           transaction.currency != 'RWF' ||
-          transaction.amount <= 0) {
+          transaction.amount <= 0 ||
+          activityAt.isBefore(from) ||
+          !activityAt.isBefore(until)) {
         continue;
       }
       final category = transaction.category ?? TransactionCategory.other;
@@ -73,7 +279,7 @@ class HistoryInsights extends StatelessWidget {
         padding: EdgeInsets.symmetric(vertical: 48),
         child: Center(
           child: Text(
-            'Your completed payments will appear here.',
+            'No completed payments in this period.',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.textSecondary),
           ),
@@ -93,9 +299,11 @@ class HistoryInsights extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
-          'All-time completed payments · Excludes fees',
-          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        Text(
+          '${formatReceivedDate(from)} – '
+          '${formatReceivedDate(DateTime(until.year, until.month, until.day - 1))}'
+          '\nCompleted payments · Excludes fees',
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
         const SizedBox(height: 20),
         Text(
