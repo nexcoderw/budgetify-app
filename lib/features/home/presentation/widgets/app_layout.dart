@@ -66,39 +66,38 @@ class AppLayout extends StatelessWidget {
                   isCompact ? 16 : isLarge ? 32 : 24,
                   isCompact ? 8 : 12,
                 ),
-                child: Column(
+                child: Stack(
                   children: [
-                    AppNavbar(
-                      user: user,
-                      onMenuTap: () {
-                        FocusScope.of(scaffoldContext).unfocus();
-                        Scaffold.of(scaffoldContext).openDrawer();
-                      },
-                      onAvatarTap: onAvatarTap,
-                      trailing: navbarTrailing,
+                    Positioned.fill(
+                      child: _AppContent(
+                        scrollChild: scrollChild,
+                        topPadding: isCompact ? 66 : 74,
+                        bottomPadding: isCompact ? 84 : 96,
+                        child: child,
+                      ),
                     ),
-                    SizedBox(height: isCompact ? 20 : 28),
-                    Expanded(
-                      child: Stack(
-                        children: [
-                          Positioned.fill(
-                            child: _AppContent(
-                              scrollChild: scrollChild,
-                              bottomPadding: isCompact ? 84 : 96,
-                              child: child,
-                            ),
-                          ),
-                          Positioned(
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            child: AppBottomNavBar(
-                              currentSection: currentSection,
-                              destinations: bottomAppNavDestinations,
-                              onSectionSelected: onSectionSelected,
-                            ),
-                          ),
-                        ],
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: AppNavbar(
+                        user: user,
+                        onMenuTap: () {
+                          FocusScope.of(scaffoldContext).unfocus();
+                          Scaffold.of(scaffoldContext).openDrawer();
+                        },
+                        onAvatarTap: onAvatarTap,
+                        trailing: navbarTrailing,
+                      ),
+                    ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: AppBottomNavBar(
+                        currentSection: currentSection,
+                        destinations: bottomAppNavDestinations,
+                        onSectionSelected: onSectionSelected,
                       ),
                     ),
                   ],
@@ -117,11 +116,13 @@ class _AppContent extends StatelessWidget {
     required this.scrollChild,
     required this.child,
     required this.bottomPadding,
+    required this.topPadding,
   });
 
   final bool scrollChild;
   final Widget child;
   final double bottomPadding;
+  final double topPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -131,7 +132,7 @@ class _AppContent extends StatelessWidget {
 
     if (!scrollChild) {
       return Padding(
-        padding: EdgeInsets.only(bottom: bottomPadding),
+        padding: EdgeInsets.only(top: topPadding, bottom: bottomPadding),
         child: Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
@@ -143,7 +144,7 @@ class _AppContent extends StatelessWidget {
     }
 
     return SingleChildScrollView(
-      padding: EdgeInsets.only(bottom: bottomPadding),
+      padding: EdgeInsets.only(top: topPadding, bottom: bottomPadding),
       child: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
