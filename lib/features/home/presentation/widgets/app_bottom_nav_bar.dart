@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 
@@ -105,14 +107,6 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.surfaceElevated.withValues(alpha: 0.98),
-                AppColors.backgroundSecondary.withValues(alpha: 0.98),
-              ],
-            ),
             border: Border.all(
               color: AppColors.primaryMuted.withValues(alpha: 0.42),
             ),
@@ -129,7 +123,25 @@ class _AppBottomNavBarState extends State<AppBottomNavBar>
               ),
             ],
           ),
-          child: content,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.surfaceElevated.withValues(alpha: 0.72),
+                      AppColors.backgroundSecondary.withValues(alpha: 0.64),
+                    ],
+                  ),
+                ),
+                child: content,
+              ),
+            ),
+          ),
         ),
       ),
     );
