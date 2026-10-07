@@ -11,12 +11,14 @@ class AppNavbar extends StatelessWidget {
     this.onMenuTap,
     this.onNotificationTap,
     this.onAvatarTap,
+    this.trailing,
   });
 
   final AuthUser user;
   final VoidCallback? onMenuTap;
   final VoidCallback? onNotificationTap;
   final VoidCallback? onAvatarTap;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -28,13 +30,17 @@ class AppNavbar extends StatelessWidget {
           onTap: onMenuTap,
         ),
         const Spacer(),
-        _NavbarAction(
-          tooltip: 'Notifications',
-          icon: HugeIcons.strokeRoundedNotification02,
-          onTap: onNotificationTap,
-        ),
-        const SizedBox(width: 10),
-        _UserAvatar(user: user, onTap: onAvatarTap),
+        if (trailing != null)
+          Flexible(child: trailing!)
+        else ...[
+          _NavbarAction(
+            tooltip: 'Notifications',
+            icon: HugeIcons.strokeRoundedNotification02,
+            onTap: onNotificationTap,
+          ),
+          const SizedBox(width: 10),
+          _UserAvatar(user: user, onTap: onAvatarTap),
+        ],
       ],
     );
   }
