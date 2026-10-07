@@ -25,34 +25,41 @@ class AppSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final shortcuts = bottomAppNavDestinations.where(
-      (destination) => !defaultAppNavDestinations.any(
-        (item) => item.section == destination.section,
-      ),
-    );
-
     return Drawer(
-      width: math.min(320.0, MediaQuery.sizeOf(context).width * 0.86),
+      width: math.min(300.0, MediaQuery.sizeOf(context).width * 0.86),
       semanticLabel: 'Navigation menu',
       backgroundColor: AppColors.backgroundSecondary,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.horizontal(right: Radius.circular(24)),
+        borderRadius: BorderRadius.horizontal(right: Radius.circular(28)),
       ),
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 12, 16),
+              padding: const EdgeInsets.fromLTRB(20, 20, 12, 24),
               child: Row(
                 children: [
+                  Image.asset(
+                    'assets/branding/png/tight/logo-color-beige-512.png',
+                    width: 30,
+                    height: 30,
+                    fit: BoxFit.contain,
+                    excludeFromSemantics: true,
+                    errorBuilder: (_, _, _) => const Icon(
+                      Icons.account_balance_wallet_outlined,
+                      size: 26,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
                   const Expanded(
                     child: Text(
                       'Budgetify',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 18,
                         fontWeight: FontWeight.w700,
                         color: AppColors.primary,
                       ),
@@ -63,6 +70,7 @@ class AppSidebar extends StatelessWidget {
                     onPressed: onClose,
                     icon: const Icon(
                       Icons.close_rounded,
+                      size: 19,
                       color: AppColors.textSecondary,
                     ),
                   ),
@@ -71,22 +79,25 @@ class AppSidebar extends StatelessWidget {
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
                 children: [
-                  for (final destination in defaultAppNavDestinations)
+                  _sectionLabel('Overview'),
+                  for (final destination in defaultAppNavDestinations.where(
+                    (item) => item.section == AppLayoutSection.dashboard,
+                  ))
                     _destination(destination),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    child: Divider(height: 1, color: AppColors.border),
-                  ),
-                  for (final destination in shortcuts)
+                  const SizedBox(height: 20),
+                  _sectionLabel('Money management'),
+                  for (final destination in defaultAppNavDestinations.where(
+                    (item) => item.section != AppLayoutSection.dashboard,
+                  ))
                     _destination(destination),
                 ],
               ),
             ),
             const Divider(height: 1, color: AppColors.border),
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
               child: ListTile(
                 onTap: onProfileTap,
                 shape: RoundedRectangleBorder(
@@ -95,12 +106,12 @@ class AppSidebar extends StatelessWidget {
                 leading: const Icon(
                   Icons.account_circle_outlined,
                   color: AppColors.primary,
-                  size: 26,
+                  size: 22,
                 ),
                 title: const Text(
                   'My profile',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                   ),
@@ -110,7 +121,7 @@ class AppSidebar extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     color: AppColors.textSecondary,
                   ),
                 ),
@@ -127,6 +138,18 @@ class AppSidebar extends StatelessWidget {
     );
   }
 
+  Widget _sectionLabel(String label) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+    child: Text(
+      label,
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        color: AppColors.textSecondary,
+      ),
+    ),
+  );
+
   Widget _destination(AppNavDestination destination) {
     final selected = currentSection == destination.section;
     return Padding(
@@ -135,15 +158,15 @@ class AppSidebar extends StatelessWidget {
         selected: selected,
         child: ListTile(
           selected: selected,
-          selectedTileColor: AppColors.surfaceElevated,
-          minTileHeight: 56,
+          selectedTileColor: AppColors.primary.withValues(alpha: 0.1),
+          minTileHeight: 48,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
           leading: HugeIcon(
             icon: destination.icon,
-            size: 22,
+            size: 20,
             color: selected ? AppColors.primary : AppColors.textSecondary,
           ),
           title: Text(
@@ -151,18 +174,22 @@ class AppSidebar extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 15,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
               color: selected ? AppColors.primary : AppColors.textPrimary,
             ),
           ),
           trailing: selected
               ? const Icon(
                   Icons.check_rounded,
-                  size: 18,
+                  size: 16,
                   color: AppColors.primary,
                 )
-              : null,
+              : const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
           onTap: () => onSectionSelected(destination.section),
         ),
       ),
