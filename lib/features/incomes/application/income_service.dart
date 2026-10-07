@@ -34,8 +34,17 @@ class IncomeService {
     int page = 1,
     String? status,
     String? search,
+    DateTime? from,
+    DateTime? to,
   }) => _authorized(
-    (token) => _api.list(token, page: page, status: status, search: search),
+    (token) => _api.list(
+      token,
+      page: page,
+      status: status,
+      search: search,
+      from: from,
+      to: to,
+    ),
   );
   Future<void> save(Map<String, dynamic> body, {String? id}) => _authorized(
     (token) =>
