@@ -7,6 +7,7 @@ import '../../../../core/widgets/app_toast.dart';
 import '../../../auth/application/auth_service_contract.dart';
 import '../../../auth/data/models/auth_user.dart';
 import '../../../users/presentation/pages/profile_page.dart';
+import '../../../incomes/presentation/pages/income_page.dart';
 import '../../application/received_transaction_sms_reconciliation_service.dart';
 import '../../application/transaction_sms_reconciliation_service.dart';
 import '../../data/models/send_money_service.dart';
@@ -191,6 +192,14 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
         receivedSmsReconciliationService: _receivedSmsReconciliationService,
         refreshToken: _historyRefreshToken,
       ),
+      AppLayoutSection.income => IncomePage(
+        onChanged: () {
+          setState(() {
+            _historyRefreshToken++;
+            _analyticsRefreshToken++;
+          });
+        },
+      ),
 
       _ => SendMoneyPage(service: _sendMoneyService),
     };
@@ -198,6 +207,7 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
 
   void _selectSection(AppLayoutSection section) {
     if (section != AppLayoutSection.dashboard &&
+        section != AppLayoutSection.income &&
         section != AppLayoutSection.history &&
         section != AppLayoutSection.sendMoney) {
       final destination = defaultAppNavDestinations.firstWhere(
