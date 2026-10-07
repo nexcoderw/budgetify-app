@@ -102,123 +102,76 @@ class HistoryFilterControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        AppInput(
-          controller: searchController,
-          hintText: 'Search sender, recipient or reference',
-          borderRadius: 999,
-          textInputAction: TextInputAction.search,
-          onChanged: onSearchChanged,
-          onSubmitted: onSearchSubmitted,
-        ),
-        const SizedBox(height: 16),
-        _FilterScroller<HistoryDirectionFilter>(
-          values: HistoryDirectionFilter.values,
-          selected: direction,
-          labelBuilder: (filter) => filter.label,
-          onSelected: onDirectionSelected,
-        ),
-        const SizedBox(height: 10),
-        _FilterScroller<HistoryStatusFilter>(
-          values: _availableStatuses,
-          selected: status,
-          labelBuilder: (filter) => filter.label,
-          onSelected: onStatusSelected,
-        ),
-        if (_showMethodFilter) ...[
-          const SizedBox(height: 10),
-          _FilterScroller<HistoryMethodFilter>(
-            values: HistoryMethodFilter.values,
-            selected: method,
-            labelBuilder: (filter) => filter.label,
-            onSelected: onMethodSelected,
+        Expanded(
+          child: AppInput(
+            controller: searchController,
+            hintText: 'Search transactions',
+            borderRadius: 999,
+            textInputAction: TextInputAction.search,
+            onChanged: onSearchChanged,
+            onSubmitted: onSearchSubmitted,
           ),
-        ],
-      ],
-    );
-  }
-}
-
-class _FilterScroller<T> extends StatelessWidget {
-  const _FilterScroller({
-    required this.values,
-    required this.selected,
-    required this.labelBuilder,
-    required this.onSelected,
-  });
-
-  final List<T> values;
-
-  final T selected;
-
-  final String Function(T value) labelBuilder;
-
-  final ValueChanged<T> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (var index = 0; index < values.length; index++) ...[
-            if (index > 0) const SizedBox(width: 7),
-            _FilterPill(
-              label: labelBuilder(values[index]),
-              selected: values[index] == selected,
-              onTap: () {
-                onSelected(values[index]);
-              },
+        ),
+        const SizedBox(width: 8),
+        PopupMenuButton<Object>(
+          tooltip: 'Filter transactions',
+          icon: Icon(
+            Icons.tune_rounded,
+            color: direction != HistoryDirectionFilter.all ||
+                    status != HistoryStatusFilter.all ||
+                    method != HistoryMethodFilter.all
+                ? AppColors.primary
+                : AppColors.textSecondary,
+          ),
+          onSelected: (value) {
+            if (value is HistoryDirectionFilter) {
+              onDirectionSelected(value);
+            } else if (value is HistoryStatusFilter) {
+              onStatusSelected(value);
+            } else if (value is HistoryMethodFilter) {
+              onMethodSelected(value);
+            }
+          },
+          itemBuilder: (_) => [
+            const PopupMenuItem<Object>(
+              enabled: false,
+              child: Text('Direction'),
             ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _FilterPill extends StatelessWidget {
-  const _FilterPill({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-
-  final bool selected;
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: '$label filter',
-      child: Material(
-        color: selected
-            ? AppColors.primary.withValues(alpha: 0.13)
-            : AppColors.surface,
-        borderRadius: BorderRadius.circular(999),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(999),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: selected ? AppColors.primary : AppColors.textSecondary,
+            for (final value in HistoryDirectionFilter.values)
+              CheckedPopupMenuItem<Object>(
+                value: value,
+                checked: direction == value,
+                child: Text(value.label),
               ),
+            const PopupMenuDivider(),
+            const PopupMenuItem<Object>(
+              enabled: false,
+              child: Text('Status'),
             ),
-          ),
+            for (final value in _availableStatuses)
+              CheckedPopupMenuItem<Object>(
+                value: value,
+                checked: status == value,
+                child: Text(value.label),
+              ),
+            if (_showMethodFilter) ...[
+              const PopupMenuDivider(),
+              const PopupMenuItem<Object>(
+                enabled: false,
+                child: Text('Method'),
+              ),
+              for (final value in HistoryMethodFilter.values)
+                CheckedPopupMenuItem<Object>(
+                  value: value,
+                  checked: method == value,
+                  child: Text(value.label),
+                ),
+            ],
+          ],
         ),
-      ),
+      ],
     );
   }
 }
