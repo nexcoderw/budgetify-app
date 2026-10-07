@@ -5,6 +5,7 @@ import '../../../auth/data/models/auth_user.dart';
 import 'app_bottom_nav_bar.dart';
 import 'app_layout_section.dart';
 import 'app_navbar.dart';
+import 'app_sidebar.dart';
 
 export 'app_layout_section.dart';
 
@@ -37,56 +38,60 @@ class AppLayout extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 1320,
-            ),
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                isCompact
-                    ? 16
-                    : isLarge
-                        ? 32
-                        : 24,
-                isCompact ? 14 : 20,
-                isCompact
-                    ? 16
-                    : isLarge
-                        ? 32
-                        : 24,
-                isCompact ? 8 : 12,
-              ),
-              child: Column(
-                children: [
-                  AppNavbar(
-                    user: user,
-                    onAvatarTap: onAvatarTap,
-                    trailing: navbarTrailing,
-                  ),
-
-                  SizedBox(
-                    height: isCompact ? 20 : 28,
-                  ),
-
-                  Expanded(
-                    child: _AppContent(
-                      scrollChild: scrollChild,
-                      child: child,
+      drawerScrimColor: Colors.black.withValues(alpha: 0.6),
+      drawer: Builder(
+        builder: (drawerContext) => AppSidebar(
+          user: user,
+          currentSection: currentSection,
+          onClose: () => Scaffold.of(drawerContext).closeDrawer(),
+          onSectionSelected: (section) {
+            Scaffold.of(drawerContext).closeDrawer();
+            onSectionSelected(section);
+          },
+          onProfileTap: () {
+            Scaffold.of(drawerContext).closeDrawer();
+            onAvatarTap();
+          },
+        ),
+      ),
+      body: Builder(
+        builder: (scaffoldContext) => SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1320),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  isCompact ? 16 : isLarge ? 32 : 24,
+                  isCompact ? 14 : 20,
+                  isCompact ? 16 : isLarge ? 32 : 24,
+                  isCompact ? 8 : 12,
+                ),
+                child: Column(
+                  children: [
+                    AppNavbar(
+                      user: user,
+                      onMenuTap: () {
+                        FocusScope.of(scaffoldContext).unfocus();
+                        Scaffold.of(scaffoldContext).openDrawer();
+                      },
+                      onAvatarTap: onAvatarTap,
+                      trailing: navbarTrailing,
                     ),
-                  ),
-
-                  SizedBox(
-                    height: isCompact ? 16 : 22,
-                  ),
-
-                  AppBottomNavBar(
-                    currentSection: currentSection,
-                    destinations: bottomAppNavDestinations,
-                    onSectionSelected: onSectionSelected,
-                  ),
-                ],
+                    SizedBox(height: isCompact ? 20 : 28),
+                    Expanded(
+                      child: _AppContent(
+                        scrollChild: scrollChild,
+                        child: child,
+                      ),
+                    ),
+                    SizedBox(height: isCompact ? 16 : 22),
+                    AppBottomNavBar(
+                      currentSection: currentSection,
+                      destinations: bottomAppNavDestinations,
+                      onSectionSelected: onSectionSelected,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
