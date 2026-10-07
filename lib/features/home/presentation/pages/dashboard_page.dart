@@ -6,8 +6,7 @@ import '../../../../core/network/api_exception.dart';
 import '../../application/transaction_analytics_period.dart';
 import '../../application/transaction_service.dart';
 import '../../data/models/transaction_analytics_models.dart';
-import '../widgets/dashboard/dashboard_activity_sections.dart';
-import '../widgets/dashboard/dashboard_breakdown_sections.dart';
+import '../widgets/dashboard/dashboard_charts.dart';
 import '../widgets/dashboard/dashboard_header.dart';
 import '../widgets/dashboard/dashboard_states.dart';
 import '../widgets/dashboard/dashboard_summary_section.dart';
@@ -165,28 +164,7 @@ class _DashboardPageState extends State<DashboardPage> {
         const SizedBox(height: 18),
         DashboardSummarySection(analytics: analytics),
         const SizedBox(height: 16),
-        DashboardStatusSection(summary: analytics.summary),
-        const SizedBox(height: 16),
-        DashboardReceivedClassificationSection(
-          classifications: analytics.receivedClassifications,
-          currency: analytics.currency,
-        ),
-        const SizedBox(height: 16),
-        DashboardReceivedEvidenceSection(evidence: analytics.receivedEvidence),
-        const SizedBox(height: 16),
-        DashboardOutgoingConfirmationSection(
-          confirmation: analytics.confirmation,
-        ),
-        const SizedBox(height: 16),
-        DashboardCategorySection(
-          categories: analytics.categories,
-          currency: analytics.currency,
-        ),
-        const SizedBox(height: 16),
-        DashboardTransferTypeSection(
-          transferTypes: analytics.transferTypes,
-          currency: analytics.currency,
-        ),
+        DashboardCharts(analytics: analytics),
         const SizedBox(height: 24),
       ],
     );
