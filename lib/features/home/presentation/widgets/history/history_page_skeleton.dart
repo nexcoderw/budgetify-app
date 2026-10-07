@@ -21,18 +21,31 @@ class HistoryPageSkeleton extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: insights
                 ? [
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: _SkeletonBox(width: 180, height: 20),
-                    ),
-                    const SizedBox(height: 10),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: _SkeletonBox(width: 220, height: 12),
+                    const Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 8,
+                      runSpacing: 12,
+                      children: [
+                        _SkeletonBox(width: 90, height: 32, radius: 999),
+                        _SkeletonBox(width: 84, height: 32, radius: 999),
+                        _SkeletonBox(width: 90, height: 32, radius: 999),
+                        _SkeletonBox(width: 80, height: 32, radius: 999),
+                        _SkeletonBox(width: 72, height: 32, radius: 999),
+                      ],
                     ),
                     const SizedBox(height: 20),
                     const Align(
-                      alignment: Alignment.centerLeft,
+                      alignment: Alignment.center,
+                      child: _SkeletonBox(width: 180, height: 12),
+                    ),
+                    const SizedBox(height: 6),
+                    const Align(
+                      alignment: Alignment.center,
+                      child: _SkeletonBox(width: 220, height: 10),
+                    ),
+                    const SizedBox(height: 20),
+                    const Align(
+                      alignment: Alignment.center,
                       child: _SkeletonBox(width: 170, height: 28),
                     ),
                     const SizedBox(height: 28),
@@ -107,6 +120,12 @@ class _HistoryTileSkeleton extends StatelessWidget {
                 const SizedBox(height: 8),
                 const FractionallySizedBox(
                   widthFactor: 0.7,
+                  alignment: Alignment.centerLeft,
+                  child: _SkeletonBox(width: double.infinity, height: 9),
+                ),
+                const SizedBox(height: 8),
+                const FractionallySizedBox(
+                  widthFactor: 0.5,
                   alignment: Alignment.centerLeft,
                   child: _SkeletonBox(width: double.infinity, height: 9),
                 ),
