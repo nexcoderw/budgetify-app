@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/widgets/app_dropdown.dart';
 import '../../../auth/application/auth_service_contract.dart';
 import '../../../auth/data/models/auth_user.dart';
 import '../../../users/presentation/pages/profile_page.dart';
 import '../../application/received_transaction_sms_reconciliation_service.dart';
 import '../../application/transaction_sms_reconciliation_service.dart';
+import '../../data/models/send_money_service.dart';
 import '../widgets/app_layout.dart';
 import 'dashboard_page.dart';
 import 'history_page.dart';
@@ -32,6 +34,7 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
   _receivedSmsReconciliationService;
 
   AppLayoutSection _currentSection = AppLayoutSection.sendMoney;
+  SendMoneyService _sendMoneyService = SendMoneyService.momo;
 
   bool _isReconcilingSms = false;
 
@@ -143,6 +146,27 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
       currentSection: _currentSection,
       onSectionSelected: _selectSection,
       onAvatarTap: _openProfile,
+      navbarTrailing: _currentSection == AppLayoutSection.sendMoney
+          ? AppDropdown<SendMoneyService>(
+              tooltip: 'Choose payment service',
+              label: _sendMoneyService.label,
+              isActive: true,
+              items: [
+                for (final service in SendMoneyService.values)
+                  AppDropdownItem(
+                    value: service,
+                    label: service.label,
+                    selected: service == _sendMoneyService,
+                    icon: service == SendMoneyService.momo
+                        ? Icons.phone_android_rounded
+                        : Icons.account_balance_rounded,
+                  ),
+              ],
+              onSelected: (service) {
+                setState(() => _sendMoneyService = service);
+              },
+            )
+          : null,
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 260),
         switchInCurve: Curves.easeOutCubic,
@@ -167,7 +191,7 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
         refreshToken: _historyRefreshToken,
       ),
 
-      _ => const SendMoneyPage(),
+      _ => SendMoneyPage(service: _sendMoneyService),
     };
   }
 
