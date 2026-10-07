@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/widgets/app_dropdown.dart';
 
 enum HistoryTab { transactions, insights }
 
@@ -63,9 +64,9 @@ class HistoryHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        PopupMenuButton<String>(
+        AppDropdown<String>(
           tooltip: 'History actions',
-          icon: const Icon(Icons.more_horiz_rounded, color: AppColors.textPrimary),
+          icon: Icons.more_horiz_rounded,
           onSelected: (action) {
             if (action == 'refresh') {
               onRefresh();
@@ -73,12 +74,17 @@ class HistoryHeader extends StatelessWidget {
               onRecordReceived?.call();
             }
           },
-          itemBuilder: (_) => [
-            const PopupMenuItem(value: 'refresh', child: Text('Refresh')),
+          items: [
+            const AppDropdownItem(
+              value: 'refresh',
+              label: 'Refresh',
+              icon: Icons.refresh_rounded,
+            ),
             if (onRecordReceived != null)
-              const PopupMenuItem(
+              const AppDropdownItem(
                 value: 'record',
-                child: Text('Record received money'),
+                label: 'Record received money',
+                icon: Icons.south_west_rounded,
               ),
           ],
         ),
