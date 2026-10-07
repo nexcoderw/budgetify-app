@@ -148,6 +148,7 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
       currentSection: _currentSection,
       onSectionSelected: _selectSection,
       onAvatarTap: _openProfile,
+      scrollChild: _currentSection != AppLayoutSection.income,
       navbarTrailing: _currentSection == AppLayoutSection.sendMoney
           ? AppDropdown<SendMoneyService>(
               tooltip: 'Choose payment service',
@@ -169,15 +170,17 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
               },
             )
           : null,
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 260),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        child: KeyedSubtree(
-          key: ValueKey<AppLayoutSection>(_currentSection),
-          child: _sectionContent(),
-        ),
-      ),
+      child: _currentSection == AppLayoutSection.income
+          ? _sectionContent()
+          : AnimatedSwitcher(
+              duration: const Duration(milliseconds: 260),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              child: KeyedSubtree(
+                key: ValueKey<AppLayoutSection>(_currentSection),
+                child: _sectionContent(),
+              ),
+            ),
     );
   }
 
