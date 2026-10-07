@@ -7,12 +7,12 @@ import '../theme/app_colors.dart';
 /// An option or non-interactive section heading in an [AppDropdown].
 class AppDropdownItem<T extends Object> {
   const AppDropdownItem({
-    required T value,
+    required this.value,
     required this.label,
     this.icon,
     this.selected = false,
     this.enabled = true,
-  }) : value = value;
+  });
 
   const AppDropdownItem.heading(this.label)
     : value = null,
