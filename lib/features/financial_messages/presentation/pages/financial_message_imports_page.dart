@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../application/financial_message_import_service.dart';
 import '../../data/models/financial_message_import.dart';
 import '../widgets/financial_message_review_sheet.dart';
+import 'iphone_shortcut_setup_page.dart';
 
 class FinancialMessageImportsPage extends StatefulWidget {
   const FinancialMessageImportsPage({super.key, this.service});
@@ -66,9 +67,11 @@ class _FinancialMessageImportsPageState
       if (!mounted || generation != _generation) {
         return;
       }
-      setState(() => _error = error is ApiException
-          ? error.message
-          : 'Could not load imported messages.');
+      setState(
+        () => _error = error is ApiException
+            ? error.message
+            : 'Could not load imported messages.',
+      );
     } finally {
       if (mounted && generation == _generation) {
         setState(() {
@@ -93,10 +96,8 @@ class _FinancialMessageImportsPageState
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => FinancialMessageReviewSheet(
-        importId: item.id,
-        service: _service,
-      ),
+      builder: (_) =>
+          FinancialMessageReviewSheet(importId: item.id, service: _service),
     );
     if (!mounted || changed != true) {
       return;
@@ -106,6 +107,15 @@ class _FinancialMessageImportsPageState
   }
 
   void _close() => Navigator.of(context).pop(_changed);
+
+  Future<void> _openSetup() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const IphoneShortcutSetupPage()),
+    );
+    if (mounted) {
+      await _load(reset: true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -124,6 +134,7 @@ class _FinancialMessageImportsPageState
               _TopBar(
                 onBack: _close,
                 onRefresh: () => unawaited(_load(reset: true)),
+                onSetup: () => unawaited(_openSetup()),
               ),
               _StatusFilters(selected: _status, onSelected: _selectStatus),
               Expanded(child: _buildBody()),
@@ -156,6 +167,12 @@ class _FinancialMessageImportsPageState
         detail: _status == FinancialMessageImportStatus.pending
             ? 'New iPhone Shortcut imports will appear here before they affect your records.'
             : 'Imported messages with this status will appear here.',
+        actionLabel: _status == FinancialMessageImportStatus.pending
+            ? 'Set up iPhone import'
+            : null,
+        onAction: _status == FinancialMessageImportStatus.pending
+            ? () => unawaited(_openSetup())
+            : null,
       );
     }
     return RefreshIndicator(
@@ -183,9 +200,14 @@ class _FinancialMessageImportsPageState
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onBack, required this.onRefresh});
+  const _TopBar({
+    required this.onBack,
+    required this.onRefresh,
+    required this.onSetup,
+  });
   final VoidCallback onBack;
   final VoidCallback onRefresh;
+  final VoidCallback onSetup;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -207,10 +229,7 @@ class _TopBar extends StatelessWidget {
               ),
               Text(
                 'Verify iPhone imports before recording',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 11,
-                ),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
               ),
             ],
           ),
@@ -219,6 +238,11 @@ class _TopBar extends StatelessWidget {
           tooltip: 'Refresh',
           onPressed: onRefresh,
           icon: const Icon(Icons.refresh_rounded),
+        ),
+        IconButton(
+          tooltip: 'Set up iPhone import',
+          onPressed: onSetup,
+          icon: const Icon(Icons.settings_outlined),
         ),
       ],
     ),
@@ -328,9 +352,7 @@ class _ImportRow extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Text(
-              item.amount == null
-                  ? '—'
-                  : '${_formatAmount(item.amount!)} RWF',
+              item.amount == null ? '—' : '${_formatAmount(item.amount!)} RWF',
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
             ),
           ],
