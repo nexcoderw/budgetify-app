@@ -403,13 +403,17 @@ void main() {
 
       expect(find.byTooltip('Menu'), findsOneWidget);
 
-      expect(find.text('JD'), findsOneWidget);
-
       expect(find.text('AMOUNT'), findsOneWidget);
 
       expect(find.text('Send money'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Profile'));
+      await tester.tap(find.byTooltip('Menu'));
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('My profile'), findsOneWidget);
+
+      await tester.tap(find.text('My profile'));
 
       await tester.pumpAndSettle();
 
@@ -481,9 +485,11 @@ void main() {
 
         expect(authService.lastUpdatedLastName, 'Mutoni');
 
-        expect(find.text('AM'), findsOneWidget);
+        expect(find.byTooltip('Menu'), findsOneWidget);
 
         expect(find.text('AMOUNT'), findsOneWidget);
+
+        expect(find.text('Send money'), findsOneWidget);
       },
     );
   });
