@@ -6,6 +6,8 @@ import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../application/financial_message_import_service.dart';
 import '../../data/models/financial_message_import.dart';
+import '../../data/models/financial_message_pilot_summary.dart';
+import '../widgets/financial_message_pilot_card.dart';
 import '../widgets/financial_message_review_sheet.dart';
 import 'iphone_shortcut_setup_page.dart';
 
@@ -28,6 +30,9 @@ class _FinancialMessageImportsPageState
   bool _loadingMore = false;
   bool _changed = false;
   String? _error;
+  FinancialMessagePilotSummary? _pilotSummary;
+  bool _loadingPilot = true;
+  bool _pilotError = false;
   int _page = 1;
   bool _hasNextPage = false;
   int _generation = 0;
@@ -37,6 +42,33 @@ class _FinancialMessageImportsPageState
     super.initState();
     _service = widget.service ?? FinancialMessageImportService.createDefault();
     unawaited(_load(reset: true));
+    unawaited(_loadPilot());
+  }
+
+  Future<void> _loadPilot() async {
+    setState(() {
+      _loadingPilot = true;
+      _pilotError = false;
+    });
+    try {
+      final summary = await _service.pilotSummary();
+      if (!mounted) {
+        return;
+      }
+      setState(() => _pilotSummary = summary);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _pilotError = true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loadingPilot = false);
+      }
+    }
+  }
+
+  Future<void> _refresh() async {
+    await Future.wait([_load(reset: true), _loadPilot()]);
   }
 
   Future<void> _load({required bool reset}) async {
@@ -103,7 +135,7 @@ class _FinancialMessageImportsPageState
       return;
     }
     _changed = true;
-    await _load(reset: true);
+    await _refresh();
   }
 
   void _close() => Navigator.of(context).pop(_changed);
@@ -113,7 +145,7 @@ class _FinancialMessageImportsPageState
       MaterialPageRoute<void>(builder: (_) => const IphoneShortcutSetupPage()),
     );
     if (mounted) {
-      await _load(reset: true);
+      await _refresh();
     }
   }
 
@@ -133,10 +165,17 @@ class _FinancialMessageImportsPageState
             children: [
               _TopBar(
                 onBack: _close,
-                onRefresh: () => unawaited(_load(reset: true)),
+                onRefresh: () => unawaited(_refresh()),
                 onSetup: () => unawaited(_openSetup()),
               ),
               _StatusFilters(selected: _status, onSelected: _selectStatus),
+              if (_status == FinancialMessageImportStatus.pending)
+                FinancialMessagePilotCard(
+                  summary: _pilotSummary,
+                  loading: _loadingPilot,
+                  hasError: _pilotError,
+                  onRetry: () => unawaited(_loadPilot()),
+                ),
               Expanded(child: _buildBody()),
             ],
           ),
@@ -176,7 +215,7 @@ class _FinancialMessageImportsPageState
       );
     }
     return RefreshIndicator(
-      onRefresh: () => _load(reset: true),
+      onRefresh: _refresh,
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 32),
         itemCount: _items.length + (_hasNextPage ? 1 : 0),
