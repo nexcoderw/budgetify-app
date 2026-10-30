@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/widgets/app_toast.dart';
+import '../../../financial_messages/presentation/pages/financial_message_imports_page.dart';
 import '../../application/received_transaction_service.dart';
 import '../../application/received_transaction_sms_reconciliation_service.dart';
 import '../../application/transaction_service.dart';
@@ -209,6 +211,22 @@ class _HistoryPageState extends State<HistoryPage> {
       description:
           'The payment was recorded as manually reported received money.',
     );
+  }
+
+  bool get _supportsIphoneImports {
+    return !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  }
+
+  Future<void> _reviewIphoneImports() async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => const FinancialMessageImportsPage(),
+      ),
+    );
+    if (!mounted || changed != true) {
+      return;
+    }
+    await _loadTransactions(reset: true);
   }
 
   void _onSearchChanged(String value) {
@@ -419,6 +437,9 @@ class _HistoryPageState extends State<HistoryPage> {
             onTabSelected: _selectTab,
             onRecordReceived: supportsManualReceivedPaymentEntry
                 ? () => unawaited(_recordReceivedMoney())
+                : null,
+            onReviewIphoneImports: _supportsIphoneImports
+                ? () => unawaited(_reviewIphoneImports())
                 : null,
             onRefresh: () => unawaited(_loadTransactions(reset: true)),
           ),
