@@ -165,8 +165,7 @@ class FinancialMessageImport {
   bool get needsAttention {
     return parseStatus != FinancialMessageParseStatus.parsed ||
         duplicateStatus == FinancialMessageDuplicateStatus.possibleDuplicate ||
-        duplicateStatus ==
-            FinancialMessageDuplicateStatus.confirmedDuplicate;
+        duplicateStatus == FinancialMessageDuplicateStatus.confirmedDuplicate;
   }
 }
 
