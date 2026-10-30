@@ -9,6 +9,7 @@ import '../../auth/data/services/auth_session_storage.dart';
 import '../../home/data/models/received_transaction_models.dart';
 import '../../incomes/data/models/income.dart';
 import '../data/models/financial_message_import.dart';
+import '../data/models/financial_message_pilot_summary.dart';
 import '../data/routes/financial_message_import_routes.dart';
 import '../data/services/financial_message_import_api_service.dart';
 
@@ -54,6 +55,11 @@ class FinancialMessageImportService {
       limit: limit,
     ),
   );
+
+  Future<FinancialMessagePilotSummary> pilotSummary({int days = 30}) =>
+      _authorized(
+        (token) => _apiService.pilotSummary(accessToken: token, days: days),
+      );
 
   Future<FinancialMessageImport> detail(String id) =>
       _authorized((token) => _apiService.detail(accessToken: token, id: id));
