@@ -11,12 +11,14 @@ class HistoryHeader extends StatelessWidget {
     required this.onTabSelected,
     required this.onRefresh,
     this.onRecordReceived,
+    this.onReviewIphoneImports,
   });
 
   final HistoryTab selectedTab;
   final ValueChanged<HistoryTab> onTabSelected;
   final VoidCallback onRefresh;
   final VoidCallback? onRecordReceived;
+  final VoidCallback? onReviewIphoneImports;
 
   @override
   Widget build(BuildContext context) {
@@ -70,8 +72,10 @@ class HistoryHeader extends StatelessWidget {
           onSelected: (action) {
             if (action == 'refresh') {
               onRefresh();
-            } else {
+            } else if (action == 'record') {
               onRecordReceived?.call();
+            } else {
+              onReviewIphoneImports?.call();
             }
           },
           items: [
@@ -85,6 +89,12 @@ class HistoryHeader extends StatelessWidget {
                 value: 'record',
                 label: 'Record received money',
                 icon: Icons.south_west_rounded,
+              ),
+            if (onReviewIphoneImports != null)
+              const AppDropdownItem(
+                value: 'iphone-imports',
+                label: 'Review iPhone imports',
+                icon: Icons.mark_email_unread_outlined,
               ),
           ],
         ),
