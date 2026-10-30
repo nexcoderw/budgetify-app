@@ -6,6 +6,8 @@ class FinancialMessageImportRoutes {
 
   String get list => base;
 
+  String get pilotSummary => '$base/pilot-summary';
+
   String detail(String id) => '$base/$id';
 
   String confirm(String id) => '$base/$id/confirm';
