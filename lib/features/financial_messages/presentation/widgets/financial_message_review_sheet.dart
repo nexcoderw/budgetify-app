@@ -51,8 +51,7 @@ class _FinancialMessageReviewSheetState
   bool _saving = false;
   String? _error;
 
-  bool get _editable =>
-      _item?.status == FinancialMessageImportStatus.pending;
+  bool get _editable => _item?.status == FinancialMessageImportStatus.pending;
 
   @override
   void initState() {
@@ -228,10 +227,7 @@ class _FinancialMessageReviewSheetState
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _error != null
-            ? _ErrorState(
-                message: _error!,
-                onRetry: () => unawaited(_load()),
-              )
+            ? _ErrorState(message: _error!, onRetry: () => unawaited(_load()))
             : _buildContent(controller),
       ),
     );
@@ -311,9 +307,7 @@ class _FinancialMessageReviewSheetState
           ),
           const SizedBox(height: 14),
           InkWell(
-            onTap: _editable && !_saving
-                ? () => unawaited(_pickDate())
-                : null,
+            onTap: _editable && !_saving ? () => unawaited(_pickDate()) : null,
             borderRadius: BorderRadius.circular(22),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
@@ -383,8 +377,7 @@ class _FinancialMessageReviewSheetState
                 tooltip: 'Income category',
                 label: _incomeCategory.label,
                 enabled: !_saving,
-                onSelected: (value) =>
-                    setState(() => _incomeCategory = value),
+                onSelected: (value) => setState(() => _incomeCategory = value),
                 items: [
                   for (final value in IncomeCategory.values)
                     AppDropdownItem(
@@ -471,8 +464,18 @@ String _wholeAmount(String? value) => value?.split('.').first ?? '';
 
 String _dateLabel(DateTime date) {
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${date.day} ${months[date.month - 1]} ${date.year}';
 }
