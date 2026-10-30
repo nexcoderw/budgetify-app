@@ -2,6 +2,7 @@ import '../../../../core/network/api_client.dart';
 import '../../../home/data/models/received_transaction_models.dart';
 import '../../../incomes/data/models/income.dart';
 import '../models/financial_message_import.dart';
+import '../models/financial_message_pilot_summary.dart';
 import '../routes/financial_message_import_routes.dart';
 
 class FinancialMessageImportApiService {
@@ -36,6 +37,18 @@ class FinancialMessageImportApiService {
     return FinancialMessageImportPage.fromJson(json);
   }
 
+  Future<FinancialMessagePilotSummary> pilotSummary({
+    required String accessToken,
+    int days = 30,
+  }) async {
+    final json = await _apiClient.getJson(
+      _routes.pilotSummary,
+      headers: _headers(accessToken),
+      queryParameters: <String, dynamic>{'days': days},
+    );
+    return FinancialMessagePilotSummary.fromJson(json);
+  }
+
   Future<FinancialMessageImport> detail({
     required String accessToken,
     required String id,
@@ -65,10 +78,7 @@ class FinancialMessageImportApiService {
         if (senderName?.trim().isNotEmpty ?? false)
           'senderName': senderName!.trim(),
         if (senderIdentifier?.trim().isNotEmpty ?? false)
-          'senderIdentifier': senderIdentifier!.replaceAll(
-            RegExp(r'\s+'),
-            '',
-          ),
+          'senderIdentifier': senderIdentifier!.replaceAll(RegExp(r'\s+'), ''),
         if (providerReference?.trim().isNotEmpty ?? false)
           'providerReference': providerReference!.trim(),
       },
@@ -92,8 +102,7 @@ class FinancialMessageImportApiService {
         'classification': classification.apiValue,
         'createIncome': createIncome,
         if (note?.trim().isNotEmpty ?? false) 'note': note!.trim(),
-        if (incomeCategory != null)
-          'incomeCategory': incomeCategory.apiValue,
+        if (incomeCategory != null) 'incomeCategory': incomeCategory.apiValue,
         if (incomeLabel?.trim().isNotEmpty ?? false)
           'incomeLabel': incomeLabel!.trim(),
       },
