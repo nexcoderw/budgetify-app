@@ -23,14 +23,26 @@ void main() {
           'parsed': 10,
           'needsReview': 2,
           'confirmed': 8,
+          'parseRatePercent': 83,
+          'readiness': 'MONITORING',
         },
       ],
       'isTruncated': false,
+      'currentShortcutVersion': 2,
+      'minimumShortcutVersion': 2,
+      'shortcutInstallUrl': 'https://www.icloud.com/shortcuts/test',
+      'legacyShortcutImports': 1,
+      'outdatedShortcutImports': 2,
     });
 
     expect(summary.health, FinancialMessagePilotHealth.healthy);
     expect(summary.providers.single.label, 'MTN MoMo');
     expect(summary.providers.single.enabled, isTrue);
     expect(summary.possibleDuplicates, 1);
+    expect(summary.hasOutdatedShortcuts, isTrue);
+    expect(
+      summary.providers.single.readiness,
+      FinancialMessageProviderReadiness.monitoring,
+    );
   });
 }
