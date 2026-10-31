@@ -41,6 +41,7 @@ class FinancialMessageProviderMetric {
     required this.parsed,
     required this.needsReview,
     required this.confirmed,
+    required this.possibleDuplicates,
     required this.parseRatePercent,
     required this.readiness,
   });
@@ -54,6 +55,7 @@ class FinancialMessageProviderMetric {
       parsed: _requiredInt(json, 'parsed'),
       needsReview: _requiredInt(json, 'needsReview'),
       confirmed: _requiredInt(json, 'confirmed'),
+      possibleDuplicates: _requiredInt(json, 'possibleDuplicates'),
       parseRatePercent: _requiredInt(json, 'parseRatePercent'),
       readiness: FinancialMessageProviderReadiness.fromApiValue(
         _requiredString(json, 'readiness'),
@@ -68,6 +70,7 @@ class FinancialMessageProviderMetric {
   final int parsed;
   final int needsReview;
   final int confirmed;
+  final int possibleDuplicates;
   final int parseRatePercent;
   final FinancialMessageProviderReadiness readiness;
 }
