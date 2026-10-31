@@ -155,7 +155,7 @@ class FinancialMessagePilotCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
-                            '${provider.label} · ${provider.parseRatePercent}% · ${_readinessLabel(provider.readiness)}',
+                            _providerSummary(provider),
                             style: const TextStyle(
                               fontSize: 9,
                               color: AppColors.textSecondary,
@@ -172,6 +172,17 @@ class FinancialMessagePilotCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _providerSummary(FinancialMessageProviderMetric provider) {
+  final duplicateNoun = provider.possibleDuplicates == 1
+      ? 'duplicate review'
+      : 'duplicate reviews';
+  final duplicateLabel = provider.possibleDuplicates == 0
+      ? ''
+      : ' · ${provider.possibleDuplicates} $duplicateNoun';
+  return '${provider.label} · ${provider.parseRatePercent}%$duplicateLabel · '
+      '${_readinessLabel(provider.readiness)}';
 }
 
 String _readinessLabel(FinancialMessageProviderReadiness readiness) {
