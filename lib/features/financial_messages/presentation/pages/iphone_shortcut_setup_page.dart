@@ -6,8 +6,11 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_dropdown.dart';
 import '../../../../core/widgets/app_input.dart';
+import '../../../../core/widgets/app_modal_dialog.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../application/shortcut_import_credential_service.dart';
 import '../../data/models/shortcut_import_credential.dart';
@@ -187,25 +190,81 @@ class _IphoneShortcutSetupPageState extends State<IphoneShortcutSetupPage> {
   }) {
     return showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: Text(title),
-        content: Text(detail),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(
-              action,
-              style: TextStyle(
-                color: destructive ? AppColors.danger : AppColors.primary,
+      barrierDismissible: false,
+      builder: (dialogContext) => AppModalDialog(
+        maxWidth: 440,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: (destructive ? AppColors.danger : AppColors.primary)
+                        .withValues(alpha: 0.12),
+                  ),
+                  child: Icon(
+                    destructive
+                        ? Icons.link_off_rounded
+                        : Icons.sync_lock_rounded,
+                    size: 21,
+                    color: destructive ? AppColors.danger : AppColors.primary,
+                  ),
+                ),
+                const Spacer(),
+                AppModalCloseButton(
+                  onTap: () => Navigator.of(dialogContext).pop(false),
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+            Text(
+              title,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 21,
+                height: 1.2,
+                fontWeight: FontWeight.w700,
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 9),
+            Text(
+              detail,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                height: 1.55,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: AppModalActionButton(
+                    label: 'Cancel',
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: AppModalActionButton(
+                    label: action,
+                    isPrimary: true,
+                    primaryColor: destructive
+                        ? AppColors.danger
+                        : AppColors.primary,
+                    primaryForegroundColor: AppColors.textPrimary,
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -231,63 +290,73 @@ class _IphoneShortcutSetupPageState extends State<IphoneShortcutSetupPage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Column(
-          children: [
-            _SetupTopBar(onBack: () => Navigator.of(context).pop()),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                  ? _SetupError(
-                      message: _error!,
-                      onRetry: () => unawaited(_load()),
-                    )
-                  : ListView(
-                      keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
-                      padding: EdgeInsets.fromLTRB(
-                        18,
-                        8,
-                        18,
-                        28 + MediaQuery.viewInsetsOf(context).bottom,
-                      ),
-                      children: [
-                        const _SetupIntro(),
-                        const SizedBox(height: 14),
-                        _ShortcutReleaseCard(
-                          version: widget.currentShortcutVersion,
-                          installUrl: widget.shortcutInstallUrl,
-                          onCopy: _copy,
-                        ),
-                        const SizedBox(height: 22),
-                        if (_oneTimeCredential == null)
-                          _ConnectStep(
-                            controller: _deviceNameController,
-                            isWorking: _working,
-                            onCreate: () => unawaited(_create()),
-                          )
-                        else
-                          _CredentialStep(
-                            credential: _oneTimeCredential!,
-                            endpoint: _service.importEndpoint,
-                            onCopy: _copy,
-                            onDone: _finishSecretStep,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Column(
+              children: [
+                _SetupTopBar(onBack: () => Navigator.of(context).pop()),
+                Expanded(
+                  child: _loading
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            color: AppColors.primary,
                           ),
-                        const SizedBox(height: 26),
-                        _AutomationInstructions(
-                          shortcutVersion: widget.currentShortcutVersion,
+                        )
+                      : _error != null
+                      ? _SetupError(
+                          message: _error!,
+                          onRetry: () => unawaited(_load()),
+                        )
+                      : ListView(
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          padding: EdgeInsets.fromLTRB(
+                            18,
+                            8,
+                            18,
+                            28 + MediaQuery.viewInsetsOf(context).bottom,
+                          ),
+                          children: [
+                            const _SetupIntro(),
+                            const SizedBox(height: 18),
+                            _ShortcutReleaseCard(
+                              version: widget.currentShortcutVersion,
+                              installUrl: widget.shortcutInstallUrl,
+                              onCopy: _copy,
+                            ),
+                            const SizedBox(height: 22),
+                            if (_oneTimeCredential == null)
+                              _ConnectStep(
+                                controller: _deviceNameController,
+                                isWorking: _working,
+                                onCreate: () => unawaited(_create()),
+                              )
+                            else
+                              _CredentialStep(
+                                credential: _oneTimeCredential!,
+                                endpoint: _service.importEndpoint,
+                                onCopy: _copy,
+                                onDone: _finishSecretStep,
+                              ),
+                            const SizedBox(height: 22),
+                            _AutomationInstructions(
+                              shortcutVersion: widget.currentShortcutVersion,
+                            ),
+                            const SizedBox(height: 22),
+                            _CredentialList(
+                              credentials: _credentials,
+                              disabled: _working,
+                              onRotate: (item) => unawaited(_rotate(item)),
+                              onRevoke: (item) => unawaited(_revoke(item)),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 26),
-                        _CredentialList(
-                          credentials: _credentials,
-                          disabled: _working,
-                          onRotate: (item) => unawaited(_rotate(item)),
-                          onRevoke: (item) => unawaited(_revoke(item)),
-                        ),
-                      ],
-                    ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -300,22 +369,32 @@ class _SetupTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(14, 10, 18, 14),
+    padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
     child: Row(
       children: [
-        IconButton.filledTonal(
-          tooltip: 'Back',
-          onPressed: onBack,
-          icon: const Icon(Icons.arrow_back_rounded),
-        ),
-        const SizedBox(width: 12),
+        AppBackButton(onBack: onBack),
+        const SizedBox(width: 10),
         const Expanded(
           child: Text(
-            'iPhone message import',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+            'iPhone import setup',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
           ),
         ),
-        const Icon(Icons.lock_outline_rounded, size: 19),
+        const SizedBox(width: 10),
+        Container(
+          width: 44,
+          height: 44,
+          decoration: const BoxDecoration(
+            color: AppColors.surfaceElevated,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.lock_outline_rounded,
+            size: 18,
+            color: AppColors.textSecondary,
+          ),
+        ),
       ],
     ),
   );
@@ -326,12 +405,31 @@ class _SetupIntro extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+    crossAxisAlignment: CrossAxisAlignment.center,
     children: [
+      DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.all(Radius.circular(999)),
+        ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          child: Text(
+            'Private by design',
+            style: TextStyle(
+              color: AppColors.primary,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+      SizedBox(height: 14),
       Text(
         'Turn payment messages into records you approve.',
+        textAlign: TextAlign.center,
         style: TextStyle(
-          fontSize: 22,
+          fontSize: 21,
           fontWeight: FontWeight.w800,
           height: 1.2,
         ),
@@ -339,9 +437,10 @@ class _SetupIntro extends StatelessWidget {
       SizedBox(height: 8),
       Text(
         'Setup takes about three minutes. Imports stay pending until you review them.',
+        textAlign: TextAlign.center,
         style: TextStyle(
           color: AppColors.textSecondary,
-          fontSize: 12,
+          fontSize: 11,
           height: 1.5,
         ),
       ),
@@ -362,10 +461,10 @@ class _ShortcutReleaseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
+    padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
       color: AppColors.surface,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(24),
     ),
     child: Row(
       children: [
@@ -442,6 +541,7 @@ class _ConnectStep extends StatelessWidget {
           controller: controller,
           label: 'Device name',
           hintText: 'My iPhone',
+          borderRadius: 28,
           enabled: !isWorking,
           textInputAction: TextInputAction.done,
           onSubmitted: (_) => onCreate(),
@@ -525,39 +625,40 @@ class _CopyValue extends StatefulWidget {
 
 class _CopyValueState extends State<_CopyValue> {
   bool _revealed = false;
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value);
+  }
+
+  @override
+  void didUpdateWidget(covariant _CopyValue oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value) {
+      _controller.text = widget.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final hidden = widget.obscure && !_revealed;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundSecondary,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
+    return AppInput(
+      controller: _controller,
+      label: widget.label,
+      readOnly: true,
+      obscureText: hidden,
+      borderRadius: 24,
+      suffixIcon: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.label,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 10,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  hidden ? '••••••••••••••••••••' : widget.value,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, height: 1.35),
-                ),
-              ],
-            ),
-          ),
           if (widget.obscure)
             IconButton(
               tooltip: hidden ? 'Show token' : 'Hide token',
@@ -566,13 +667,18 @@ class _CopyValueState extends State<_CopyValue> {
                 hidden
                     ? Icons.visibility_outlined
                     : Icons.visibility_off_outlined,
-                size: 19,
+                size: 18,
+                color: AppColors.textSecondary,
               ),
             ),
           IconButton(
             tooltip: 'Copy ${widget.label}',
             onPressed: widget.onCopy,
-            icon: const Icon(Icons.copy_rounded, size: 19),
+            icon: const Icon(
+              Icons.copy_rounded,
+              size: 18,
+              color: AppColors.primary,
+            ),
           ),
         ],
       ),
@@ -823,9 +929,10 @@ class _CredentialList extends StatelessWidget {
                       ],
                     ),
                   ),
-                  PopupMenuButton<String>(
+                  AppDropdown<String>(
+                    tooltip: 'Credential actions',
+                    icon: Icons.more_horiz_rounded,
                     enabled: !disabled && credential.isActive,
-                    color: AppColors.surfaceElevated,
                     onSelected: (value) {
                       if (value == 'rotate') {
                         onRotate(credential);
@@ -833,12 +940,17 @@ class _CredentialList extends StatelessWidget {
                         onRevoke(credential);
                       }
                     },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
+                    items: const [
+                      AppDropdownItem(
                         value: 'rotate',
-                        child: Text('Rotate token'),
+                        label: 'Rotate token',
+                        icon: Icons.sync_lock_rounded,
                       ),
-                      PopupMenuItem(value: 'revoke', child: Text('Disconnect')),
+                      AppDropdownItem(
+                        value: 'revoke',
+                        label: 'Disconnect',
+                        icon: Icons.link_off_rounded,
+                      ),
                     ],
                   ),
                 ],
@@ -866,7 +978,7 @@ class _StepFrame extends StatelessWidget {
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
       color: AppColors.surface,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(28),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
