@@ -10,12 +10,14 @@ class FinancialMessagePilotCard extends StatelessWidget {
     required this.loading,
     required this.hasError,
     required this.onRetry,
+    required this.onUpdateShortcut,
   });
 
   final FinancialMessagePilotSummary? summary;
   final bool loading;
   final bool hasError;
   final VoidCallback onRetry;
+  final VoidCallback onUpdateShortcut;
 
   @override
   Widget build(BuildContext context) {
@@ -105,6 +107,35 @@ class FinancialMessagePilotCard extends StatelessWidget {
               _Metric(value: data.needsReview, label: 'Needs review'),
             ],
           ),
+          if (data.hasOutdatedShortcuts) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.fromLTRB(11, 8, 6, 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFB86B).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'A connected Shortcut needs an update.',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: onUpdateShortcut,
+                    child: const Text('Update'),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (data.providers.isNotEmpty) ...[
             const SizedBox(height: 12),
             SingleChildScrollView(
@@ -124,7 +155,7 @@ class FinancialMessagePilotCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
-                            '${provider.label} · ${provider.total}${provider.enabled ? '' : ' · review'}',
+                            '${provider.label} · ${provider.parseRatePercent}% · ${_readinessLabel(provider.readiness)}',
                             style: const TextStyle(
                               fontSize: 9,
                               color: AppColors.textSecondary,
@@ -141,6 +172,15 @@ class FinancialMessagePilotCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _readinessLabel(FinancialMessageProviderReadiness readiness) {
+  return switch (readiness) {
+    FinancialMessageProviderReadiness.monitoring => 'monitoring',
+    FinancialMessageProviderReadiness.readyToEnable => 'ready',
+    FinancialMessageProviderReadiness.needsAttention => 'review',
+    FinancialMessageProviderReadiness.insufficientData => 'collecting',
+  };
 }
 
 class _PilotCardShell extends StatelessWidget {
