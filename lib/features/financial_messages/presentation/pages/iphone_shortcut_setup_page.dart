@@ -698,24 +698,24 @@ class _AutomationInstructions extends StatelessWidget {
     child: Column(
       children: [
         const _Instruction(
-          title: 'Open Shortcuts → Automation',
+          title: 'Create Budgetify MTN Import v1',
           detail:
-              'Create a personal automation for Message and choose Run Immediately.',
+              'Generate one UUID, format Current Date as ISO 8601, then prepare a POST request.',
         ),
         const _Instruction(
-          title: 'Choose your payment senders',
+          title: 'Add the MTN Messages automation',
           detail:
-              'Add MoMo or bank senders. Create another automation when a sender needs different matching rules.',
+              'Choose only the verified MTN MoMo sender, run immediately, and pass the received Message to the Shortcut.',
         ),
         const _Instruction(
-          title: 'Send JSON to the copied URL',
+          title: 'Send the protected JSON request',
           detail:
-              'Use Get Contents of URL with POST, the token as a Bearer Authorization header, and the message fields shown below.',
+              'Use the copied URL, POST with a JSON body, and the copied token as the Bearer Authorization header.',
         ),
         const _Instruction(
-          title: 'Run one real notification',
+          title: 'Review one real MTN import',
           detail:
-              'Return to Message review. The import should appear as pending and will not affect totals until confirmed.',
+              'Check every detected field in Message review. Nothing affects your records until you confirm it.',
           isLast: true,
         ),
         const SizedBox(height: 16),
@@ -753,15 +753,15 @@ class _PayloadGuide extends StatelessWidget {
         ),
         const _PayloadLine(label: 'clientEventId', value: 'Generate UUID'),
         _PayloadLine(label: 'shortcutVersion', value: '$shortcutVersion'),
-        const _PayloadLine(
-          label: 'sourceHint',
-          value: 'OTHER_PAYMENT_NOTIFICATION',
-        ),
+        const _PayloadLine(label: 'sourceHint', value: 'MTN_MOMO'),
         const _PayloadLine(
           label: 'messageSender',
-          value: 'Shortcut Input sender',
+          value: 'Sender from Message input',
         ),
-        const _PayloadLine(label: 'message', value: 'Shortcut Input content'),
+        const _PayloadLine(
+          label: 'message',
+          value: 'Content from Message input',
+        ),
         const _PayloadLine(
           label: 'messageReceivedAt',
           value: 'Current Date formatted as ISO 8601',
