@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/app_dropdown.dart';
 import '../../application/financial_message_import_service.dart';
 import '../../data/models/financial_message_import.dart';
@@ -268,11 +269,7 @@ class _TopBar extends StatelessWidget {
     padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
     child: Row(
       children: [
-        IconButton.filledTonal(
-          tooltip: 'Go back',
-          onPressed: onBack,
-          icon: const Icon(Icons.arrow_back_rounded),
-        ),
+        AppBackButton(onBack: onBack),
         const Spacer(),
         AppDropdown<String>(
           tooltip: 'Import actions',
