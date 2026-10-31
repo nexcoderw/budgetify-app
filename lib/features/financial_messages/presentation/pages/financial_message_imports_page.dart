@@ -142,7 +142,12 @@ class _FinancialMessageImportsPageState
 
   Future<void> _openSetup() async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (_) => const IphoneShortcutSetupPage()),
+      MaterialPageRoute<void>(
+        builder: (_) => IphoneShortcutSetupPage(
+          currentShortcutVersion: _pilotSummary?.currentShortcutVersion ?? 1,
+          shortcutInstallUrl: _pilotSummary?.shortcutInstallUrl,
+        ),
+      ),
     );
     if (mounted) {
       await _refresh();
@@ -175,6 +180,7 @@ class _FinancialMessageImportsPageState
                   loading: _loadingPilot,
                   hasError: _pilotError,
                   onRetry: () => unawaited(_loadPilot()),
+                  onUpdateShortcut: () => unawaited(_openSetup()),
                 ),
               Expanded(child: _buildBody()),
             ],
