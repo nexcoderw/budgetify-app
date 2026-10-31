@@ -15,6 +15,29 @@ import '../../../../core/widgets/app_toast.dart';
 import '../../application/shortcut_import_credential_service.dart';
 import '../../data/models/shortcut_import_credential.dart';
 
+enum _ShortcutPilotProvider {
+  mtnMomo(
+    label: 'MTN MoMo',
+    sourceHint: 'MTN_MOMO',
+    shortcutName: 'Budgetify MTN Import v1',
+  ),
+  airtelMoney(
+    label: 'Airtel Money',
+    sourceHint: 'AIRTEL_MONEY',
+    shortcutName: 'Budgetify Airtel Import v1',
+  );
+
+  const _ShortcutPilotProvider({
+    required this.label,
+    required this.sourceHint,
+    required this.shortcutName,
+  });
+
+  final String label;
+  final String sourceHint;
+  final String shortcutName;
+}
+
 class IphoneShortcutSetupPage extends StatefulWidget {
   const IphoneShortcutSetupPage({
     super.key,
@@ -41,6 +64,7 @@ class _IphoneShortcutSetupPageState extends State<IphoneShortcutSetupPage> {
   bool _loading = true;
   bool _working = false;
   String? _error;
+  _ShortcutPilotProvider _provider = _ShortcutPilotProvider.mtnMomo;
 
   @override
   void initState() {
@@ -343,6 +367,10 @@ class _IphoneShortcutSetupPageState extends State<IphoneShortcutSetupPage> {
                             const SizedBox(height: 22),
                             _AutomationInstructions(
                               shortcutVersion: widget.currentShortcutVersion,
+                              provider: _provider,
+                              onProviderSelected: (provider) {
+                                setState(() => _provider = provider);
+                              },
                             ),
                             const SizedBox(height: 22),
                             _CredentialList(
@@ -687,9 +715,15 @@ class _CopyValueState extends State<_CopyValue> {
 }
 
 class _AutomationInstructions extends StatelessWidget {
-  const _AutomationInstructions({required this.shortcutVersion});
+  const _AutomationInstructions({
+    required this.shortcutVersion,
+    required this.provider,
+    required this.onProviderSelected,
+  });
 
   final int shortcutVersion;
+  final _ShortcutPilotProvider provider;
+  final ValueChanged<_ShortcutPilotProvider> onProviderSelected;
 
   @override
   Widget build(BuildContext context) => _StepFrame(
@@ -697,38 +731,79 @@ class _AutomationInstructions extends StatelessWidget {
     title: 'Create the Messages automation',
     child: Column(
       children: [
-        const _Instruction(
-          title: 'Create Budgetify MTN Import v1',
+        Align(
+          alignment: Alignment.centerLeft,
+          child: AppDropdown<_ShortcutPilotProvider>(
+            tooltip: 'Choose pilot provider',
+            label: provider.label,
+            isActive: provider == _ShortcutPilotProvider.airtelMoney,
+            onSelected: onProviderSelected,
+            items: [
+              for (final option in _ShortcutPilotProvider.values)
+                AppDropdownItem(
+                  value: option,
+                  label: option.label,
+                  icon: option == _ShortcutPilotProvider.mtnMomo
+                      ? Icons.account_balance_wallet_rounded
+                      : Icons.phone_android_rounded,
+                  selected: option == provider,
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        if (provider == _ShortcutPilotProvider.airtelMoney) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Text(
+              'Airtel is a staged pilot provider. Every import remains in manual review until its release gate passes.',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 10,
+                height: 1.45,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+        _Instruction(
+          title: 'Create ${provider.shortcutName}',
           detail:
               'Generate one UUID, format Current Date as ISO 8601, then prepare a POST request.',
         ),
-        const _Instruction(
-          title: 'Add the MTN Messages automation',
+        _Instruction(
+          title: 'Add the ${provider.label} Messages automation',
           detail:
-              'Choose only the verified MTN MoMo sender, run immediately, and pass the received Message to the Shortcut.',
+              'Choose only the verified ${provider.label} sender, run immediately, and pass the received Message to the Shortcut.',
         ),
         const _Instruction(
           title: 'Send the protected JSON request',
           detail:
               'Use the copied URL, POST with a JSON body, and the copied token as the Bearer Authorization header.',
         ),
-        const _Instruction(
-          title: 'Review one real MTN import',
+        _Instruction(
+          title: 'Review one real ${provider.label} import',
           detail:
               'Check every detected field in Message review. Nothing affects your records until you confirm it.',
           isLast: true,
         ),
         const SizedBox(height: 16),
-        _PayloadGuide(shortcutVersion: shortcutVersion),
+        _PayloadGuide(shortcutVersion: shortcutVersion, provider: provider),
       ],
     ),
   );
 }
 
 class _PayloadGuide extends StatelessWidget {
-  const _PayloadGuide({required this.shortcutVersion});
+  const _PayloadGuide({required this.shortcutVersion, required this.provider});
 
   final int shortcutVersion;
+  final _ShortcutPilotProvider provider;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -753,7 +828,7 @@ class _PayloadGuide extends StatelessWidget {
         ),
         const _PayloadLine(label: 'clientEventId', value: 'Generate UUID'),
         _PayloadLine(label: 'shortcutVersion', value: '$shortcutVersion'),
-        const _PayloadLine(label: 'sourceHint', value: 'MTN_MOMO'),
+        _PayloadLine(label: 'sourceHint', value: provider.sourceHint),
         const _PayloadLine(
           label: 'messageSender',
           value: 'Sender from Message input',
