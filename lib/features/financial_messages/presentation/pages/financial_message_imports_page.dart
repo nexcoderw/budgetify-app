@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_dropdown.dart';
 import '../../application/financial_message_import_service.dart';
 import '../../data/models/financial_message_import.dart';
 import '../../data/models/financial_message_pilot_summary.dart';
@@ -34,6 +35,7 @@ class _FinancialMessageImportsPageState
   bool _loadingPilot = true;
   bool _pilotError = false;
   int _page = 1;
+  int _total = 0;
   bool _hasNextPage = false;
   int _generation = 0;
 
@@ -81,6 +83,7 @@ class _FinancialMessageImportsPageState
       if (reset) {
         _loading = true;
         _error = null;
+        _total = 0;
       } else {
         _loadingMore = true;
       }
@@ -93,6 +96,7 @@ class _FinancialMessageImportsPageState
       setState(() {
         _items = reset ? result.items : [..._items, ...result.items];
         _page = result.page;
+        _total = result.total;
         _hasNextPage = result.hasNextPage;
       });
     } catch (error) {
@@ -173,7 +177,12 @@ class _FinancialMessageImportsPageState
                 onRefresh: () => unawaited(_refresh()),
                 onSetup: () => unawaited(_openSetup()),
               ),
-              _StatusFilters(selected: _status, onSelected: _selectStatus),
+              _ImportsHeader(
+                selected: _status,
+                total: _total,
+                loading: _loading,
+                onSelected: _selectStatus,
+              ),
               if (_status == FinancialMessageImportStatus.pending)
                 FinancialMessagePilotCard(
                   summary: _pilotSummary,
@@ -256,47 +265,54 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(14, 10, 14, 18),
+    padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
     child: Row(
       children: [
         IconButton.filledTonal(
+          tooltip: 'Go back',
           onPressed: onBack,
           icon: const Icon(Icons.arrow_back_rounded),
         ),
-        const SizedBox(width: 12),
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Message review',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-              ),
-              Text(
-                'Verify iPhone imports before recording',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
-              ),
-            ],
-          ),
-        ),
-        IconButton(
-          tooltip: 'Refresh',
-          onPressed: onRefresh,
-          icon: const Icon(Icons.refresh_rounded),
-        ),
-        IconButton(
-          tooltip: 'Set up iPhone import',
-          onPressed: onSetup,
-          icon: const Icon(Icons.settings_outlined),
+        const Spacer(),
+        AppDropdown<String>(
+          tooltip: 'Import actions',
+          icon: Icons.more_horiz_rounded,
+          onSelected: (action) {
+            if (action == 'refresh') {
+              onRefresh();
+            } else {
+              onSetup();
+            }
+          },
+          items: const [
+            AppDropdownItem(
+              value: 'refresh',
+              label: 'Refresh imports',
+              icon: Icons.refresh_rounded,
+            ),
+            AppDropdownItem(
+              value: 'setup',
+              label: 'iPhone Shortcut setup',
+              icon: Icons.tune_rounded,
+            ),
+          ],
         ),
       ],
     ),
   );
 }
 
-class _StatusFilters extends StatelessWidget {
-  const _StatusFilters({required this.selected, required this.onSelected});
+class _ImportsHeader extends StatelessWidget {
+  const _ImportsHeader({
+    required this.selected,
+    required this.total,
+    required this.loading,
+    required this.onSelected,
+  });
+
   final FinancialMessageImportStatus selected;
+  final int total;
+  final bool loading;
   final ValueChanged<FinancialMessageImportStatus> onSelected;
 
   @override
@@ -306,22 +322,88 @@ class _StatusFilters extends StatelessWidget {
       FinancialMessageImportStatus.confirmed,
       FinancialMessageImportStatus.dismissed,
     ];
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 18),
-      child: Row(
+    final description = switch (selected) {
+      FinancialMessageImportStatus.pending =>
+        'Check each message before it changes your records.',
+      FinancialMessageImportStatus.confirmed =>
+        'Messages already added to your financial records.',
+      FinancialMessageImportStatus.dismissed =>
+        'Messages you chose not to add to your records.',
+      FinancialMessageImportStatus.expired =>
+        'Messages that expired before they were reviewed.',
+    };
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 4, 18, 8),
+      child: Column(
         children: [
-          for (final status in options) ...[
-            ChoiceChip(
-              label: Text(status.label),
-              selected: selected == status,
-              onSelected: (_) => onSelected(status),
-              showCheckmark: false,
-              side: BorderSide.none,
-              labelStyle: const TextStyle(fontSize: 12),
+          const Text(
+            'Payment message inbox',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 19,
+              height: 1.25,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
             ),
-            const SizedBox(width: 8),
-          ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            description,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              height: 1.45,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final status in options)
+                ChoiceChip(
+                  label: Text(status.label),
+                  selected: selected == status,
+                  onSelected: (_) => onSelected(status),
+                  showCheckmark: false,
+                  backgroundColor: AppColors.surface,
+                  selectedColor: AppColors.primary,
+                  side: BorderSide.none,
+                  shape: const StadiumBorder(),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  labelStyle: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: selected == status
+                        ? AppColors.background
+                        : AppColors.textSecondary,
+                  ),
+                  materialTapTargetSize: MaterialTapTargetSize.padded,
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: Text(
+              loading
+                  ? 'Loading imports…'
+                  : '$total ${total == 1 ? 'message' : 'messages'}',
+              key: ValueKey((loading, selected, total)),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -334,73 +416,111 @@ class _ImportRow extends StatelessWidget {
   final ValueChanged<FinancialMessageImport> onTap;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: AppColors.surface,
-    borderRadius: BorderRadius.circular(22),
-    child: InkWell(
-      onTap: () => onTap(item),
-      borderRadius: BorderRadius.circular(22),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Review ${item.sourceLabel} message from ${item.senderLabel}',
+    child: Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(24),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => onTap(item),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(15, 14, 13, 14),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _sourceIcon(item),
+                  color: AppColors.primary,
+                  size: 20,
+                ),
               ),
-              child: const Icon(
-                Icons.south_west_rounded,
-                color: AppColors.primary,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.senderLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${item.sourceLabel} · ${_shortDate(item.messageReceivedAt)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 11,
-                    ),
-                  ),
-                  if (item.needsAttention) ...[
-                    const SizedBox(height: 5),
-                    const Text(
-                      'Details need review',
-                      style: TextStyle(
-                        color: AppColors.primaryMuted,
-                        fontSize: 10,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.senderLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${item.sourceLabel} · ${_shortDate(item.messageReceivedAt)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 10,
+                      ),
+                    ),
+                    if (item.needsAttention) ...[
+                      const SizedBox(height: 7),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryMuted.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Text(
+                          'Review details',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              item.amount == null ? '—' : '${_formatAmount(item.amount!)} RWF',
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
-            ),
-          ],
+              const SizedBox(width: 10),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 118),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      item.amount == null
+                          ? 'Amount pending'
+                          : '${_formatAmount(item.amount!)} RWF',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: item.amount == null ? 10 : 13,
+                        fontWeight: FontWeight.w800,
+                        color: item.amount == null
+                            ? AppColors.textSecondary
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 16,
+                      color: AppColors.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     ),
@@ -411,14 +531,61 @@ class _LoadingList extends StatelessWidget {
   const _LoadingList();
   @override
   Widget build(BuildContext context) => ListView.separated(
-    padding: const EdgeInsets.all(18),
+    padding: const EdgeInsets.fromLTRB(18, 12, 18, 32),
     itemCount: 6,
     separatorBuilder: (_, _) => const SizedBox(height: 10),
-    itemBuilder: (_, _) => Container(
-      height: 76,
+    itemBuilder: (_, index) => Container(
+      height: index.isEven ? 82 : 76,
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceElevated,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 118,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: 86,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 68,
+            height: 10,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+        ],
       ),
     ),
   );
@@ -481,4 +648,15 @@ String _formatAmount(String value) {
     RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
     (match) => '${match[1]},',
   );
+}
+
+IconData _sourceIcon(FinancialMessageImport item) {
+  final source = item.providerCode ?? item.sourceHint;
+  if (source.contains('BANK')) {
+    return Icons.account_balance_rounded;
+  }
+  if (source.contains('MOMO') || source.contains('MONEY')) {
+    return Icons.account_balance_wallet_rounded;
+  }
+  return Icons.mark_email_unread_outlined;
 }
