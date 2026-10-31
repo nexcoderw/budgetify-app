@@ -42,6 +42,7 @@ class FinancialMessageProviderMetric {
     required this.needsReview,
     required this.confirmed,
     required this.possibleDuplicates,
+    required this.unsafeDirections,
     required this.parseRatePercent,
     required this.readiness,
   });
@@ -56,6 +57,7 @@ class FinancialMessageProviderMetric {
       needsReview: _requiredInt(json, 'needsReview'),
       confirmed: _requiredInt(json, 'confirmed'),
       possibleDuplicates: _requiredInt(json, 'possibleDuplicates'),
+      unsafeDirections: _requiredInt(json, 'unsafeDirections'),
       parseRatePercent: _requiredInt(json, 'parseRatePercent'),
       readiness: FinancialMessageProviderReadiness.fromApiValue(
         _requiredString(json, 'readiness'),
@@ -71,6 +73,7 @@ class FinancialMessageProviderMetric {
   final int needsReview;
   final int confirmed;
   final int possibleDuplicates;
+  final int unsafeDirections;
   final int parseRatePercent;
   final FinancialMessageProviderReadiness readiness;
 }
@@ -85,6 +88,8 @@ class FinancialMessagePilotSummary {
     required this.dismissed,
     required this.needsReview,
     required this.possibleDuplicates,
+    required this.minimumSampleSize,
+    required this.maximumNeedsReviewPercent,
     required this.health,
     required this.lastImportAt,
     required this.providers,
@@ -111,6 +116,11 @@ class FinancialMessagePilotSummary {
       dismissed: _requiredInt(json, 'dismissed'),
       needsReview: _requiredInt(json, 'needsReview'),
       possibleDuplicates: _requiredInt(json, 'possibleDuplicates'),
+      minimumSampleSize: _requiredInt(json, 'minimumSampleSize'),
+      maximumNeedsReviewPercent: _requiredInt(
+        json,
+        'maximumNeedsReviewPercent',
+      ),
       health: FinancialMessagePilotHealth.fromApiValue(
         _requiredString(json, 'health'),
       ),
@@ -139,6 +149,8 @@ class FinancialMessagePilotSummary {
   final int dismissed;
   final int needsReview;
   final int possibleDuplicates;
+  final int minimumSampleSize;
+  final int maximumNeedsReviewPercent;
   final FinancialMessagePilotHealth health;
   final DateTime? lastImportAt;
   final List<FinancialMessageProviderMetric> providers;
