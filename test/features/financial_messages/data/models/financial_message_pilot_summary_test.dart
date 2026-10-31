@@ -12,6 +12,8 @@ void main() {
       'dismissed': 1,
       'needsReview': 2,
       'possibleDuplicates': 1,
+      'minimumSampleSize': 20,
+      'maximumNeedsReviewPercent': 20,
       'health': 'HEALTHY',
       'lastImportAt': '2026-10-31T08:00:00.000Z',
       'providers': [
@@ -24,6 +26,7 @@ void main() {
           'needsReview': 2,
           'confirmed': 8,
           'possibleDuplicates': 1,
+          'unsafeDirections': 1,
           'parseRatePercent': 83,
           'readiness': 'MONITORING',
         },
@@ -40,7 +43,10 @@ void main() {
     expect(summary.providers.single.label, 'MTN MoMo');
     expect(summary.providers.single.enabled, isTrue);
     expect(summary.possibleDuplicates, 1);
+    expect(summary.minimumSampleSize, 20);
+    expect(summary.maximumNeedsReviewPercent, 20);
     expect(summary.providers.single.possibleDuplicates, 1);
+    expect(summary.providers.single.unsafeDirections, 1);
     expect(summary.hasOutdatedShortcuts, isTrue);
     expect(
       summary.providers.single.readiness,
