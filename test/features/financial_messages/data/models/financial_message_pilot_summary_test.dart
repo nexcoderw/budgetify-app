@@ -23,6 +23,7 @@ void main() {
           'parsed': 10,
           'needsReview': 2,
           'confirmed': 8,
+          'possibleDuplicates': 1,
           'parseRatePercent': 83,
           'readiness': 'MONITORING',
         },
@@ -39,6 +40,7 @@ void main() {
     expect(summary.providers.single.label, 'MTN MoMo');
     expect(summary.providers.single.enabled, isTrue);
     expect(summary.possibleDuplicates, 1);
+    expect(summary.providers.single.possibleDuplicates, 1);
     expect(summary.hasOutdatedShortcuts, isTrue);
     expect(
       summary.providers.single.readiness,
