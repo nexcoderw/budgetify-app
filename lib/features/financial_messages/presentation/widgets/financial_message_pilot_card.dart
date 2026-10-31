@@ -107,6 +107,16 @@ class FinancialMessagePilotCard extends StatelessWidget {
               _Metric(value: data.needsReview, label: 'Needs review'),
             ],
           ),
+          const SizedBox(height: 9),
+          Text(
+            'Gate: ${data.minimumSampleSize} samples · under '
+            '${data.maximumNeedsReviewPercent}% review · no duplicate or direction risks',
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 9,
+              height: 1.4,
+            ),
+          ),
           if (data.hasOutdatedShortcuts) ...[
             const SizedBox(height: 12),
             Container(
@@ -155,7 +165,7 @@ class FinancialMessagePilotCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
-                            _providerSummary(provider),
+                            _providerSummary(provider, data.minimumSampleSize),
                             style: const TextStyle(
                               fontSize: 9,
                               color: AppColors.textSecondary,
@@ -174,14 +184,22 @@ class FinancialMessagePilotCard extends StatelessWidget {
   }
 }
 
-String _providerSummary(FinancialMessageProviderMetric provider) {
+String _providerSummary(
+  FinancialMessageProviderMetric provider,
+  int minimumSampleSize,
+) {
   final duplicateNoun = provider.possibleDuplicates == 1
       ? 'duplicate review'
       : 'duplicate reviews';
   final duplicateLabel = provider.possibleDuplicates == 0
       ? ''
       : ' · ${provider.possibleDuplicates} $duplicateNoun';
-  return '${provider.label} · ${provider.parseRatePercent}%$duplicateLabel · '
+  final directionLabel = provider.unsafeDirections == 0
+      ? ''
+      : ' · ${provider.unsafeDirections} direction ${provider.unsafeDirections == 1 ? 'review' : 'reviews'}';
+  final sampleProgress = '${provider.total}/$minimumSampleSize samples';
+  return '${provider.label} · $sampleProgress · '
+      '${provider.parseRatePercent}%$duplicateLabel$directionLabel · '
       '${_readinessLabel(provider.readiness)}';
 }
 
