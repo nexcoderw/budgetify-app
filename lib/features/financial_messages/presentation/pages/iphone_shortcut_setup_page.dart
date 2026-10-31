@@ -13,9 +13,16 @@ import '../../application/shortcut_import_credential_service.dart';
 import '../../data/models/shortcut_import_credential.dart';
 
 class IphoneShortcutSetupPage extends StatefulWidget {
-  const IphoneShortcutSetupPage({super.key, this.service});
+  const IphoneShortcutSetupPage({
+    super.key,
+    this.service,
+    this.currentShortcutVersion = 1,
+    this.shortcutInstallUrl,
+  });
 
   final ShortcutImportCredentialService? service;
+  final int currentShortcutVersion;
+  final String? shortcutInstallUrl;
 
   @override
   State<IphoneShortcutSetupPage> createState() =>
@@ -246,6 +253,12 @@ class _IphoneShortcutSetupPageState extends State<IphoneShortcutSetupPage> {
                       ),
                       children: [
                         const _SetupIntro(),
+                        const SizedBox(height: 14),
+                        _ShortcutReleaseCard(
+                          version: widget.currentShortcutVersion,
+                          installUrl: widget.shortcutInstallUrl,
+                          onCopy: _copy,
+                        ),
                         const SizedBox(height: 22),
                         if (_oneTimeCredential == null)
                           _ConnectStep(
@@ -261,7 +274,9 @@ class _IphoneShortcutSetupPageState extends State<IphoneShortcutSetupPage> {
                             onDone: _finishSecretStep,
                           ),
                         const SizedBox(height: 26),
-                        const _AutomationInstructions(),
+                        _AutomationInstructions(
+                          shortcutVersion: widget.currentShortcutVersion,
+                        ),
                         const SizedBox(height: 26),
                         _CredentialList(
                           credentials: _credentials,
@@ -331,6 +346,78 @@ class _SetupIntro extends StatelessWidget {
         ),
       ),
     ],
+  );
+}
+
+class _ShortcutReleaseCard extends StatelessWidget {
+  const _ShortcutReleaseCard({
+    required this.version,
+    required this.installUrl,
+    required this.onCopy,
+  });
+
+  final int version;
+  final String? installUrl;
+  final Future<void> Function(String value, String label) onCopy;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(18),
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.bolt_rounded,
+            size: 19,
+            color: AppColors.primary,
+          ),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Budgetify Shortcut v$version',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                installUrl == null
+                    ? 'Use this version in the request payload.'
+                    : 'The reviewed installation link is available.',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (installUrl != null)
+          TextButton(
+            onPressed: () => unawaited(onCopy(installUrl!, 'Shortcut link')),
+            child: const Text('Copy link'),
+          ),
+      ],
+    ),
   );
 }
 
@@ -494,44 +581,48 @@ class _CopyValueState extends State<_CopyValue> {
 }
 
 class _AutomationInstructions extends StatelessWidget {
-  const _AutomationInstructions();
+  const _AutomationInstructions({required this.shortcutVersion});
+
+  final int shortcutVersion;
 
   @override
-  Widget build(BuildContext context) => const _StepFrame(
+  Widget build(BuildContext context) => _StepFrame(
     number: '3',
     title: 'Create the Messages automation',
     child: Column(
       children: [
-        _Instruction(
+        const _Instruction(
           title: 'Open Shortcuts → Automation',
           detail:
               'Create a personal automation for Message and choose Run Immediately.',
         ),
-        _Instruction(
+        const _Instruction(
           title: 'Choose your payment senders',
           detail:
               'Add MoMo or bank senders. Create another automation when a sender needs different matching rules.',
         ),
-        _Instruction(
+        const _Instruction(
           title: 'Send JSON to the copied URL',
           detail:
               'Use Get Contents of URL with POST, the token as a Bearer Authorization header, and the message fields shown below.',
         ),
-        _Instruction(
+        const _Instruction(
           title: 'Run one real notification',
           detail:
               'Return to Message review. The import should appear as pending and will not affect totals until confirmed.',
           isLast: true,
         ),
-        SizedBox(height: 16),
-        _PayloadGuide(),
+        const SizedBox(height: 16),
+        _PayloadGuide(shortcutVersion: shortcutVersion),
       ],
     ),
   );
 }
 
 class _PayloadGuide extends StatelessWidget {
-  const _PayloadGuide();
+  const _PayloadGuide({required this.shortcutVersion});
+
+  final int shortcutVersion;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -540,22 +631,32 @@ class _PayloadGuide extends StatelessWidget {
       color: AppColors.backgroundSecondary,
       borderRadius: BorderRadius.circular(18),
     ),
-    child: const Column(
+    child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Request configuration',
           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
         ),
-        SizedBox(height: 9),
-        _PayloadLine(label: 'Method', value: 'POST'),
-        _PayloadLine(label: 'Request body', value: 'JSON'),
-        _PayloadLine(label: 'Header', value: 'Authorization: Bearer [token]'),
-        _PayloadLine(label: 'clientEventId', value: 'Generate UUID'),
-        _PayloadLine(label: 'sourceHint', value: 'OTHER_PAYMENT_NOTIFICATION'),
-        _PayloadLine(label: 'messageSender', value: 'Shortcut Input sender'),
-        _PayloadLine(label: 'message', value: 'Shortcut Input content'),
-        _PayloadLine(
+        const SizedBox(height: 9),
+        const _PayloadLine(label: 'Method', value: 'POST'),
+        const _PayloadLine(label: 'Request body', value: 'JSON'),
+        const _PayloadLine(
+          label: 'Header',
+          value: 'Authorization: Bearer [token]',
+        ),
+        const _PayloadLine(label: 'clientEventId', value: 'Generate UUID'),
+        _PayloadLine(label: 'shortcutVersion', value: '$shortcutVersion'),
+        const _PayloadLine(
+          label: 'sourceHint',
+          value: 'OTHER_PAYMENT_NOTIFICATION',
+        ),
+        const _PayloadLine(
+          label: 'messageSender',
+          value: 'Shortcut Input sender',
+        ),
+        const _PayloadLine(label: 'message', value: 'Shortcut Input content'),
+        const _PayloadLine(
           label: 'messageReceivedAt',
           value: 'Current Date formatted as ISO 8601',
           isLast: true,
