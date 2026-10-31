@@ -14,6 +14,24 @@ enum FinancialMessagePilotHealth {
   }
 }
 
+enum FinancialMessageProviderReadiness {
+  monitoring('MONITORING'),
+  readyToEnable('READY_TO_ENABLE'),
+  needsAttention('NEEDS_ATTENTION'),
+  insufficientData('INSUFFICIENT_DATA');
+
+  const FinancialMessageProviderReadiness(this.apiValue);
+  final String apiValue;
+
+  static FinancialMessageProviderReadiness fromApiValue(String value) {
+    return values.firstWhere(
+      (item) => item.apiValue == value,
+      orElse: () =>
+          throw FormatException('Unsupported provider readiness: $value'),
+    );
+  }
+}
+
 class FinancialMessageProviderMetric {
   const FinancialMessageProviderMetric({
     required this.providerCode,
@@ -23,6 +41,8 @@ class FinancialMessageProviderMetric {
     required this.parsed,
     required this.needsReview,
     required this.confirmed,
+    required this.parseRatePercent,
+    required this.readiness,
   });
 
   factory FinancialMessageProviderMetric.fromJson(Map<String, dynamic> json) {
@@ -34,6 +54,10 @@ class FinancialMessageProviderMetric {
       parsed: _requiredInt(json, 'parsed'),
       needsReview: _requiredInt(json, 'needsReview'),
       confirmed: _requiredInt(json, 'confirmed'),
+      parseRatePercent: _requiredInt(json, 'parseRatePercent'),
+      readiness: FinancialMessageProviderReadiness.fromApiValue(
+        _requiredString(json, 'readiness'),
+      ),
     );
   }
 
@@ -44,6 +68,8 @@ class FinancialMessageProviderMetric {
   final int parsed;
   final int needsReview;
   final int confirmed;
+  final int parseRatePercent;
+  final FinancialMessageProviderReadiness readiness;
 }
 
 class FinancialMessagePilotSummary {
@@ -60,6 +86,11 @@ class FinancialMessagePilotSummary {
     required this.lastImportAt,
     required this.providers,
     required this.isTruncated,
+    required this.currentShortcutVersion,
+    required this.minimumShortcutVersion,
+    required this.shortcutInstallUrl,
+    required this.legacyShortcutImports,
+    required this.outdatedShortcutImports,
   });
 
   factory FinancialMessagePilotSummary.fromJson(Map<String, dynamic> json) {
@@ -89,6 +120,11 @@ class FinancialMessagePilotSummary {
           )
           .toList(growable: false),
       isTruncated: _requiredBool(json, 'isTruncated'),
+      currentShortcutVersion: _requiredInt(json, 'currentShortcutVersion'),
+      minimumShortcutVersion: _requiredInt(json, 'minimumShortcutVersion'),
+      shortcutInstallUrl: _optionalString(json, 'shortcutInstallUrl'),
+      legacyShortcutImports: _requiredInt(json, 'legacyShortcutImports'),
+      outdatedShortcutImports: _requiredInt(json, 'outdatedShortcutImports'),
     );
   }
 
@@ -104,6 +140,14 @@ class FinancialMessagePilotSummary {
   final DateTime? lastImportAt;
   final List<FinancialMessageProviderMetric> providers;
   final bool isTruncated;
+  final int currentShortcutVersion;
+  final int minimumShortcutVersion;
+  final String? shortcutInstallUrl;
+  final int legacyShortcutImports;
+  final int outdatedShortcutImports;
+
+  bool get hasOutdatedShortcuts =>
+      legacyShortcutImports > 0 || outdatedShortcutImports > 0;
 }
 
 String _requiredString(Map<String, dynamic> json, String key) {
