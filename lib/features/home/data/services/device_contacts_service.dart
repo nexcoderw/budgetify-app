@@ -45,7 +45,9 @@ class DeviceContactsService {
       };
     }
 
-    return requestPermission();
+    final status = await FlutterContacts.permissions.check(PermissionType.read);
+
+    return _permissionFromStatus(status);
   }
 
   Future<DeviceContactsPermission> requestPermission() async {
@@ -53,14 +55,21 @@ class DeviceContactsService {
       return DeviceContactsPermission.unsupported;
     }
 
-    final isGranted = defaultTargetPlatform == TargetPlatform.iOS
-        ? await _iosContactsChannel.invokeMethod<bool>('requestPermission') ??
-              false
-        : await FlutterContacts.requestPermission(readonly: true);
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      final isGranted =
+          await _iosContactsChannel.invokeMethod<bool>('requestPermission') ??
+          false;
 
-    return isGranted
-        ? DeviceContactsPermission.granted
-        : DeviceContactsPermission.denied;
+      return isGranted
+          ? DeviceContactsPermission.granted
+          : DeviceContactsPermission.denied;
+    }
+
+    final status = await FlutterContacts.permissions.request(
+      PermissionType.read,
+    );
+
+    return _permissionFromStatus(status);
   }
 
   Future<List<DeviceContact>> getContacts() async {
@@ -95,23 +104,23 @@ class DeviceContactsService {
           .toList(growable: false);
     }
 
-    final contacts = await FlutterContacts.getContacts(
-      withProperties: true,
-      withThumbnail: false,
-      withPhoto: false,
+    final contacts = await FlutterContacts.getAll(
+      properties: {ContactProperty.name, ContactProperty.phone},
     );
     final results = <DeviceContact>[];
     final seenContactNumbers = <String>{};
 
     for (var contactIndex = 0; contactIndex < contacts.length; contactIndex++) {
       final contact = contacts[contactIndex];
-      final displayName = contact.displayName.trim();
+      final displayName = contact.displayName?.trim() ?? '';
       final structuredName = [
-        contact.name.first,
-        contact.name.middle,
-        contact.name.last,
-      ].map((part) => part.trim()).where((part) => part.isNotEmpty).join(' ');
-      final nickname = contact.name.nickname.trim();
+        contact.name?.first,
+        contact.name?.middle,
+        contact.name?.last,
+      ].map((part) => part?.trim() ?? '').where((part) => part.isNotEmpty).join(
+        ' ',
+      );
+      final nickname = contact.name?.nickname?.trim() ?? '';
       final resolvedName = displayName.isNotEmpty
           ? displayName
           : structuredName.isNotEmpty
@@ -119,9 +128,10 @@ class DeviceContactsService {
           : nickname.isNotEmpty
           ? nickname
           : 'Unknown contact';
-      final contactIdentity = contact.id.isEmpty
+      final contactId = contact.id ?? '';
+      final contactIdentity = contactId.isEmpty
           ? 'contact-$contactIndex'
-          : contact.id;
+          : contactId;
 
       for (var index = 0; index < contact.phones.length; index++) {
         final phoneNumber = contact.phones[index].number.trim();
@@ -151,5 +161,18 @@ class DeviceContactsService {
     );
 
     return results;
+  }
+
+  DeviceContactsPermission _permissionFromStatus(PermissionStatus status) {
+    return switch (status) {
+      PermissionStatus.granted || PermissionStatus.limited =>
+        DeviceContactsPermission.granted,
+      PermissionStatus.denied => DeviceContactsPermission.denied,
+      PermissionStatus.permanentlyDenied =>
+        DeviceContactsPermission.permanentlyDenied,
+      PermissionStatus.restricted => DeviceContactsPermission.restricted,
+      PermissionStatus.notDetermined =>
+        DeviceContactsPermission.notDetermined,
+    };
   }
 }
