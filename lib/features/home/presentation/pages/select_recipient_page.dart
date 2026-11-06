@@ -285,6 +285,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage>
     }
 
     HapticFeedback.selectionClick();
+    _dismissKeyboard();
 
     setState(() {
       _selectedRecipient = RecipientSelection.fromContact(contact);
@@ -297,10 +298,15 @@ class _SelectRecipientPageState extends State<SelectRecipientPage>
     }
 
     HapticFeedback.selectionClick();
+    _dismissKeyboard();
 
     setState(() {
       _selectedRecipient = recipient;
     });
+  }
+
+  void _dismissKeyboard() {
+    FocusManager.instance.primaryFocus?.unfocus();
   }
 
   Future<void> _continueWithRecipient() async {
@@ -309,6 +315,8 @@ class _SelectRecipientPageState extends State<SelectRecipientPage>
     if (recipient == null) {
       return;
     }
+
+    _dismissKeyboard();
 
     await _startTransfer(
       receiverIdentifier: recipient.identifier,
@@ -414,6 +422,8 @@ class _SelectRecipientPageState extends State<SelectRecipientPage>
         _awaitingIosManualConfirmation = true;
         _iosTransferLeftForeground = false;
       }
+
+      _dismissKeyboard();
 
       try {
         await _ussdTransferService.launch(
