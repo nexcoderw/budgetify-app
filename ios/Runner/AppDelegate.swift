@@ -97,6 +97,8 @@ import UIKit
       return
     }
 
+    dismissKeyboard()
+
     UIApplication.shared.open(url, options: [:]) { opened in
       if opened {
         result(nil)
@@ -110,6 +112,16 @@ import UIKit
         )
       }
     }
+  }
+
+  private func dismissKeyboard() {
+    let activeWindow = UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+      .filter { $0.activationState == .foregroundActive }
+      .flatMap { $0.windows }
+      .first { $0.isKeyWindow }
+
+    activeWindow?.endEditing(true)
   }
 
   private func registerContactsChannel(messenger: FlutterBinaryMessenger) {
