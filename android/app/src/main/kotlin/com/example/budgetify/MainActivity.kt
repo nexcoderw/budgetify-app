@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Telephony
+import android.view.inputmethod.InputMethodManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -140,6 +141,7 @@ class MainActivity : FlutterActivity() {
         )
 
         try {
+            dismissKeyboard()
             startActivity(intent)
             result.success(null)
         } catch (
@@ -157,6 +159,24 @@ class MainActivity : FlutterActivity() {
                 null
             )
         }
+    }
+
+    private fun dismissKeyboard() {
+        val focusedView = currentFocus
+        val windowToken = focusedView?.windowToken
+            ?: window.decorView.windowToken
+
+        if (windowToken != null) {
+            val inputMethodManager =
+                getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager
+
+            inputMethodManager?.hideSoftInputFromWindow(
+                windowToken,
+                0
+            )
+        }
+
+        focusedView?.clearFocus()
     }
 
     private fun smsPermissionStatus(): String {
