@@ -42,7 +42,7 @@ showManualTransactionConfirmationSheet(
   );
 }
 
-class _ManualTransactionConfirmationSheet extends StatefulWidget {
+class _ManualTransactionConfirmationSheet extends StatelessWidget {
   const _ManualTransactionConfirmationSheet({
     required this.transaction,
   });
@@ -50,18 +50,7 @@ class _ManualTransactionConfirmationSheet extends StatefulWidget {
   final PaymentTransaction transaction;
 
   @override
-  State<_ManualTransactionConfirmationSheet> createState() =>
-      _ManualTransactionConfirmationSheetState();
-}
-
-class _ManualTransactionConfirmationSheetState
-    extends State<_ManualTransactionConfirmationSheet> {
-  ManualTransactionConfirmationChoice? _pendingChoice;
-
-  @override
   Widget build(BuildContext context) {
-    final choice = _pendingChoice;
-
     return Container(
       width: double.infinity,
       constraints: const BoxConstraints(maxWidth: 620),
@@ -72,13 +61,11 @@ class _ManualTransactionConfirmationSheetState
           top: Radius.circular(28),
         ),
       ),
-      child: choice == null
-          ? _buildChoiceView()
-          : _buildConfirmationView(choice),
+      child: _buildChoiceView(context),
     );
   }
 
-  Widget _buildChoiceView() {
+  Widget _buildChoiceView(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -107,7 +94,7 @@ class _ManualTransactionConfirmationSheetState
         ),
         const SizedBox(height: 20),
         _TransactionSummary(
-          transaction: widget.transaction,
+          transaction: transaction,
         ),
         const SizedBox(height: 20),
 
@@ -117,29 +104,27 @@ class _ManualTransactionConfirmationSheetState
           children: [
             Expanded(
               child: AppButton(
-                label: 'Payment successful',
+                label: 'Confirm successful',
                 icon: HugeIcons.strokeRoundedMoneySendSquare,
                 size: AppButtonSize.md,
                 onPressed: () {
-                  setState(() {
-                    _pendingChoice =
-                        ManualTransactionConfirmationChoice.successful;
-                  });
+                  Navigator.of(context).pop(
+                    ManualTransactionConfirmationChoice.successful,
+                  );
                 },
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: AppButton(
-                label: 'Payment failed',
+                label: 'Confirm failed',
                 icon: HugeIcons.strokeRoundedTransactionHistory,
                 size: AppButtonSize.md,
                 variant: AppButtonVariant.secondary,
                 onPressed: () {
-                  setState(() {
-                    _pendingChoice =
-                        ManualTransactionConfirmationChoice.failed;
-                  });
+                  Navigator.of(context).pop(
+                    ManualTransactionConfirmationChoice.failed,
+                  );
                 },
               ),
             ),
@@ -170,112 +155,6 @@ class _ManualTransactionConfirmationSheetState
               alpha: 0.76,
             ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildConfirmationView(
-    ManualTransactionConfirmationChoice choice,
-  ) {
-    final isSuccessful =
-        choice == ManualTransactionConfirmationChoice.successful;
-
-    final title = isSuccessful
-        ? 'Mark payment successful?'
-        : 'Mark payment failed?';
-
-    final description = isSuccessful
-        ? 'Budgetify will record this transaction as completed based on your confirmation.'
-        : 'Budgetify will record this transaction as failed based on your confirmation.';
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const _SheetHandle(),
-        const SizedBox(height: 18),
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 21,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.45,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 9),
-        Text(
-          description,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 11,
-            height: 1.5,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 20),
-        _TransactionSummary(
-          transaction: widget.transaction,
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(
-              alpha: 0.07,
-            ),
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: const Text(
-            'This is a manual confirmation. It will be recorded separately from MTN-verified transaction evidence.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 10,
-              height: 1.45,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ),
-        const SizedBox(height: 18),
-
-        // Final confirmation and go-back actions share one row.
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: AppButton(
-                label: isSuccessful
-                    ? 'Confirm successful'
-                    : 'Confirm failed',
-                icon: isSuccessful
-                    ? HugeIcons.strokeRoundedMoneySendSquare
-                    : HugeIcons.strokeRoundedTransactionHistory,
-                size: AppButtonSize.md,
-                variant: isSuccessful
-                    ? AppButtonVariant.primary
-                    : AppButtonVariant.secondary,
-                onPressed: () {
-                  Navigator.of(context).pop(choice);
-                },
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: AppButton(
-                label: 'Go back',
-                icon: HugeIcons.strokeRoundedArrowLeft01,
-                size: AppButtonSize.md,
-                variant: AppButtonVariant.ghost,
-                onPressed: () {
-                  setState(() {
-                    _pendingChoice = null;
-                  });
-                },
-              ),
-            ),
-          ],
         ),
       ],
     );
