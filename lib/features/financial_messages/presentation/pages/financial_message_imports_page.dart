@@ -5,11 +5,10 @@ import 'package:flutter/material.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_back_button.dart';
-import '../../../../core/widgets/app_dropdown.dart';
+import '../../../../core/widgets/app_button.dart';
 import '../../application/financial_message_import_service.dart';
 import '../../data/models/financial_message_import.dart';
 import '../../data/models/financial_message_pilot_summary.dart';
-import '../widgets/financial_message_pilot_card.dart';
 import '../widgets/financial_message_review_sheet.dart';
 import 'iphone_shortcut_setup_page.dart';
 
@@ -33,8 +32,6 @@ class _FinancialMessageImportsPageState
   bool _changed = false;
   String? _error;
   FinancialMessagePilotSummary? _pilotSummary;
-  bool _loadingPilot = true;
-  bool _pilotError = false;
   int _page = 1;
   int _total = 0;
   bool _hasNextPage = false;
@@ -49,10 +46,6 @@ class _FinancialMessageImportsPageState
   }
 
   Future<void> _loadPilot() async {
-    setState(() {
-      _loadingPilot = true;
-      _pilotError = false;
-    });
     try {
       final summary = await _service.pilotSummary();
       if (!mounted) {
@@ -60,13 +53,7 @@ class _FinancialMessageImportsPageState
       }
       setState(() => _pilotSummary = summary);
     } catch (_) {
-      if (mounted) {
-        setState(() => _pilotError = true);
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _loadingPilot = false);
-      }
+      // The inbox remains available when connection details cannot be loaded.
     }
   }
 
@@ -184,13 +171,18 @@ class _FinancialMessageImportsPageState
                 loading: _loading,
                 onSelected: _selectStatus,
               ),
-              if (_status == FinancialMessageImportStatus.pending)
-                FinancialMessagePilotCard(
-                  summary: _pilotSummary,
-                  loading: _loadingPilot,
-                  hasError: _pilotError,
-                  onRetry: () => unawaited(_loadPilot()),
-                  onUpdateShortcut: () => unawaited(_openSetup()),
+              if (_status == FinancialMessageImportStatus.pending &&
+                  _pilotSummary?.hasOutdatedShortcuts == true)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 4, 18, 8),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => unawaited(_openSetup()),
+                      icon: const Icon(Icons.phone_iphone_rounded, size: 18),
+                      label: const Text('Update your iPhone Shortcut'),
+                    ),
+                  ),
                 ),
               Expanded(child: _buildBody()),
             ],
@@ -207,7 +199,7 @@ class _FinancialMessageImportsPageState
     if (_error != null) {
       return _PageState(
         icon: Icons.cloud_off_rounded,
-        title: 'Imports unavailable',
+        title: 'Could not load your messages',
         detail: _error!,
         actionLabel: 'Try again',
         onAction: () => unawaited(_load(reset: true)),
@@ -217,13 +209,13 @@ class _FinancialMessageImportsPageState
       return _PageState(
         icon: Icons.mark_email_read_outlined,
         title: _status == FinancialMessageImportStatus.pending
-            ? 'Nothing waiting for review'
-            : 'No ${_status.label.toLowerCase()} imports',
+            ? 'You’re all caught up'
+            : 'No ${_inboxStatusLabel(_status).toLowerCase()} messages',
         detail: _status == FinancialMessageImportStatus.pending
-            ? 'New iPhone Shortcut imports will appear here before they affect your records.'
-            : 'Imported messages with this status will appear here.',
+            ? 'Payment messages sent by your iPhone Shortcut will appear here. You can check each one before adding it to your records.'
+            : 'Messages you ${_status == FinancialMessageImportStatus.confirmed ? 'added' : 'dismissed'} will appear here.',
         actionLabel: _status == FinancialMessageImportStatus.pending
-            ? 'Set up iPhone import'
+            ? 'Connect my iPhone'
             : null,
         onAction: _status == FinancialMessageImportStatus.pending
             ? () => unawaited(_openSetup())
@@ -271,28 +263,14 @@ class _TopBar extends StatelessWidget {
       children: [
         AppBackButton(onBack: onBack),
         const Spacer(),
-        AppDropdown<String>(
-          tooltip: 'Import actions',
-          icon: Icons.more_horiz_rounded,
-          onSelected: (action) {
-            if (action == 'refresh') {
-              onRefresh();
-            } else {
-              onSetup();
-            }
-          },
-          items: const [
-            AppDropdownItem(
-              value: 'refresh',
-              label: 'Refresh imports',
-              icon: Icons.refresh_rounded,
-            ),
-            AppDropdownItem(
-              value: 'setup',
-              label: 'iPhone Shortcut setup',
-              icon: Icons.tune_rounded,
-            ),
-          ],
+        TextButton(
+          onPressed: onSetup,
+          child: const Text('iPhone setup'),
+        ),
+        IconButton(
+          tooltip: 'Refresh messages',
+          onPressed: onRefresh,
+          icon: const Icon(Icons.refresh_rounded),
         ),
       ],
     ),
@@ -321,7 +299,7 @@ class _ImportsHeader extends StatelessWidget {
     ];
     final description = switch (selected) {
       FinancialMessageImportStatus.pending =>
-        'Check each message before it changes your records.',
+        'Tap a message, check the details, then confirm or dismiss.',
       FinancialMessageImportStatus.confirmed =>
         'Messages already added to your financial records.',
       FinancialMessageImportStatus.dismissed =>
@@ -335,7 +313,7 @@ class _ImportsHeader extends StatelessWidget {
       child: Column(
         children: [
           const Text(
-            'Payment message inbox',
+            'Payment messages',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 19,
@@ -362,7 +340,7 @@ class _ImportsHeader extends StatelessWidget {
             children: [
               for (final status in options)
                 ChoiceChip(
-                  label: Text(status.label),
+                  label: Text(_inboxStatusLabel(status)),
                   selected: selected == status,
                   onSelected: (_) => onSelected(status),
                   showCheckmark: false,
@@ -387,10 +365,12 @@ class _ImportsHeader extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
             child: Text(
               loading
-                  ? 'Loading imports…'
+                  ? 'Loading messages…'
                   : '$total ${total == 1 ? 'message' : 'messages'}',
               key: ValueKey((loading, selected, total)),
               textAlign: TextAlign.center,
@@ -495,7 +475,7 @@ class _ImportRow extends StatelessWidget {
                   children: [
                     Text(
                       item.amount == null
-                          ? 'Amount pending'
+                          ? 'Check amount'
                           : '${_formatAmount(item.amount!)} RWF',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -604,8 +584,8 @@ class _PageState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(32),
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -628,7 +608,11 @@ class _PageState extends StatelessWidget {
           ),
           if (onAction != null) ...[
             const SizedBox(height: 10),
-            TextButton(onPressed: onAction, child: Text(actionLabel!)),
+            AppButton(
+              label: actionLabel!,
+              iconWidget: const Icon(Icons.arrow_forward_rounded),
+              onPressed: onAction,
+            ),
           ],
         ],
       ),
@@ -657,3 +641,10 @@ IconData _sourceIcon(FinancialMessageImport item) {
   }
   return Icons.mark_email_unread_outlined;
 }
+
+String _inboxStatusLabel(FinancialMessageImportStatus status) => switch (status) {
+  FinancialMessageImportStatus.pending => 'To review',
+  FinancialMessageImportStatus.confirmed => 'Added',
+  FinancialMessageImportStatus.dismissed => 'Dismissed',
+  FinancialMessageImportStatus.expired => 'Expired',
+};
