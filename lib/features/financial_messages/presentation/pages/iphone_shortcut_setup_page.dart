@@ -14,6 +14,7 @@ import '../../../../core/widgets/app_modal_dialog.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../application/shortcut_import_credential_service.dart';
 import '../../data/models/shortcut_import_credential.dart';
+import '../widgets/shortcut_setup_illustration.dart';
 
 enum _ShortcutPilotProvider {
   mtnMomo(
@@ -57,12 +58,14 @@ class IphoneShortcutSetupPage extends StatefulWidget {
 
 class _IphoneShortcutSetupPageState extends State<IphoneShortcutSetupPage> {
   final _deviceNameController = TextEditingController(text: 'My iPhone');
+  final _scrollController = ScrollController();
   late final ShortcutImportCredentialService _service;
 
   List<ShortcutImportCredential> _credentials = const [];
   ShortcutImportCredential? _oneTimeCredential;
   bool _loading = true;
   bool _working = false;
+  int _setupStep = 0;
   String? _error;
   _ShortcutPilotProvider _provider = _ShortcutPilotProvider.mtnMomo;
 
@@ -77,6 +80,7 @@ class _IphoneShortcutSetupPageState extends State<IphoneShortcutSetupPage> {
   @override
   void dispose() {
     _deviceNameController.dispose();
+    _scrollController.dispose();
     _oneTimeCredential = null;
     super.dispose();
   }
@@ -135,10 +139,10 @@ class _IphoneShortcutSetupPageState extends State<IphoneShortcutSetupPage> {
 
   Future<void> _rotate(ShortcutImportCredential credential) async {
     final approved = await _confirm(
-      title: 'Rotate this credential?',
+      title: 'Replace the connection key?',
       detail:
-          'The current Shortcut will stop importing until you replace its token.',
-      action: 'Rotate',
+          'Your Shortcut will stop sending messages until you paste in the new key.',
+      action: 'Replace key',
     );
     if (approved != true || !mounted) {
       return;
@@ -151,6 +155,7 @@ class _IphoneShortcutSetupPageState extends State<IphoneShortcutSetupPage> {
       }
       setState(() {
         _oneTimeCredential = replacement;
+        _setupStep = 1;
         _credentials = [
           replacement.withoutToken(),
           for (final item in _credentials)
@@ -165,7 +170,7 @@ class _IphoneShortcutSetupPageState extends State<IphoneShortcutSetupPage> {
       setState(() => _working = false);
       AppToast.error(
         context,
-        title: 'Could not rotate credential',
+        title: 'Could not replace connection key',
         description: _readableError(error),
       );
     }
@@ -188,6 +193,10 @@ class _IphoneShortcutSetupPageState extends State<IphoneShortcutSetupPage> {
         return;
       }
       setState(() {
+        if (_oneTimeCredential?.id == credential.id) {
+          _oneTimeCredential = null;
+          _setupStep = 1;
+        }
         _credentials = _credentials
             .where((item) => item.id != credential.id)
             .toList(growable: false);
@@ -305,8 +314,108 @@ class _IphoneShortcutSetupPageState extends State<IphoneShortcutSetupPage> {
     );
   }
 
-  void _finishSecretStep() {
-    setState(() => _oneTimeCredential = null);
+  void _goToStep(int step) {
+    FocusScope.of(context).unfocus();
+    setState(() => _setupStep = step);
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+  }
+
+  Widget _buildSetupStep() {
+    switch (_setupStep) {
+      case 0:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppDropdown<_ShortcutPilotProvider>(
+              tooltip: 'Choose your payment provider',
+              label: _provider.label,
+              onSelected: (provider) => setState(() => _provider = provider),
+              items: [
+                for (final provider in _ShortcutPilotProvider.values)
+                  AppDropdownItem(
+                    value: provider,
+                    label: provider.label,
+                    selected: provider == _provider,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _ShortcutReleaseCard(
+              version: widget.currentShortcutVersion,
+              installUrl: widget.shortcutInstallUrl,
+              onCopy: _copy,
+            ),
+            const SizedBox(height: 16),
+            AppButton(
+              label: widget.shortcutInstallUrl == null
+                  ? 'Continue with manual setup'
+                  : 'I added the Shortcut',
+              icon: HugeIcons.strokeRoundedArrowRight01,
+              onPressed: () => _goToStep(1),
+            ),
+          ],
+        );
+      case 1:
+        if (_oneTimeCredential == null) {
+          return _ConnectStep(
+            controller: _deviceNameController,
+            isWorking: _working,
+            onCreate: () => unawaited(_create()),
+          );
+        }
+        return _CredentialStep(
+          credential: _oneTimeCredential!,
+          endpoint: _service.importEndpoint,
+          manualGuide: _ManualShortcutGuide(
+            shortcutVersion: widget.currentShortcutVersion,
+            provider: _provider,
+            initiallyExpanded: widget.shortcutInstallUrl == null,
+          ),
+          onCopy: _copy,
+          onDone: () => _goToStep(2),
+        );
+      case 2:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _AutomationInstructions(provider: _provider),
+            const SizedBox(height: 16),
+            AppButton(
+              label: 'I saved the automation',
+              icon: HugeIcons.strokeRoundedArrowRight01,
+              onPressed: () => _goToStep(3),
+            ),
+          ],
+        );
+      default:
+        return _StepFrame(
+          number: '4',
+          title: 'Check your first message',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'When your next payment message arrives, return to Payment messages. '
+                'Open it, check the amount and person, then confirm or dismiss it. '
+                'Nothing is added to your records until you confirm.',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+              AppButton(
+                label: 'Back to payment messages',
+                icon: HugeIcons.strokeRoundedArrowRight01,
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+        );
+    }
   }
 
   @override
@@ -334,6 +443,7 @@ class _IphoneShortcutSetupPageState extends State<IphoneShortcutSetupPage> {
                           onRetry: () => unawaited(_load()),
                         )
                       : ListView(
+                          controller: _scrollController,
                           keyboardDismissBehavior:
                               ScrollViewKeyboardDismissBehavior.onDrag,
                           padding: EdgeInsets.fromLTRB(
@@ -345,40 +455,56 @@ class _IphoneShortcutSetupPageState extends State<IphoneShortcutSetupPage> {
                           children: [
                             const _SetupIntro(),
                             const SizedBox(height: 18),
-                            _ShortcutReleaseCard(
-                              version: widget.currentShortcutVersion,
-                              installUrl: widget.shortcutInstallUrl,
-                              onCopy: _copy,
+                            Semantics(
+                              label: 'Setup step ${_setupStep + 1} of 4',
+                              child: Column(
+                                children: [
+                                  LinearProgressIndicator(
+                                    value: (_setupStep + 1) / 4,
+                                    color: AppColors.primary,
+                                    backgroundColor: AppColors.surfaceElevated,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text('Step ${_setupStep + 1} of 4'),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 22),
-                            if (_oneTimeCredential == null)
-                              _ConnectStep(
-                                controller: _deviceNameController,
-                                isWorking: _working,
-                                onCreate: () => unawaited(_create()),
-                              )
-                            else
-                              _CredentialStep(
-                                credential: _oneTimeCredential!,
-                                endpoint: _service.importEndpoint,
-                                onCopy: _copy,
-                                onDone: _finishSecretStep,
+                            const SizedBox(height: 18),
+                            ShortcutSetupIllustration(
+                              stage: _setupStep,
+                              provider: _provider.label,
+                            ),
+                            const SizedBox(height: 18),
+                            AnimatedSwitcher(
+                              duration: MediaQuery.disableAnimationsOf(context)
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 240),
+                              child: KeyedSubtree(
+                                key: ValueKey(_setupStep),
+                                child: _buildSetupStep(),
+                              ),
+                            ),
+                            if (_setupStep > 0 && !_working)
+                              TextButton(
+                                onPressed: () => _goToStep(_setupStep - 1),
+                                child: const Text('Previous step'),
                               ),
                             const SizedBox(height: 22),
-                            _AutomationInstructions(
-                              shortcutVersion: widget.currentShortcutVersion,
-                              provider: _provider,
-                              onProviderSelected: (provider) {
-                                setState(() => _provider = provider);
-                              },
-                            ),
-                            const SizedBox(height: 22),
-                            _CredentialList(
-                              credentials: _credentials,
-                              disabled: _working,
-                              onRotate: (item) => unawaited(_rotate(item)),
-                              onRevoke: (item) => unawaited(_revoke(item)),
-                            ),
+                            if (_credentials.isNotEmpty)
+                              ExpansionTile(
+                                title: const Text(
+                                  'Manage connected iPhones',
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                                children: [
+                                  _CredentialList(
+                                    credentials: _credentials,
+                                    disabled: _working,
+                                    onRotate: (item) => unawaited(_rotate(item)),
+                                    onRevoke: (item) => unawaited(_revoke(item)),
+                                  ),
+                                ],
+                              ),
                           ],
                         ),
                 ),
@@ -404,7 +530,7 @@ class _SetupTopBar extends StatelessWidget {
         const SizedBox(width: 10),
         const Expanded(
           child: Text(
-            'iPhone import setup',
+            'Connect your iPhone',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
           ),
@@ -443,7 +569,7 @@ class _SetupIntro extends StatelessWidget {
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 11, vertical: 7),
           child: Text(
-            'Private by design',
+            'You stay in control',
             style: TextStyle(
               color: AppColors.primary,
               fontSize: 10,
@@ -454,7 +580,7 @@ class _SetupIntro extends StatelessWidget {
       ),
       SizedBox(height: 14),
       Text(
-        'Turn payment messages into records you approve.',
+        'Let’s connect your payment messages',
         textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 21,
@@ -464,7 +590,7 @@ class _SetupIntro extends StatelessWidget {
       ),
       SizedBox(height: 8),
       Text(
-        'Setup takes about three minutes. Imports stay pending until you review them.',
+        'Follow one step at a time. You decide which messages become records.',
         textAlign: TextAlign.center,
         style: TextStyle(
           color: AppColors.textSecondary,
@@ -515,23 +641,19 @@ class _ShortcutReleaseCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Budgetify Shortcut v$version',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                '1. Add Budgetify Shortcut v$version',
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 installUrl == null
-                    ? 'Use this version in the request payload.'
-                    : 'The reviewed installation link is available.',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                    ? 'No install link is available yet. Continue to build it manually in Apple Shortcuts; the next steps include the settings.'
+                    : 'Copy the link, paste it into Safari, then tap Add Shortcut. Return here when done.',
                 style: const TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   color: AppColors.textSecondary,
                 ),
               ),
@@ -561,8 +683,8 @@ class _ConnectStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _StepFrame(
-    number: '1',
-    title: 'Connect this iPhone',
+    number: '2',
+    title: 'Name your iPhone',
     child: Column(
       children: [
         AppInput(
@@ -576,7 +698,7 @@ class _ConnectStep extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         AppButton(
-          label: 'Create secure credential',
+          label: 'Connect this iPhone',
           icon: HugeIcons.strokeRoundedCircleLockCheck02,
           isLoading: isWorking,
           onPressed: isWorking ? null : onCreate,
@@ -590,45 +712,53 @@ class _CredentialStep extends StatelessWidget {
   const _CredentialStep({
     required this.credential,
     required this.endpoint,
+    required this.manualGuide,
     required this.onCopy,
     required this.onDone,
   });
 
   final ShortcutImportCredential credential;
   final String endpoint;
+  final Widget manualGuide;
   final Future<void> Function(String value, String label) onCopy;
   final VoidCallback onDone;
 
   @override
   Widget build(BuildContext context) => _StepFrame(
     number: '2',
-    title: 'Copy the one-time values',
+    title: 'Add your connection details',
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'This token cannot be displayed again. Budgetify does not save it on this phone.',
+          'Keep this page open while you switch to Shortcuts. Copy the key and address into your Budgetify Shortcut. The key is shown only during this setup; keep it private.',
           style: TextStyle(
             color: AppColors.textSecondary,
-            fontSize: 11,
+            fontSize: 13,
             height: 1.45,
           ),
         ),
         const SizedBox(height: 14),
         _CopyValue(
-          label: 'Authorization token',
+          label: 'Private connection key',
           value: credential.token!,
           obscure: true,
-          onCopy: () => unawaited(onCopy(credential.token!, 'Token')),
+          onCopy: () => unawaited(onCopy(credential.token!, 'Connection key')),
         ),
         const SizedBox(height: 10),
         _CopyValue(
-          label: 'Request URL',
+          label: 'Import address',
           value: endpoint,
-          onCopy: () => unawaited(onCopy(endpoint, 'Request URL')),
+          onCopy: () => unawaited(onCopy(endpoint, 'Import address')),
         ),
         const SizedBox(height: 14),
-        TextButton(onPressed: onDone, child: const Text('I saved both values')),
+        manualGuide,
+        const SizedBox(height: 14),
+        AppButton(
+          label: 'I pasted the connection details',
+          icon: HugeIcons.strokeRoundedArrowRight01,
+          onPressed: onDone,
+        ),
       ],
     ),
   );
@@ -689,7 +819,7 @@ class _CopyValueState extends State<_CopyValue> {
         children: [
           if (widget.obscure)
             IconButton(
-              tooltip: hidden ? 'Show token' : 'Hide token',
+              tooltip: hidden ? 'Show connection key' : 'Hide connection key',
               onPressed: () => setState(() => _revealed = !_revealed),
               icon: Icon(
                 hidden
@@ -716,86 +846,84 @@ class _CopyValueState extends State<_CopyValue> {
 
 class _AutomationInstructions extends StatelessWidget {
   const _AutomationInstructions({
-    required this.shortcutVersion,
     required this.provider,
-    required this.onProviderSelected,
   });
 
-  final int shortcutVersion;
   final _ShortcutPilotProvider provider;
-  final ValueChanged<_ShortcutPilotProvider> onProviderSelected;
 
   @override
   Widget build(BuildContext context) => _StepFrame(
     number: '3',
-    title: 'Create the Messages automation',
+    title: 'Choose which messages to send',
     child: Column(
       children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: AppDropdown<_ShortcutPilotProvider>(
-            tooltip: 'Choose pilot provider',
-            label: provider.label,
-            isActive: provider == _ShortcutPilotProvider.airtelMoney,
-            onSelected: onProviderSelected,
-            items: [
-              for (final option in _ShortcutPilotProvider.values)
-                AppDropdownItem(
-                  value: option,
-                  label: option.label,
-                  icon: option == _ShortcutPilotProvider.mtnMomo
-                      ? Icons.account_balance_wallet_rounded
-                      : Icons.phone_android_rounded,
-                  selected: option == provider,
-                ),
-            ],
+        Text(
+          'For ${provider.label}',
+          style: const TextStyle(
+            color: AppColors.primary,
+            fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 14),
-        if (provider == _ShortcutPilotProvider.airtelMoney) ...[
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Text(
-              'Airtel is a staged pilot provider. Every import remains in manual review until its release gate passes.',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 10,
-                height: 1.45,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-        _Instruction(
-          title: 'Create ${provider.shortcutName}',
-          detail:
-              'Generate one UUID, format Current Date as ISO 8601, then prepare a POST request.',
-        ),
-        _Instruction(
-          title: 'Add the ${provider.label} Messages automation',
-          detail:
-              'Choose only the verified ${provider.label} sender, run immediately, and pass the received Message to the Shortcut.',
-        ),
         const _Instruction(
-          title: 'Send the protected JSON request',
+          title: 'Open Apple Shortcuts',
           detail:
-              'Use the copied URL, POST with a JSON body, and the copied token as the Bearer Authorization header.',
+              'Find Automation and add a Message trigger. Depending on your iOS version, this is in the Automation tab or in the Shortcut editor.',
         ),
         _Instruction(
-          title: 'Review one real ${provider.label} import',
+          title: 'Choose only your ${provider.label} sender',
           detail:
-              'Check every detected field in Message review. Nothing affects your records until you confirm it.',
+              'Use the sender shown on a genuine payment SMS in Messages. Do not select all senders, so personal messages stay out of Budgetify.',
+        ),
+        _Instruction(
+          title: 'Run your Budgetify Shortcut',
+          detail:
+              'Choose ${provider.shortcutName} and pass the received Message as its input. Choose the option to run automatically without asking each time, if available.',
           isLast: true,
         ),
-        const SizedBox(height: 16),
-        _PayloadGuide(shortcutVersion: shortcutVersion, provider: provider),
       ],
     ),
+  );
+}
+
+class _ManualShortcutGuide extends StatelessWidget {
+  const _ManualShortcutGuide({
+    required this.shortcutVersion,
+    required this.provider,
+    required this.initiallyExpanded,
+  });
+
+  final int shortcutVersion;
+  final _ShortcutPilotProvider provider;
+  final bool initiallyExpanded;
+
+  @override
+  Widget build(BuildContext context) => ExpansionTile(
+    initiallyExpanded: initiallyExpanded,
+    tilePadding: EdgeInsets.zero,
+    title: const Text(
+      'Building the Shortcut manually?',
+      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+    ),
+    subtitle: const Text(
+      'Show the actions and connection settings',
+      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+    ),
+    children: [
+      _Instruction(
+        title: 'Create ${provider.shortcutName}',
+        detail:
+            'In Shortcuts, create a shortcut with this name. Add Generate UUID, Current Date, and Format Date set to ISO 8601. These supply the unique ID and date below.',
+      ),
+      const _Instruction(
+        title: 'Add Get Contents of URL',
+        detail:
+            'Paste your import address. Choose POST, add the Authorization header with Bearer followed by a space and your private key, then add the JSON fields below. Use the received Message input for the sender and message text, not fixed example text.',
+        isLast: true,
+      ),
+      const SizedBox(height: 12),
+      _PayloadGuide(shortcutVersion: shortcutVersion, provider: provider),
+    ],
   );
 }
 
@@ -1005,7 +1133,7 @@ class _CredentialList extends StatelessWidget {
                     ),
                   ),
                   AppDropdown<String>(
-                    tooltip: 'Credential actions',
+                    tooltip: 'Manage iPhone connection',
                     icon: Icons.more_horiz_rounded,
                     enabled: !disabled && credential.isActive,
                     onSelected: (value) {
@@ -1018,7 +1146,7 @@ class _CredentialList extends StatelessWidget {
                     items: const [
                       AppDropdownItem(
                         value: 'rotate',
-                        label: 'Rotate token',
+                        label: 'Replace connection key',
                         icon: Icons.sync_lock_rounded,
                       ),
                       AppDropdownItem(
