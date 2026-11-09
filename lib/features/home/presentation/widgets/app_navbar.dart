@@ -12,6 +12,8 @@ class AppNavbar extends StatelessWidget {
     this.onNotificationTap,
     this.onAvatarTap,
     this.trailing,
+    this.showMenuButton = false,
+    this.showNotificationButton = false,
   });
 
   final AuthUser user;
@@ -19,16 +21,19 @@ class AppNavbar extends StatelessWidget {
   final VoidCallback? onNotificationTap;
   final VoidCallback? onAvatarTap;
   final Widget? trailing;
+  final bool showMenuButton;
+  final bool showNotificationButton;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _NavbarAction(
-          tooltip: 'Menu',
-          icon: HugeIcons.strokeRoundedMenu01,
-          onTap: onMenuTap,
-        ),
+        if (showMenuButton)
+          _NavbarAction(
+            tooltip: 'Menu',
+            icon: HugeIcons.strokeRoundedMenu01,
+            onTap: onMenuTap,
+          ),
         const Spacer(),
         if (trailing != null)
           Flexible(
@@ -38,12 +43,14 @@ class AppNavbar extends StatelessWidget {
             ),
           )
         else ...[
-          _NavbarAction(
-            tooltip: 'Notifications',
-            icon: HugeIcons.strokeRoundedNotification02,
-            onTap: onNotificationTap,
-          ),
-          const SizedBox(width: 10),
+          if (showNotificationButton) ...[
+            _NavbarAction(
+              tooltip: 'Notifications',
+              icon: HugeIcons.strokeRoundedNotification02,
+              onTap: onNotificationTap,
+            ),
+            const SizedBox(width: 10),
+          ],
           _UserAvatar(user: user, onTap: onAvatarTap),
         ],
       ],
