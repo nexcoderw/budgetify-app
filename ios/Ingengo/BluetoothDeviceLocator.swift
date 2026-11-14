@@ -1,6 +1,6 @@
 //
 //  BluetoothDeviceLocator.swift
-//  Budgetify
+//  Ingengo
 //
 //  Created by Test on 04/11/2026.
 //

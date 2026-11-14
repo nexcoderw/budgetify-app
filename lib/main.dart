@@ -18,5 +18,5 @@ Future<void> main() async {
     await authService.ensureInitialized();
   }
 
-  runApp(BudgetifyApp(authService: authService));
+  runApp(IngengoApp(authService: authService));
 }

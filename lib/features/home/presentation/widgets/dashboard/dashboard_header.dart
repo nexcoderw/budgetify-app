@@ -50,7 +50,11 @@ class DashboardHeader extends StatelessWidget {
                         color: AppColors.primary,
                       ),
                     )
-                  : const Icon(Icons.refresh_rounded, size: 20, color: AppColors.primary),
+                  : const Icon(
+                      Icons.refresh_rounded,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
             ),
           ],
         ),
@@ -81,7 +85,10 @@ class DashboardHeader extends StatelessWidget {
             ),
             Text(
               formatDashboardPeriodRange(period),
-              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
         ),

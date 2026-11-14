@@ -61,9 +61,17 @@ class AppLayout extends StatelessWidget {
               constraints: const BoxConstraints(maxWidth: 1320),
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
-                  isCompact ? 16 : isLarge ? 32 : 24,
+                  isCompact
+                      ? 16
+                      : isLarge
+                      ? 32
+                      : 24,
                   isCompact ? 14 : 20,
-                  isCompact ? 16 : isLarge ? 32 : 24,
+                  isCompact
+                      ? 16
+                      : isLarge
+                      ? 32
+                      : 24,
                   isCompact ? 8 : 12,
                 ),
                 child: Stack(
@@ -126,19 +134,14 @@ class _AppContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const constraints = BoxConstraints(
-      maxWidth: 1040,
-    );
+    const constraints = BoxConstraints(maxWidth: 1040);
 
     if (!scrollChild) {
       return Padding(
         padding: EdgeInsets.only(top: topPadding, bottom: bottomPadding),
         child: Align(
           alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: constraints,
-            child: child,
-          ),
+          child: ConstrainedBox(constraints: constraints, child: child),
         ),
       );
     }
@@ -147,10 +150,7 @@ class _AppContent extends StatelessWidget {
       padding: EdgeInsets.only(top: topPadding, bottom: bottomPadding),
       child: Align(
         alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: constraints,
-          child: child,
-        ),
+        child: ConstrainedBox(constraints: constraints, child: child),
       ),
     );
   }

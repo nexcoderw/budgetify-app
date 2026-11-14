@@ -45,7 +45,7 @@ class PersonalDetailsTab extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             const Text(
-              'Update the name displayed on your Budgetify account.',
+              'Update the name displayed on your Ingengo account.',
               style: TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 12,

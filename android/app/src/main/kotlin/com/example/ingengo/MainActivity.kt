@@ -1,4 +1,4 @@
-package com.example.budgetify
+package com.example.ingengo
 
 import android.Manifest
 import android.content.ActivityNotFoundException
@@ -15,10 +15,10 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     companion object {
         private const val USSD_CHANNEL =
-            "budgetify/ussd"
+            "ingengo/ussd"
 
         private const val SMS_CHANNEL =
-            "budgetify/sms"
+            "ingengo/sms"
 
         private const val SMS_PERMISSION_REQUEST =
             4301

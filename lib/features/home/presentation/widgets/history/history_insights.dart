@@ -144,8 +144,8 @@ class _HistoryInsightsState extends State<HistoryInsights> {
 
   @override
   Widget build(BuildContext context) {
-    final invalidRange = _period == _InsightsPeriod.custom &&
-        _customFrom.isAfter(_customTo);
+    final invalidRange =
+        _period == _InsightsPeriod.custom && _customFrom.isAfter(_customTo);
     final range = _range(DateTime.now());
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -168,7 +168,10 @@ class _HistoryInsightsState extends State<HistoryInsights> {
                 selectedColor: AppColors.primary,
                 side: BorderSide.none,
                 shape: const StadiumBorder(),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 labelStyle: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -307,7 +310,11 @@ class _HistoryInsightsState extends State<HistoryInsights> {
           color: _colors[item.key.index % _colors.length],
         ),
       if (payments > 0)
-        (label: 'Transaction fees', amount: fees, color: AppColors.primaryMuted),
+        (
+          label: 'Transaction fees',
+          amount: fees,
+          color: AppColors.primaryMuted,
+        ),
     ];
 
     if (total == 0) {
@@ -359,7 +366,10 @@ class _HistoryInsightsState extends State<HistoryInsights> {
           Text(
             'Fees unavailable for $missingFees payment(s); not included in total.',
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
         Center(
@@ -478,9 +488,7 @@ class _CategoryPiePainter extends CustomPainter {
         final sweep = amounts[index] / total * math.pi * 2;
         final color = colors[index];
         final paint = Paint()
-          ..color = depth == 0
-              ? color
-              : Color.lerp(color, Colors.black, 0.35)!;
+          ..color = depth == 0 ? color : Color.lerp(color, Colors.black, 0.35)!;
         canvas.drawArc(
           top.shift(Offset(0, depth.toDouble())),
           angle,

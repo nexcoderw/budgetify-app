@@ -5,13 +5,16 @@ class OnboardingStorage implements OnboardingPreferences {
   OnboardingStorage({required SecureStorageService secureStorageService})
     : _secureStorageService = secureStorageService;
 
-  static const _completionKey = 'budgetify.onboarding.completed.v1';
+  static const _completionKey = 'ingengo.onboarding.completed.v1';
+  static const _legacyCompletionKey = 'budgetify.onboarding.completed.v1';
 
   final SecureStorageService _secureStorageService;
 
   @override
   Future<bool> hasCompletedOnboarding() async {
-    final value = await _secureStorageService.read(_completionKey);
+    final value =
+        await _secureStorageService.read(_completionKey) ??
+        await _secureStorageService.read(_legacyCompletionKey);
 
     return value == 'true';
   }

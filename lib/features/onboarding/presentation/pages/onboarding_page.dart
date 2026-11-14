@@ -20,7 +20,7 @@ class _OnboardingPageState extends State<OnboardingPage>
     with TickerProviderStateMixin {
   static const _slides = <_OnboardingSlideData>[
     _OnboardingSlideData(
-      eyebrow: 'WELCOME TO BUDGETIFY',
+      eyebrow: 'WELCOME TO INGENGO',
       title: 'Your money, finally in one clear place.',
       description:
           'See what you spend, what you save, and where your money moves without digging through scattered notes and messages.',
@@ -30,7 +30,7 @@ class _OnboardingPageState extends State<OnboardingPage>
       eyebrow: 'SMARTER PAYMENTS',
       title: 'Send money with confidence.',
       description:
-          'Start MTN MoMo, eKash and MoMo Pay transfers from Budgetify, then keep each payment recorded with its status and history.',
+          'Start MTN MoMo, eKash and MoMo Pay transfers from Ingengo, then keep each payment recorded with its status and history.',
       visual: _OnboardingVisualType.payments,
     ),
     _OnboardingSlideData(
@@ -218,12 +218,12 @@ class _OnboardingHeader extends StatelessWidget {
           width: isCompact ? 36 : 42,
           height: isCompact ? 30 : 34,
           fit: BoxFit.contain,
-          semanticLabel: 'Budgetify logo',
+          semanticLabel: 'Ingengo logo',
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
-            'Budgetify',
+            'Ingengo',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontSize: isCompact ? 22 : 25,
               fontWeight: FontWeight.w700,

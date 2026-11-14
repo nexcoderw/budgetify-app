@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:budgetify/app/app.dart';
-import 'package:budgetify/core/widgets/app_button.dart';
-import 'package:budgetify/core/widgets/app_input.dart';
-import 'package:budgetify/features/auth/application/auth_service_contract.dart';
-import 'package:budgetify/features/auth/data/models/auth_session.dart';
-import 'package:budgetify/features/auth/data/models/auth_user.dart';
-import 'package:budgetify/features/auth/data/models/email_initiate_response.dart';
-import 'package:budgetify/features/auth/data/models/password_auth_models.dart';
-import 'package:budgetify/features/onboarding/application/onboarding_preferences.dart';
+import 'package:ingengo/app/app.dart';
+import 'package:ingengo/core/widgets/app_button.dart';
+import 'package:ingengo/core/widgets/app_input.dart';
+import 'package:ingengo/features/auth/application/auth_service_contract.dart';
+import 'package:ingengo/features/auth/data/models/auth_session.dart';
+import 'package:ingengo/features/auth/data/models/auth_user.dart';
+import 'package:ingengo/features/auth/data/models/email_initiate_response.dart';
+import 'package:ingengo/features/auth/data/models/password_auth_models.dart';
+import 'package:ingengo/features/onboarding/application/onboarding_preferences.dart';
 
 class _FakeAuthService implements AuthServiceContract {
   _FakeAuthService({this.restoredUser});
@@ -176,7 +176,7 @@ Future<void> _pumpAppPastOnboarding(
   required _FakeAuthService authService,
 }) async {
   await tester.pumpWidget(
-    BudgetifyApp(
+    IngengoApp(
       authService: authService,
       onboardingPreferences: _FakeOnboardingPreferences(completed: true),
     ),
@@ -233,7 +233,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        BudgetifyApp(
+        IngengoApp(
           authService: _FakeAuthService(),
           onboardingPreferences: onboardingPreferences,
         ),
@@ -246,7 +246,7 @@ void main() {
         findsOneWidget,
       );
 
-      expect(find.text('WELCOME TO BUDGETIFY'), findsOneWidget);
+      expect(find.text('WELCOME TO INGENGO'), findsOneWidget);
 
       expect(find.text('Skip'), findsOneWidget);
 
@@ -259,7 +259,7 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        BudgetifyApp(
+        IngengoApp(
           authService: _FakeAuthService(),
           onboardingPreferences: _FakeOnboardingPreferences(completed: false),
         ),
@@ -295,7 +295,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        BudgetifyApp(
+        IngengoApp(
           authService: _FakeAuthService(),
           onboardingPreferences: onboardingPreferences,
         ),
@@ -335,7 +335,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        BudgetifyApp(
+        IngengoApp(
           authService: _FakeAuthService(),
           onboardingPreferences: onboardingPreferences,
         ),
@@ -368,7 +368,7 @@ void main() {
     ) async {
       await _pumpAppPastOnboarding(tester, authService: _FakeAuthService());
 
-      expect(find.text('Budgetify'), findsOneWidget);
+      expect(find.text('Ingengo'), findsOneWidget);
 
       expect(find.text('Continue with Google'), findsOneWidget);
 
@@ -459,13 +459,21 @@ void main() {
 
         expect(find.text('Complete your profile'), findsOneWidget);
 
+        final profileDialog = find.byType(Dialog);
+        final profileInputs = find.descendant(
+          of: profileDialog,
+          matching: find.byType(AppInput),
+        );
+
+        expect(profileInputs, findsNWidgets(2));
+
         final firstNameInput = find.descendant(
-          of: find.byType(AppInput).at(0),
+          of: profileInputs.at(0),
           matching: find.byType(EditableText),
         );
 
         final lastNameInput = find.descendant(
-          of: find.byType(AppInput).at(1),
+          of: profileInputs.at(1),
           matching: find.byType(EditableText),
         );
 

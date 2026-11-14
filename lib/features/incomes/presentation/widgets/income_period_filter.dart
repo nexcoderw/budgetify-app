@@ -86,24 +86,34 @@ class IncomePeriodFilter extends StatelessWidget {
       ),
       if (period == IncomePeriod.custom) ...[
         const SizedBox(height: 12),
-        LayoutBuilder(builder: (context, constraints) {
-          final fields = [
-            _DateField(label: 'From date', date: from,
-              onTap: enabled ? () => _pick(context, true) : null),
-            _DateField(label: 'To date', date: to,
-              onTap: enabled ? () => _pick(context, false) : null),
-          ];
-          if (constraints.maxWidth < 420) {
-            return Column(children: [
-              fields[0], const SizedBox(height: 12), fields[1],
-            ]);
-          }
-          return Row(children: [
-            Expanded(child: fields[0]),
-            const SizedBox(width: 12),
-            Expanded(child: fields[1]),
-          ]);
-        }),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final fields = [
+              _DateField(
+                label: 'From date',
+                date: from,
+                onTap: enabled ? () => _pick(context, true) : null,
+              ),
+              _DateField(
+                label: 'To date',
+                date: to,
+                onTap: enabled ? () => _pick(context, false) : null,
+              ),
+            ];
+            if (constraints.maxWidth < 420) {
+              return Column(
+                children: [fields[0], const SizedBox(height: 12), fields[1]],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: fields[0]),
+                const SizedBox(width: 12),
+                Expanded(child: fields[1]),
+              ],
+            );
+          },
+        ),
       ],
       const SizedBox(height: 12),
       Text(
@@ -156,7 +166,9 @@ class _DateFieldState extends State<_DateField> {
     enabled: widget.onTap != null,
     borderRadius: 28,
     onTap: widget.onTap,
-    suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded,
-      color: AppColors.primary),
+    suffixIcon: const Icon(
+      Icons.keyboard_arrow_down_rounded,
+      color: AppColors.primary,
+    ),
   );
 }

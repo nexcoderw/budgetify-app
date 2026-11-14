@@ -270,7 +270,7 @@ class _LoginFormState extends State<LoginForm>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Sign in to Budgetify',
+                      'Sign in to Ingengo',
                       style: Theme.of(context).textTheme.headlineMedium
                           ?.copyWith(
                             fontSize: titleSize,

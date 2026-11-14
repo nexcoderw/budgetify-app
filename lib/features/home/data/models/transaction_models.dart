@@ -126,7 +126,7 @@ enum TransactionEventType {
 }
 
 enum TransactionEventSource {
-  system('SYSTEM', 'Budgetify'),
+  system('SYSTEM', 'Ingengo'),
   mobileApp('MOBILE_APP', 'Mobile app'),
   providerSms('PROVIDER_SMS', 'MTN SMS evidence'),
   providerApi('PROVIDER_API', 'Provider API');

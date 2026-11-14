@@ -148,7 +148,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
             context,
             title: 'SMS access required',
             description:
-                'Enable SMS access to let Budgetify check MTN transaction evidence.',
+                'Enable SMS access to let Ingengo check MTN transaction evidence.',
           );
 
           return;
@@ -183,7 +183,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
               context,
               title: 'Transaction updated',
               description:
-                  'Budgetify matched MTN SMS evidence to this transaction.',
+                  'Ingengo matched MTN SMS evidence to this transaction.',
             );
           } else {
             AppToast.info(
@@ -202,7 +202,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
             context,
             title: 'No matching evidence',
             description:
-                'Budgetify found no matching MTN transaction message for this transaction. Its current status was not changed.',
+                'Ingengo found no matching MTN transaction message for this transaction. Its current status was not changed.',
           );
 
         case TransactionReconciliationOutcome.ambiguous:
@@ -210,7 +210,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
             context,
             title: 'Evidence needs review',
             description:
-                'More than one MTN message could match this transaction. Budgetify did not guess or change its status.',
+                'More than one MTN message could match this transaction. Ingengo did not guess or change its status.',
           );
 
         case TransactionReconciliationOutcome.unsupported:
@@ -243,7 +243,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
         context,
         title: 'Could not check transaction',
         description:
-            'Budgetify could not safely reconcile this transaction. Please try again.',
+            'Ingengo could not safely reconcile this transaction. Please try again.',
       );
     } finally {
       if (mounted) {
@@ -365,7 +365,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
         context,
         title: 'Could not record result',
         description:
-            'Budgetify could not save your manual confirmation. Please try again.',
+            'Ingengo could not save your manual confirmation. Please try again.',
       );
     } finally {
       if (mounted) {
@@ -385,7 +385,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
       TransactionReconciliationOutcome.noMatch =>
         'No matching MTN SMS evidence was found. This does not mean the transfer failed.',
       TransactionReconciliationOutcome.ambiguous =>
-        'Multiple MTN messages could match. Budgetify left the transaction unchanged rather than guessing.',
+        'Multiple MTN messages could match. Ingengo left the transaction unchanged rather than guessing.',
       TransactionReconciliationOutcome.permissionDenied =>
         'SMS access is required to check transaction evidence.',
       TransactionReconciliationOutcome.unsupported =>

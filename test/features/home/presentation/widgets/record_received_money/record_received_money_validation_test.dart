@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:budgetify/features/home/presentation/widgets/record_received_money/record_received_money_validation.dart';
+import 'package:ingengo/features/home/presentation/widgets/record_received_money/record_received_money_validation.dart';
 
 void main() {
   group('validateReceivedAmount', () {

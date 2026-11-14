@@ -68,7 +68,8 @@ class DashboardSummarySection extends StatelessWidget {
             ),
           ],
         ),
-        if (summary.pendingTransactions + summary.processingTransactions > 0) ...[
+        if (summary.pendingTransactions + summary.processingTransactions >
+            0) ...[
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(14),
@@ -78,7 +79,11 @@ class DashboardSummarySection extends StatelessWidget {
             ),
             child: Text(
               '${summary.pendingTransactions + summary.processingTransactions} outgoing transfer(s) awaiting a result. View History for details.',
-              style: const TextStyle(fontSize: 11, height: 1.5, color: AppColors.textSecondary),
+              style: const TextStyle(
+                fontSize: 11,
+                height: 1.5,
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
         ],
@@ -120,7 +125,10 @@ class _FlowCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
             ],
@@ -138,7 +146,11 @@ class _FlowCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             currency,
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: color),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: color,
+            ),
           ),
         ],
       ),

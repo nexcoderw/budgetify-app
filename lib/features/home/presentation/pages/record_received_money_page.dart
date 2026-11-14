@@ -143,7 +143,7 @@ class _RecordReceivedMoneyPageState extends State<RecordReceivedMoneyPage> {
         context,
         title: 'Could not save received money',
         description:
-            'Budgetify could not record this '
+            'Ingengo could not record this '
             'received payment. Please try again.',
       );
     } finally {

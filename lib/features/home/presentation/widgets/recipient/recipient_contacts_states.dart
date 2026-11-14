@@ -45,7 +45,7 @@ class ContactsPermissionPrompt extends StatelessWidget {
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 340),
               child: const Text(
-                'Allow Budgetify to show names and phone numbers from your device. Choose full contact access when your phone asks.',
+                'Allow Ingengo to show names and phone numbers from your device. Choose full contact access when your phone asks.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,

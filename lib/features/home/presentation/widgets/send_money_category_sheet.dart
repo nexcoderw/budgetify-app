@@ -40,55 +40,21 @@ class _SendMoneyCategorySheet extends StatefulWidget {
       _SendMoneyCategorySheetState();
 }
 
-class _SendMoneyCategorySheetState
-    extends State<_SendMoneyCategorySheet> {
+class _SendMoneyCategorySheetState extends State<_SendMoneyCategorySheet> {
   static const int _categoriesPerPage = 6;
 
   static const _categories = [
-    _MoneyCategory(
-      label: 'Transport',
-      icon: Icons.directions_bus_rounded,
-    ),
-    _MoneyCategory(
-      label: 'Groceries',
-      icon: Icons.shopping_basket_rounded,
-    ),
-    _MoneyCategory(
-      label: 'Bills',
-      icon: Icons.receipt_long_rounded,
-    ),
-    _MoneyCategory(
-      label: 'Rent',
-      icon: Icons.home_rounded,
-    ),
-    _MoneyCategory(
-      label: 'Health',
-      icon: Icons.local_hospital_rounded,
-    ),
-    _MoneyCategory(
-      label: 'Education',
-      icon: Icons.school_rounded,
-    ),
-    _MoneyCategory(
-      label: 'Dining',
-      icon: Icons.restaurant_rounded,
-    ),
-    _MoneyCategory(
-      label: 'Shopping',
-      icon: Icons.shopping_bag_rounded,
-    ),
-    _MoneyCategory(
-      label: 'Family',
-      icon: Icons.family_restroom_rounded,
-    ),
-    _MoneyCategory(
-      label: 'Entertainment',
-      icon: Icons.movie_rounded,
-    ),
-    _MoneyCategory(
-      label: 'Other',
-      icon: Icons.more_horiz_rounded,
-    ),
+    _MoneyCategory(label: 'Transport', icon: Icons.directions_bus_rounded),
+    _MoneyCategory(label: 'Groceries', icon: Icons.shopping_basket_rounded),
+    _MoneyCategory(label: 'Bills', icon: Icons.receipt_long_rounded),
+    _MoneyCategory(label: 'Rent', icon: Icons.home_rounded),
+    _MoneyCategory(label: 'Health', icon: Icons.local_hospital_rounded),
+    _MoneyCategory(label: 'Education', icon: Icons.school_rounded),
+    _MoneyCategory(label: 'Dining', icon: Icons.restaurant_rounded),
+    _MoneyCategory(label: 'Shopping', icon: Icons.shopping_bag_rounded),
+    _MoneyCategory(label: 'Family', icon: Icons.family_restroom_rounded),
+    _MoneyCategory(label: 'Entertainment', icon: Icons.movie_rounded),
+    _MoneyCategory(label: 'Other', icon: Icons.more_horiz_rounded),
   ];
 
   late final PageController _pageController;
@@ -96,8 +62,7 @@ class _SendMoneyCategorySheetState
   String? _selectedCategory;
   int _currentPage = 0;
 
-  int get _pageCount =>
-      (_categories.length / _categoriesPerPage).ceil();
+  int get _pageCount => (_categories.length / _categoriesPerPage).ceil();
 
   @override
   void initState() {
@@ -196,10 +161,8 @@ class _SendMoneyCategorySheetState
                   },
                   itemBuilder: (context, pageIndex) {
                     final firstIndex = pageIndex * _categoriesPerPage;
-                    final remainingCategories =
-                        _categories.length - firstIndex;
-                    final itemCount =
-                        remainingCategories < _categoriesPerPage
+                    final remainingCategories = _categories.length - firstIndex;
+                    final itemCount = remainingCategories < _categoriesPerPage
                         ? remainingCategories
                         : _categoriesPerPage;
 
@@ -207,23 +170,19 @@ class _SendMoneyCategorySheetState
                       physics: const NeverScrollableScrollPhysics(),
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       itemCount: itemCount,
-                      gridDelegate:
-                          SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            mainAxisSpacing: 10,
-                            crossAxisSpacing: 10,
-                            mainAxisExtent: isShortScreen ? 80 : 94,
-                          ),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        mainAxisExtent: isShortScreen ? 80 : 94,
+                      ),
                       itemBuilder: (context, index) {
-                        final category =
-                            _categories[firstIndex + index];
+                        final category = _categories[firstIndex + index];
 
                         return _CategoryCard(
                           category: category,
-                          isSelected:
-                              _selectedCategory == category.label,
-                          onTap: () =>
-                              _selectCategory(category.label),
+                          isSelected: _selectedCategory == category.label,
+                          onTap: () => _selectCategory(category.label),
                         );
                       },
                     );
@@ -249,8 +208,7 @@ class _SendMoneyCategorySheetState
                       color: AppColors.background,
                     ),
                     size: AppButtonSize.md,
-                    onPressed:
-                        _selectedCategory == null ? null : _continue,
+                    onPressed: _selectedCategory == null ? null : _continue,
                   ),
                 ),
               ),
@@ -293,9 +251,7 @@ class _AmountBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.20),
-        ),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.20)),
       ),
       child: Text(
         'RWF $amount',

@@ -7,7 +7,7 @@ import '../theme/app_colors.dart';
 /// Visual treatments supported by [AppInput].
 enum AppInputVariant { standard, bare }
 
-/// Budgetify's shared text input.
+/// Ingengo's shared text input.
 ///
 /// Use [AppInputVariant.standard] for visible form fields and
 /// [AppInputVariant.bare] when another widget owns the field presentation.

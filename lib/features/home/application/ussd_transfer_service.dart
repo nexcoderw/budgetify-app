@@ -6,14 +6,11 @@ import '../data/models/transaction_models.dart';
 class UssdTransferService {
   const UssdTransferService();
 
-  static const MethodChannel _channel =
-      MethodChannel('budgetify/ussd');
+  static const MethodChannel _channel = MethodChannel('ingengo/ussd');
 
-  static const String _momoTransferPrefix =
-      '*182*1*1';
+  static const String _momoTransferPrefix = '*182*1*1';
 
-  static const String _ekashTransferPrefix =
-      '*182*1*2';
+  static const String _ekashTransferPrefix = '*182*1*2';
 
   static const String _momoPayPrefix = '*182*8*1';
 
@@ -28,10 +25,7 @@ class UssdTransferService {
       return false;
     }
 
-    return await _channel.invokeMethod<bool>(
-          'prepareUssd',
-        ) ??
-        false;
+    return await _channel.invokeMethod<bool>('prepareUssd') ?? false;
   }
 
   Future<void> launch({
@@ -43,8 +37,7 @@ class UssdTransferService {
     if (!isSupported) {
       throw PlatformException(
         code: 'unsupported_platform',
-        message:
-            'USSD transfers are only available on Android and iPhone.',
+        message: 'USSD transfers are only available on Android and iPhone.',
       );
     }
 
@@ -55,12 +48,9 @@ class UssdTransferService {
       amount: amount,
     );
 
-    await _channel.invokeMethod<void>(
-      'launchUssd',
-      <String, dynamic>{
-        'code': code,
-      },
-    );
+    await _channel.invokeMethod<void>('launchUssd', <String, dynamic>{
+      'code': code,
+    });
   }
 
   String buildCode({
@@ -77,26 +67,17 @@ class UssdTransferService {
       );
     }
 
-    if (
-        transferType ==
-            TransactionTransferType.momoToMomo &&
-        recipientType !=
-            TransactionRecipientType.phone) {
-      throw ArgumentError(
-        'MoMo transfers require a phone recipient.',
-      );
+    if (transferType == TransactionTransferType.momoToMomo &&
+        recipientType != TransactionRecipientType.phone) {
+      throw ArgumentError('MoMo transfers require a phone recipient.');
     }
 
-    if (
-        transferType == TransactionTransferType.momoPay &&
+    if (transferType == TransactionTransferType.momoPay &&
         recipientType != TransactionRecipientType.momoCode) {
-      throw ArgumentError(
-        'MoMo Pay requires a MoMo merchant code.',
-      );
+      throw ArgumentError('MoMo Pay requires a MoMo merchant code.');
     }
 
-    if (
-        recipientType == TransactionRecipientType.momoCode &&
+    if (recipientType == TransactionRecipientType.momoCode &&
         transferType != TransactionTransferType.momoPay) {
       throw ArgumentError(
         'MoMo merchant codes can only be used with MoMo Pay.',
@@ -124,21 +105,14 @@ class UssdTransferService {
     return '$prefix*$recipient*$amount#';
   }
 
-  String _normalizePhoneForUssd(
-    String value,
-  ) {
-    final digits = value.replaceAll(
-      RegExp(r'\D'),
-      '',
-    );
+  String _normalizePhoneForUssd(String value) {
+    final digits = value.replaceAll(RegExp(r'\D'), '');
 
     if (RegExp(r'^07\d{8}$').hasMatch(digits)) {
       return digits;
     }
 
-    if (
-        RegExp(r'^2507\d{8}$')
-            .hasMatch(digits)) {
+    if (RegExp(r'^2507\d{8}$').hasMatch(digits)) {
       return '0${digits.substring(3)}';
     }
 
@@ -146,25 +120,14 @@ class UssdTransferService {
       return '0$digits';
     }
 
-    throw ArgumentError(
-      'Invalid Rwanda phone number.',
-    );
+    throw ArgumentError('Invalid Rwanda phone number.');
   }
 
-  String _normalizeBankAccount(
-    String value,
-  ) {
-    final digits = value.replaceAll(
-      RegExp(r'\D'),
-      '',
-    );
+  String _normalizeBankAccount(String value) {
+    final digits = value.replaceAll(RegExp(r'\D'), '');
 
-    if (
-        !RegExp(r'^\d{6,34}$')
-            .hasMatch(digits)) {
-      throw ArgumentError(
-        'Invalid bank account number.',
-      );
+    if (!RegExp(r'^\d{6,34}$').hasMatch(digits)) {
+      throw ArgumentError('Invalid bank account number.');
     }
 
     return digits;

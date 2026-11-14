@@ -152,8 +152,7 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isDeleting = true);
 
     try {
-      final updatedUser = await widget.authService
-          .requestCurrentUserDeletion();
+      final updatedUser = await widget.authService.requestCurrentUserDeletion();
 
       if (!mounted) {
         return;

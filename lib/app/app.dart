@@ -11,8 +11,8 @@ import '../features/onboarding/application/onboarding_preferences.dart';
 import '../features/onboarding/data/services/onboarding_storage.dart';
 import '../features/onboarding/presentation/pages/onboarding_page.dart';
 
-class BudgetifyApp extends StatelessWidget {
-  const BudgetifyApp({super.key, this.authService, this.onboardingPreferences});
+class IngengoApp extends StatelessWidget {
+  const IngengoApp({super.key, this.authService, this.onboardingPreferences});
 
   static final AuthServiceContract _defaultAuthService =
       AuthService.createDefault();
@@ -25,10 +25,10 @@ class BudgetifyApp extends StatelessWidget {
   final OnboardingPreferences? onboardingPreferences;
 
   AuthServiceContract get _resolvedAuthService =>
-      authService ?? BudgetifyApp._defaultAuthService;
+      authService ?? IngengoApp._defaultAuthService;
 
   OnboardingPreferences get _resolvedOnboardingPreferences =>
-      onboardingPreferences ?? BudgetifyApp._defaultOnboardingPreferences;
+      onboardingPreferences ?? IngengoApp._defaultOnboardingPreferences;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +36,7 @@ class BudgetifyApp extends StatelessWidget {
 
     return ToastificationWrapper(
       child: MaterialApp(
-        title: 'Budgetify',
+        title: 'Ingengo',
         debugShowCheckedModeBanner: false,
         theme: theme,
         darkTheme: theme,

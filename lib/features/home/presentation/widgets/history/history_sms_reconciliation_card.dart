@@ -100,7 +100,7 @@ class _HistorySmsReconciliationCardState
           context,
           title: 'SMS access not enabled',
           description:
-              'Budgetify cannot automatically reconcile MTN MoMo transactions without SMS access.',
+              'Ingengo cannot automatically reconcile MTN MoMo transactions without SMS access.',
         );
 
         return;
@@ -116,7 +116,7 @@ class _HistorySmsReconciliationCardState
         context,
         title: 'SMS access unavailable',
         description:
-            'Budgetify could not enable automatic MTN transaction synchronization.',
+            'Ingengo could not enable automatic MTN transaction synchronization.',
       );
     } finally {
       if (mounted) {
@@ -187,7 +187,7 @@ class _HistorySmsReconciliationCardState
         context,
         title: 'Could not sync transactions',
         description:
-            'Budgetify could not check recent MTN MoMo transaction messages.',
+            'Ingengo could not check recent MTN MoMo transaction messages.',
       );
 
       return;
@@ -220,7 +220,7 @@ class _HistorySmsReconciliationCardState
         context,
         title: 'Transaction review needed',
         description:
-            '${parts.join(', ')}. Budgetify left uncertain evidence unchanged.',
+            '${parts.join(', ')}. Ingengo left uncertain evidence unchanged.',
       );
 
       return;
@@ -230,7 +230,7 @@ class _HistorySmsReconciliationCardState
       context,
       title: hasChanges ? 'Money history updated' : 'Everything is up to date',
       description: hasChanges
-          ? 'Budgetify synchronized reliable sent and received MTN transaction evidence.'
+          ? 'Ingengo synchronized reliable sent and received MTN transaction evidence.'
           : 'No new reliable transaction evidence was found.',
     );
   }
@@ -292,8 +292,8 @@ class _HistorySmsReconciliationCardState
                 const SizedBox(height: 5),
                 Text(
                   enabled
-                      ? 'Budgetify checks recent MTN MoMo messages for sent and received payments when the app resumes.'
-                      : 'Allow Budgetify to read transaction SMS so sent and received payments can update automatically.',
+                      ? 'Ingengo checks recent MTN MoMo messages for sent and received payments when the app resumes.'
+                      : 'Allow Ingengo to read transaction SMS so sent and received payments can update automatically.',
                   style: const TextStyle(
                     fontSize: 10,
                     height: 1.45,
@@ -303,7 +303,7 @@ class _HistorySmsReconciliationCardState
                 if (!enabled) ...[
                   const SizedBox(height: 4),
                   Text(
-                    'Raw SMS text is never uploaded to the Budgetify API.',
+                    'Raw SMS text is never uploaded to the Ingengo API.',
                     style: TextStyle(
                       fontSize: 9,
                       height: 1.4,

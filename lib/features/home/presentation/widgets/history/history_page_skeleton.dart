@@ -55,9 +55,7 @@ class HistoryPageSkeleton extends StatelessWidget {
                         child: AspectRatio(
                           aspectRatio: 1.8,
                           child: const ClipOval(
-                            child: ColoredBox(
-                              color: AppColors.surfaceElevated,
-                            ),
+                            child: ColoredBox(color: AppColors.surfaceElevated),
                           ),
                         ),
                       ),

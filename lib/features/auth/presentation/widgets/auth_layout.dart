@@ -4,11 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import 'auth_footer_links.dart';
 
 class AuthLayout extends StatelessWidget {
-  const AuthLayout({
-    super.key,
-    required this.child,
-    this.headerTrailing,
-  });
+  const AuthLayout({super.key, required this.child, this.headerTrailing});
 
   final Widget child;
   final Widget? headerTrailing;
@@ -18,8 +14,7 @@ class AuthLayout extends StatelessWidget {
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final screenHeight = MediaQuery.sizeOf(context).height;
     final safePadding = MediaQuery.paddingOf(context);
-    final availableFormHeight =
-        screenHeight - safePadding.vertical - 163;
+    final availableFormHeight = screenHeight - safePadding.vertical - 163;
     final minimumFormHeight = availableFormHeight > 0
         ? availableFormHeight
         : 0.0;
@@ -36,17 +31,13 @@ class AuthLayout extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
                 child: Column(
                   children: [
-                    _AuthHeader(
-                      trailing: headerTrailing,
-                    ),
+                    _AuthHeader(trailing: headerTrailing),
                     const SizedBox(height: 24),
                     Expanded(
                       child: SingleChildScrollView(
                         keyboardDismissBehavior:
                             ScrollViewKeyboardDismissBehavior.onDrag,
-                        padding: EdgeInsets.only(
-                          bottom: keyboardInset,
-                        ),
+                        padding: EdgeInsets.only(bottom: keyboardInset),
                         child: Column(
                           children: [
                             ConstrainedBox(
@@ -56,9 +47,7 @@ class AuthLayout extends StatelessWidget {
                               child: AnimatedPadding(
                                 duration: const Duration(milliseconds: 180),
                                 curve: Curves.easeOutCubic,
-                                padding: EdgeInsets.only(
-                                  bottom: keyboardInset,
-                                ),
+                                padding: EdgeInsets.only(bottom: keyboardInset),
                                 child: Center(
                                   child: ConstrainedBox(
                                     constraints: const BoxConstraints(
@@ -87,9 +76,7 @@ class AuthLayout extends StatelessWidget {
 }
 
 class _AuthHeader extends StatelessWidget {
-  const _AuthHeader({
-    this.trailing,
-  });
+  const _AuthHeader({this.trailing});
 
   final Widget? trailing;
 
@@ -111,13 +98,13 @@ class _AuthHeader extends StatelessWidget {
             width: logoWidth,
             height: logoHeight,
             fit: BoxFit.contain,
-            semanticLabel: 'Budgetify logo',
+            semanticLabel: 'Ingengo logo',
           ),
         ),
         const SizedBox(width: 14),
         Expanded(
           child: Text(
-            'Budgetify',
+            'Ingengo',
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontSize: titleSize,
@@ -125,10 +112,7 @@ class _AuthHeader extends StatelessWidget {
             ),
           ),
         ),
-        if (trailing != null) ...[
-          const SizedBox(width: 16),
-          trailing!,
-        ],
+        if (trailing != null) ...[const SizedBox(width: 16), trailing!],
       ],
     );
   }

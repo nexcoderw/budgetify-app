@@ -10,7 +10,7 @@
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
-		52114907309B92FD002C4A9F /* Budgetify.appex in Embed ExtensionKit Extensions */ = {isa = PBXBuildFile; fileRef = 521148FB309B92FD002C4A9F /* Budgetify.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		52114907309B92FD002C4A9F /* Ingengo.appex in Embed ExtensionKit Extensions */ = {isa = PBXBuildFile; fileRef = 521148FB309B92FD002C4A9F /* Ingengo.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
@@ -33,7 +33,7 @@
 			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 521148FA309B92FD002C4A9F;
-			remoteInfo = Budgetify;
+			remoteInfo = Ingengo;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -44,7 +44,7 @@
 			dstPath = "$(EXTENSIONS_FOLDER_PATH)";
 			dstSubfolderSpec = 16;
 			files = (
-				52114907309B92FD002C4A9F /* Budgetify.appex in Embed ExtensionKit Extensions */,
+				52114907309B92FD002C4A9F /* Ingengo.appex in Embed ExtensionKit Extensions */,
 			);
 			name = "Embed ExtensionKit Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -69,7 +69,7 @@
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		4261093D5676428692264472 /* Pods-RunnerTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug.xcconfig"; sourceTree = "<group>"; };
-		521148FB309B92FD002C4A9F /* Budgetify.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.extensionkit-extension"; includeInIndex = 0; path = Budgetify.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		521148FB309B92FD002C4A9F /* Ingengo.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.extensionkit-extension"; includeInIndex = 0; path = Ingengo.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		702FB906BE6F3A80E34F185F /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -90,26 +90,26 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		52114908309B92FD002C4A9F /* Exceptions for "Budgetify" folder in "Budgetify" target */ = {
+		52114908309B92FD002C4A9F /* Exceptions for "Ingengo" folder in "Ingengo" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
-			target = 521148FA309B92FD002C4A9F /* Budgetify */;
+			target = 521148FA309B92FD002C4A9F /* Ingengo */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		521148FC309B92FD002C4A9F /* Budgetify */ = {
+		521148FC309B92FD002C4A9F /* Ingengo */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				52114908309B92FD002C4A9F /* Exceptions for "Budgetify" folder in "Budgetify" target */,
+				52114908309B92FD002C4A9F /* Exceptions for "Ingengo" folder in "Ingengo" target */,
 			);
 			explicitFileTypes = {
 			};
 			explicitFolders = (
 			);
-			path = Budgetify;
+			path = Ingengo;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -180,7 +180,7 @@
 			children = (
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
-				521148FC309B92FD002C4A9F /* Budgetify */,
+				521148FC309B92FD002C4A9F /* Ingengo */,
 				97C146EF1CF9000F007C117D /* Products */,
 				331C8082294A63A400263BE5 /* RunnerTests */,
 				57865630711B955BADF446EB /* Pods */,
@@ -193,7 +193,7 @@
 			children = (
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
-				521148FB309B92FD002C4A9F /* Budgetify.appex */,
+				521148FB309B92FD002C4A9F /* Ingengo.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -244,9 +244,9 @@
 			productReference = 331C8081294A63A400263BE5 /* RunnerTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		521148FA309B92FD002C4A9F /* Budgetify */ = {
+		521148FA309B92FD002C4A9F /* Ingengo */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 52114909309B92FD002C4A9F /* Build configuration list for PBXNativeTarget "Budgetify" */;
+			buildConfigurationList = 52114909309B92FD002C4A9F /* Build configuration list for PBXNativeTarget "Ingengo" */;
 			buildPhases = (
 				521148F7309B92FD002C4A9F /* Sources */,
 				521148F8309B92FD002C4A9F /* Frameworks */,
@@ -257,11 +257,11 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				521148FC309B92FD002C4A9F /* Budgetify */,
+				521148FC309B92FD002C4A9F /* Ingengo */,
 			);
-			name = Budgetify;
-			productName = Budgetify;
-			productReference = 521148FB309B92FD002C4A9F /* Budgetify.appex */;
+			name = Ingengo;
+			productName = Ingengo;
+			productReference = 521148FB309B92FD002C4A9F /* Ingengo.appex */;
 			productType = "com.apple.product-type.extensionkit-extension";
 		};
 		97C146ED1CF9000F007C117D /* Runner */ = {
@@ -334,7 +334,7 @@
 			targets = (
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
-				521148FA309B92FD002C4A9F /* Budgetify */,
+				521148FA309B92FD002C4A9F /* Ingengo */,
 			);
 		};
 /* End PBXProject section */
@@ -514,7 +514,7 @@
 		};
 		52114906309B92FD002C4A9F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 521148FA309B92FD002C4A9F /* Budgetify */;
+			target = 521148FA309B92FD002C4A9F /* Ingengo */;
 			targetProxy = 52114905309B92FD002C4A9F /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -608,7 +608,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = africa.nexcode.budgetify.nexcode;
+				PRODUCT_BUNDLE_IDENTIFIER = africa.nexcode.ingengo.nexcode;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -625,7 +625,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = africa.nexcode.budgetify.RunnerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = africa.nexcode.ingengo.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -644,7 +644,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = africa.nexcode.budgetify.RunnerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = africa.nexcode.ingengo.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
@@ -660,7 +660,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = africa.nexcode.budgetify.RunnerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = africa.nexcode.ingengo.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
@@ -676,15 +676,15 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CODE_SIGN_ENTITLEMENTS = Budgetify/Budgetify.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Ingengo/Ingengo.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = S8KTNS7VWT;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Budgetify/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Budgetify;
+				INFOPLIST_FILE = Ingengo/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Ingengo;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -696,7 +696,7 @@
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = africa.nexcode.budgetify.nexcode.Budgetify;
+				PRODUCT_BUNDLE_IDENTIFIER = africa.nexcode.ingengo.nexcode.Ingengo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -719,7 +719,7 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CODE_SIGN_ENTITLEMENTS = Budgetify/Budgetify.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Ingengo/Ingengo.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -727,8 +727,8 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Budgetify/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Budgetify;
+				INFOPLIST_FILE = Ingengo/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Ingengo;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -739,7 +739,7 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = africa.nexcode.budgetify.nexcode.Budgetify;
+				PRODUCT_BUNDLE_IDENTIFIER = africa.nexcode.ingengo.nexcode.Ingengo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -761,15 +761,15 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CODE_SIGN_ENTITLEMENTS = Budgetify/Budgetify.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Ingengo/Ingengo.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = S8KTNS7VWT;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Budgetify/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Budgetify;
+				INFOPLIST_FILE = Ingengo/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Ingengo;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -780,7 +780,7 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = africa.nexcode.budgetify.nexcode.Budgetify;
+				PRODUCT_BUNDLE_IDENTIFIER = africa.nexcode.ingengo.nexcode.Ingengo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -922,7 +922,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = africa.nexcode.budgetify.nexcode;
+				PRODUCT_BUNDLE_IDENTIFIER = africa.nexcode.ingengo.nexcode;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -946,7 +946,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = africa.nexcode.budgetify.nexcode;
+				PRODUCT_BUNDLE_IDENTIFIER = africa.nexcode.ingengo.nexcode;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -967,7 +967,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		52114909309B92FD002C4A9F /* Build configuration list for PBXNativeTarget "Budgetify" */ = {
+		52114909309B92FD002C4A9F /* Build configuration list for PBXNativeTarget "Ingengo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				5211490A309B92FD002C4A9F /* Debug */,

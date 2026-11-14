@@ -37,10 +37,7 @@ class AppNavbar extends StatelessWidget {
         const Spacer(),
         if (trailing != null)
           Flexible(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: trailing!,
-            ),
+            child: Align(alignment: Alignment.centerRight, child: trailing!),
           )
         else ...[
           if (showNotificationButton) ...[

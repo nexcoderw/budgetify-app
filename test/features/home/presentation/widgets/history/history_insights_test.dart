@@ -1,6 +1,6 @@
-import 'package:budgetify/features/home/data/models/transaction_history_models.dart';
-import 'package:budgetify/features/home/presentation/widgets/history/history_insights.dart';
-import 'package:budgetify/features/home/presentation/widgets/history/history_transaction_list.dart';
+import 'package:ingengo/features/home/data/models/transaction_history_models.dart';
+import 'package:ingengo/features/home/presentation/widgets/history/history_insights.dart';
+import 'package:ingengo/features/home/presentation/widgets/history/history_transaction_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -39,7 +39,12 @@ void main() {
         HistoryInsights(
           transactions: [
             _transaction(id: 'current', date: now),
-            _transaction(id: 'previous', date: lastMonth, amount: 2000, fee: 40),
+            _transaction(
+              id: 'previous',
+              date: lastMonth,
+              amount: 2000,
+              fee: 40,
+            ),
             _transaction(id: 'pending', date: now, status: 'PENDING'),
             _transaction(id: 'received', date: now, direction: 'RECEIVED'),
             _transaction(id: 'other-currency', date: now, currency: 'USD'),
@@ -63,7 +68,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('does not treat unavailable fees as confirmed zero', (tester) async {
+  testWidgets('does not treat unavailable fees as confirmed zero', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _host(
         HistoryInsights(

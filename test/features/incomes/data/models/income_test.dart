@@ -1,4 +1,4 @@
-import 'package:budgetify/features/incomes/data/models/income.dart';
+import 'package:ingengo/features/incomes/data/models/income.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

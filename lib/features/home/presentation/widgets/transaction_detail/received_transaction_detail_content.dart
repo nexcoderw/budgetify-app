@@ -416,7 +416,7 @@ class _InfoCard extends StatelessWidget {
             label: 'Provider reference',
             value: transaction.providerReference ?? 'Not available',
           ),
-          _InfoRow(label: 'Budgetify reference', value: transaction.reference),
+          _InfoRow(label: 'Ingengo reference', value: transaction.reference),
           _InfoRow(
             label: 'Received',
             value: _formatDateTime(transaction.occurredAt),

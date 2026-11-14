@@ -1,6 +1,6 @@
 # Folder Structure
 
-Budgetify uses a feature-first Flutter structure. Code belongs to the feature that owns the behavior; reusable infrastructure belongs in `core`.
+Ingengo uses a feature-first Flutter structure. Code belongs to the feature that owns the behavior; reusable infrastructure belongs in `core`.
 
 ## Current Structure
 

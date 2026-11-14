@@ -1,6 +1,6 @@
 //
-//  Budgetify.swift
-//  Budgetify
+//  Ingengo.swift
+//  Ingengo
 //
 //  Created by Test on 04/11/2026.
 //
@@ -9,7 +9,7 @@ import DeviceDiscoveryExtension
 import ExtensionFoundation
 
 @main
-class Budgetify: DDDiscoveryExtension {
+class Ingengo: DDDiscoveryExtension {
     
     /// A DeviceLocator that searches for devices via Bluetooth.
     private var bluetoothDeviceLocator: DeviceLocator

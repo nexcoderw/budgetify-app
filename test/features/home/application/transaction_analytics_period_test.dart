@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:budgetify/features/home/application/transaction_analytics_period.dart';
+import 'package:ingengo/features/home/application/transaction_analytics_period.dart';
 
 void main() {
   final now = DateTime(2026, 9, 30, 21, 24, 15);

@@ -43,9 +43,9 @@ class DeleteAccountTab extends StatelessWidget {
           Text(
             isScheduled
                 ? 'Your deletion request is already scheduled. Signing in '
-                    'again during the grace period will cancel it.'
+                      'again during the grace period will cancel it.'
                 : 'Your account will remain recoverable for 30 days. After '
-                    'that grace period, it will be permanently deleted.',
+                      'that grace period, it will be permanently deleted.',
             style: const TextStyle(
               color: AppColors.textSecondary,
               fontSize: 12,
@@ -58,9 +58,7 @@ class DeleteAccountTab extends StatelessWidget {
             child: SizedBox(
               width: 240,
               child: AppButton(
-                label: isScheduled
-                    ? 'Deletion scheduled'
-                    : 'Delete my account',
+                label: isScheduled ? 'Deletion scheduled' : 'Delete my account',
                 icon: HugeIcons.strokeRoundedDelete02,
                 variant: AppButtonVariant.ghost,
                 isLoading: isDeleting,

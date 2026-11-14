@@ -14,7 +14,7 @@ Security requirements apply to Dart code, platform configuration, assets, logs, 
 
 - Store tokens only through `SecureStorageService`; never use plain preferences or source constants for credentials.
 - Clear local session data after logout, unrecoverable refresh failure, or account invalidation.
-- Send bearer tokens only to the configured Budgetify API origin.
+- Send bearer tokens only to the configured Ingengo API origin.
 - Never place access or refresh tokens in URLs, query parameters, analytics events, or error messages.
 - Do not weaken authentication checks to simplify local development.
 

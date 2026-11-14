@@ -166,7 +166,7 @@ class _ReceivedTransactionDetailPageState
         context,
         title: 'Could not update classification',
         description:
-            'Budgetify could not save this classification. Please try again.',
+            'Ingengo could not save this classification. Please try again.',
       );
     } finally {
       if (mounted) {

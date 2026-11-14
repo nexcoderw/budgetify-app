@@ -7,7 +7,8 @@ class AuthSessionStorage {
   AuthSessionStorage({required SecureStorageService secureStorageService})
     : _secureStorageService = secureStorageService;
 
-  static const _storageKey = 'budgetify.auth.session';
+  static const _storageKey = 'ingengo.auth.session';
+  static const _legacyStorageKey = 'budgetify.auth.session';
 
   final SecureStorageService _secureStorageService;
 
@@ -19,7 +20,9 @@ class AuthSessionStorage {
   }
 
   Future<AuthSession?> read() async {
-    final raw = await _secureStorageService.read(_storageKey);
+    final raw =
+        await _secureStorageService.read(_storageKey) ??
+        await _secureStorageService.read(_legacyStorageKey);
 
     if (raw == null || raw.isEmpty) {
       return null;
@@ -30,7 +33,8 @@ class AuthSessionStorage {
     return AuthSession.fromStorageJson(json);
   }
 
-  Future<void> clear() {
-    return _secureStorageService.delete(_storageKey);
+  Future<void> clear() async {
+    await _secureStorageService.delete(_storageKey);
+    await _secureStorageService.delete(_legacyStorageKey);
   }
 }

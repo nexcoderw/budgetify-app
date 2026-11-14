@@ -43,9 +43,7 @@ showManualTransactionConfirmationSheet(
 }
 
 class _ManualTransactionConfirmationSheet extends StatelessWidget {
-  const _ManualTransactionConfirmationSheet({
-    required this.transaction,
-  });
+  const _ManualTransactionConfirmationSheet({required this.transaction});
 
   final PaymentTransaction transaction;
 
@@ -57,9 +55,7 @@ class _ManualTransactionConfirmationSheet extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       decoration: const BoxDecoration(
         color: AppColors.backgroundSecondary,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(28),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: _buildChoiceView(context),
     );
@@ -93,9 +89,7 @@ class _ManualTransactionConfirmationSheet extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 20),
-        _TransactionSummary(
-          transaction: transaction,
-        ),
+        _TransactionSummary(transaction: transaction),
         const SizedBox(height: 20),
 
         // Successful and failed actions share one row.
@@ -108,9 +102,9 @@ class _ManualTransactionConfirmationSheet extends StatelessWidget {
                 icon: HugeIcons.strokeRoundedMoneySendSquare,
                 size: AppButtonSize.md,
                 onPressed: () {
-                  Navigator.of(context).pop(
-                    ManualTransactionConfirmationChoice.successful,
-                  );
+                  Navigator.of(
+                    context,
+                  ).pop(ManualTransactionConfirmationChoice.successful);
                 },
               ),
             ),
@@ -122,9 +116,9 @@ class _ManualTransactionConfirmationSheet extends StatelessWidget {
                 size: AppButtonSize.md,
                 variant: AppButtonVariant.secondary,
                 onPressed: () {
-                  Navigator.of(context).pop(
-                    ManualTransactionConfirmationChoice.failed,
-                  );
+                  Navigator.of(
+                    context,
+                  ).pop(ManualTransactionConfirmationChoice.failed);
                 },
               ),
             ),
@@ -139,21 +133,19 @@ class _ManualTransactionConfirmationSheet extends StatelessWidget {
           size: AppButtonSize.md,
           variant: AppButtonVariant.ghost,
           onPressed: () {
-            Navigator.of(context).pop(
-              ManualTransactionConfirmationChoice.notSure,
-            );
+            Navigator.of(
+              context,
+            ).pop(ManualTransactionConfirmationChoice.notSure);
           },
         ),
         const SizedBox(height: 12),
         Text(
-          'iPhone does not allow Budgetify to automatically read your MTN confirmation SMS. Only choose a final result when you are sure.',
+          'iPhone does not allow Ingengo to automatically read your MTN confirmation SMS. Only choose a final result when you are sure.',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 9,
             height: 1.45,
-            color: AppColors.textSecondary.withValues(
-              alpha: 0.76,
-            ),
+            color: AppColors.textSecondary.withValues(alpha: 0.76),
           ),
         ),
       ],
@@ -180,9 +172,7 @@ class _SheetHandle extends StatelessWidget {
 }
 
 class _TransactionSummary extends StatelessWidget {
-  const _TransactionSummary({
-    required this.transaction,
-  });
+  const _TransactionSummary({required this.transaction});
 
   final PaymentTransaction transaction;
 
@@ -230,9 +220,7 @@ class _TransactionSummary extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 9,
-              color: AppColors.textSecondary.withValues(
-                alpha: 0.74,
-              ),
+              color: AppColors.textSecondary.withValues(alpha: 0.74),
             ),
           ),
         ],

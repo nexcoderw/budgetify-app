@@ -1,4 +1,4 @@
-# Budgetify Flutter Agent Rules
+# Ingengo Flutter Agent Rules
 
 These instructions apply to the entire `app` project.
 

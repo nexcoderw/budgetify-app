@@ -20,12 +20,12 @@ enum _ShortcutPilotProvider {
   mtnMomo(
     label: 'MTN MoMo',
     sourceHint: 'MTN_MOMO',
-    shortcutName: 'Budgetify MTN Import v1',
+    shortcutName: 'Ingengo MTN Import v1',
   ),
   airtelMoney(
     label: 'Airtel Money',
     sourceHint: 'AIRTEL_MONEY',
-    shortcutName: 'Budgetify Airtel Import v1',
+    shortcutName: 'Ingengo Airtel Import v1',
   );
 
   const _ShortcutPilotProvider({
@@ -500,8 +500,10 @@ class _IphoneShortcutSetupPageState extends State<IphoneShortcutSetupPage> {
                                   _CredentialList(
                                     credentials: _credentials,
                                     disabled: _working,
-                                    onRotate: (item) => unawaited(_rotate(item)),
-                                    onRevoke: (item) => unawaited(_revoke(item)),
+                                    onRotate: (item) =>
+                                        unawaited(_rotate(item)),
+                                    onRevoke: (item) =>
+                                        unawaited(_revoke(item)),
                                   ),
                                 ],
                               ),
@@ -641,7 +643,7 @@ class _ShortcutReleaseCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '1. Add Budgetify Shortcut v$version',
+                '1. Add Ingengo Shortcut v$version',
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
@@ -731,7 +733,7 @@ class _CredentialStep extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'Keep this page open while you switch to Shortcuts. Copy the key and address into your Budgetify Shortcut. The key is shown only during this setup; keep it private.',
+          'Keep this page open while you switch to Shortcuts. Copy the key and address into your Ingengo Shortcut. The key is shown only during this setup; keep it private.',
           style: TextStyle(
             color: AppColors.textSecondary,
             fontSize: 13,
@@ -845,9 +847,7 @@ class _CopyValueState extends State<_CopyValue> {
 }
 
 class _AutomationInstructions extends StatelessWidget {
-  const _AutomationInstructions({
-    required this.provider,
-  });
+  const _AutomationInstructions({required this.provider});
 
   final _ShortcutPilotProvider provider;
 
@@ -873,10 +873,10 @@ class _AutomationInstructions extends StatelessWidget {
         _Instruction(
           title: 'Choose only your ${provider.label} sender',
           detail:
-              'Use the sender shown on a genuine payment SMS in Messages. Do not select all senders, so personal messages stay out of Budgetify.',
+              'Use the sender shown on a genuine payment SMS in Messages. Do not select all senders, so personal messages stay out of Ingengo.',
         ),
         _Instruction(
-          title: 'Run your Budgetify Shortcut',
+          title: 'Run your Ingengo Shortcut',
           detail:
               'Choose ${provider.shortcutName} and pass the received Message as its input. Choose the option to run automatically without asking each time, if available.',
           isLast: true,

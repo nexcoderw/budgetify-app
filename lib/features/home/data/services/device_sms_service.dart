@@ -6,7 +6,7 @@ import '../models/provider_sms_message.dart';
 class DeviceSmsService {
   const DeviceSmsService();
 
-  static const MethodChannel _channel = MethodChannel('budgetify/sms');
+  static const MethodChannel _channel = MethodChannel('ingengo/sms');
 
   bool get isSupported {
     return !kIsWeb && defaultTargetPlatform == TargetPlatform.android;

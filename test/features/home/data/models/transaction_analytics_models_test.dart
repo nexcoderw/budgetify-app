@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:budgetify/features/home/data/models/received_transaction_models.dart';
-import 'package:budgetify/features/home/data/models/transaction_analytics_models.dart';
-import 'package:budgetify/features/home/data/models/transaction_models.dart';
+import 'package:ingengo/features/home/data/models/received_transaction_models.dart';
+import 'package:ingengo/features/home/data/models/transaction_analytics_models.dart';
+import 'package:ingengo/features/home/data/models/transaction_models.dart';
 
 void main() {
   test('parses combined sent and received transaction analytics response', () {

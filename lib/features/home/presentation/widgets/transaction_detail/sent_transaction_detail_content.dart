@@ -233,7 +233,7 @@ class _IosManualRecoveryCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       needsConfirmation
-                          ? 'Budgetify cannot automatically inspect MTN transaction SMS on iPhone. Confirm the result when you know whether the payment succeeded or failed.'
+                          ? 'Ingengo cannot automatically inspect MTN transaction SMS on iPhone. Confirm the result when you know whether the payment succeeded or failed.'
                           : 'After completing the MTN payment, you can record the result here.',
                       style: const TextStyle(
                         fontSize: 10,
@@ -326,8 +326,8 @@ class _TransactionRecoveryCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       needsConfirmation
-                          ? 'Budgetify has not found matching MTN SMS evidence yet. This does not mean the payment failed.'
-                          : 'Budgetify will keep this transaction open until matching MTN SMS evidence is found.',
+                          ? 'Ingengo has not found matching MTN SMS evidence yet. This does not mean the payment failed.'
+                          : 'Ingengo will keep this transaction open until matching MTN SMS evidence is found.',
                       style: const TextStyle(
                         fontSize: 10,
                         height: 1.45,
@@ -660,7 +660,7 @@ class _TimelineItem extends StatelessWidget {
         : event.type.label;
 
     final sourceLabel = isManualConfirmation
-        ? 'Reported in Budgetify'
+        ? 'Reported in Ingengo'
         : event.source.label;
 
     return Row(

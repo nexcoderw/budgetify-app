@@ -112,13 +112,23 @@ class DashboardSkeleton extends StatelessWidget {
             const SizedBox(height: 18),
             LayoutBuilder(
               builder: (context, constraints) {
-                const card = _DashboardSkeletonBlock(width: double.infinity, height: 126, radius: 22);
+                const card = _DashboardSkeletonBlock(
+                  width: double.infinity,
+                  height: 126,
+                  radius: 22,
+                );
                 if (constraints.maxWidth < 300 ||
                     MediaQuery.textScalerOf(context).scale(12) > 18) {
-                  return const Column(children: [card, SizedBox(height: 12), card]);
+                  return const Column(
+                    children: [card, SizedBox(height: 12), card],
+                  );
                 }
                 return const Row(
-                  children: [Expanded(child: card), SizedBox(width: 12), Expanded(child: card)],
+                  children: [
+                    Expanded(child: card),
+                    SizedBox(width: 12),
+                    Expanded(child: card),
+                  ],
                 );
               },
             ),
@@ -130,14 +140,28 @@ class DashboardSkeleton extends StatelessWidget {
             const SizedBox(height: 16),
             LayoutBuilder(
               builder: (context, constraints) {
-                const categories = _DashboardSkeletonBlock(width: double.infinity, height: 230, radius: 22);
-                const methods = _DashboardSkeletonBlock(width: double.infinity, height: 310, radius: 22);
+                const categories = _DashboardSkeletonBlock(
+                  width: double.infinity,
+                  height: 230,
+                  radius: 22,
+                );
+                const methods = _DashboardSkeletonBlock(
+                  width: double.infinity,
+                  height: 310,
+                  radius: 22,
+                );
                 if (constraints.maxWidth < 720) {
-                  return const Column(children: [categories, SizedBox(height: 16), methods]);
+                  return const Column(
+                    children: [categories, SizedBox(height: 16), methods],
+                  );
                 }
                 return const Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [Expanded(child: categories), SizedBox(width: 16), Expanded(child: methods)],
+                  children: [
+                    Expanded(child: categories),
+                    SizedBox(width: 16),
+                    Expanded(child: methods),
+                  ],
                 );
               },
             ),

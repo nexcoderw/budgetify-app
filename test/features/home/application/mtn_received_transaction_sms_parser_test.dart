@@ -1,5 +1,5 @@
-import 'package:budgetify/features/home/application/mtn_received_transaction_sms_parser.dart';
-import 'package:budgetify/features/home/data/models/provider_sms_message.dart';
+import 'package:ingengo/features/home/application/mtn_received_transaction_sms_parser.dart';
+import 'package:ingengo/features/home/data/models/provider_sms_message.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

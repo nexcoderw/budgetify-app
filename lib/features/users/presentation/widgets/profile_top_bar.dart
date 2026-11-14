@@ -42,10 +42,7 @@ class ProfileTopBar extends StatelessWidget {
               SizedBox(height: 4),
               Text(
                 'Manage your personal details',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
               ),
             ],
           ),
@@ -87,12 +84,7 @@ class _TopBarAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final actionIcon = materialIcon != null
         ? Icon(materialIcon, size: 21, color: color)
-        : HugeIcon(
-            icon: icon,
-            size: 20,
-            color: color,
-            strokeWidth: 1.9,
-          );
+        : HugeIcon(icon: icon, size: 20, color: color, strokeWidth: 1.9);
 
     return Semantics(
       button: true,

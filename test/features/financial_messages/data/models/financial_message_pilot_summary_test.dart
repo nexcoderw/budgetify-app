@@ -1,4 +1,4 @@
-import 'package:budgetify/features/financial_messages/data/models/financial_message_pilot_summary.dart';
+import 'package:ingengo/features/financial_messages/data/models/financial_message_pilot_summary.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

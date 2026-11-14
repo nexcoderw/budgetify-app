@@ -16,7 +16,7 @@ enum DeviceContactsPermission {
 class DeviceContactsService {
   const DeviceContactsService();
 
-  static const _iosContactsChannel = MethodChannel('budgetify/contacts');
+  static const _iosContactsChannel = MethodChannel('ingengo/contacts');
 
   bool get isSupported {
     if (kIsWeb) {
@@ -113,13 +113,11 @@ class DeviceContactsService {
     for (var contactIndex = 0; contactIndex < contacts.length; contactIndex++) {
       final contact = contacts[contactIndex];
       final displayName = contact.displayName?.trim() ?? '';
-      final structuredName = [
-        contact.name?.first,
-        contact.name?.middle,
-        contact.name?.last,
-      ].map((part) => part?.trim() ?? '').where((part) => part.isNotEmpty).join(
-        ' ',
-      );
+      final structuredName =
+          [contact.name?.first, contact.name?.middle, contact.name?.last]
+              .map((part) => part?.trim() ?? '')
+              .where((part) => part.isNotEmpty)
+              .join(' ');
       final nickname = contact.name?.nickname?.trim() ?? '';
       final resolvedName = displayName.isNotEmpty
           ? displayName
@@ -155,9 +153,8 @@ class DeviceContactsService {
     }
 
     results.sort(
-      (left, right) => left.name.toLowerCase().compareTo(
-        right.name.toLowerCase(),
-      ),
+      (left, right) =>
+          left.name.toLowerCase().compareTo(right.name.toLowerCase()),
     );
 
     return results;
@@ -165,14 +162,13 @@ class DeviceContactsService {
 
   DeviceContactsPermission _permissionFromStatus(PermissionStatus status) {
     return switch (status) {
-      PermissionStatus.granted || PermissionStatus.limited =>
-        DeviceContactsPermission.granted,
+      PermissionStatus.granted ||
+      PermissionStatus.limited => DeviceContactsPermission.granted,
       PermissionStatus.denied => DeviceContactsPermission.denied,
       PermissionStatus.permanentlyDenied =>
         DeviceContactsPermission.permanentlyDenied,
       PermissionStatus.restricted => DeviceContactsPermission.restricted,
-      PermissionStatus.notDetermined =>
-        DeviceContactsPermission.notDetermined,
+      PermissionStatus.notDetermined => DeviceContactsPermission.notDetermined,
     };
   }
 }

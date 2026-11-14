@@ -118,7 +118,8 @@ class HistoryFilterControls extends StatelessWidget {
         AppDropdown<Object>(
           tooltip: 'Filter transactions',
           icon: Icons.tune_rounded,
-          isActive: direction != HistoryDirectionFilter.all ||
+          isActive:
+              direction != HistoryDirectionFilter.all ||
               status != HistoryStatusFilter.all ||
               method != HistoryMethodFilter.all,
           onSelected: (value) {

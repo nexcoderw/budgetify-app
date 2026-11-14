@@ -175,10 +175,10 @@ class _EmptyHistory extends StatelessWidget {
   Widget build(BuildContext context) {
     final description = switch (direction) {
       TransactionHistoryDirection.sent =>
-        'Payments you send will appear here once Budgetify records them.',
+        'Payments you send will appear here once Ingengo records them.',
 
       TransactionHistoryDirection.received =>
-        'Payments you receive will appear here after Budgetify detects or records them.',
+        'Payments you receive will appear here after Ingengo detects or records them.',
 
       null =>
         'Money you send and receive will appear here once transactions are recorded.',

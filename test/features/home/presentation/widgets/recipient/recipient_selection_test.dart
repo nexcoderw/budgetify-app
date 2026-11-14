@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:budgetify/features/home/data/models/device_contact.dart';
-import 'package:budgetify/features/home/data/models/transaction_models.dart';
-import 'package:budgetify/features/home/presentation/widgets/recipient/recipient_selection.dart';
+import 'package:ingengo/features/home/data/models/device_contact.dart';
+import 'package:ingengo/features/home/data/models/transaction_models.dart';
+import 'package:ingengo/features/home/presentation/widgets/recipient/recipient_selection.dart';
 
 void main() {
   group('comparableRecipientPhone', () {

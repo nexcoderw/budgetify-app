@@ -1,10 +1,10 @@
-# Budgetify App
+# Ingengo App
 
-Budgetify App is the mobile-first Flutter client for the Budgetify platform.
+Ingengo App is the mobile-first Flutter client for the Ingengo platform.
 
 ## What This Project Is
 
-- A Flutter application connected to the Budgetify API
+- A Flutter application connected to the Ingengo API
 - Built for cross-platform delivery
 - Focused on secure authentication and money transfers
 
@@ -15,7 +15,7 @@ Budgetify App is the mobile-first Flutter client for the Budgetify platform.
 - Transfer History
 
 The app uses the same backend domain model as the web client and is intended to
-stay consistent with the Budgetify design system.
+stay consistent with the Ingengo design system.
 
 ## Stack
 
@@ -98,7 +98,7 @@ in:
 - The app resolves API URLs through `AppEnv`.
 - Native and web targets can use different API base URLs.
 - Authentication depends on properly configured Google client IDs.
-- The app shares the Budgetify backend contract with the `api` project.
+- The app shares the Ingengo backend contract with the `api` project.
 
 ## Related Projects
 

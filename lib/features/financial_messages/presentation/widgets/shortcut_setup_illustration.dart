@@ -19,17 +19,17 @@ class ShortcutSetupIllustration extends StatelessWidget {
       0 => (
         'Apple Shortcuts',
         Icons.bolt_rounded,
-        ['Budgetify payment import', 'Add Shortcut'],
+        ['Ingengo payment import', 'Add Shortcut'],
       ),
       1 => (
-        'Connect to Budgetify',
+        'Connect to Ingengo',
         Icons.lock_outline_rounded,
-        ['Private key: ••••••••', 'Import address: paste from Budgetify'],
+        ['Private key: ••••••••', 'Import address: paste from Ingengo'],
       ),
       2 => (
         'When a message arrives',
         Icons.sms_outlined,
-        ['From: your $provider sender', 'Run: Budgetify payment import'],
+        ['From: your $provider sender', 'Run: Ingengo payment import'],
       ),
       _ => (
         'Payment messages',
@@ -125,10 +125,7 @@ class ShortcutSetupIllustration extends StatelessWidget {
               const Text(
                 'Your iPhone may look a little different.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
               ),
             ],
           ),

@@ -13,7 +13,7 @@ Populate the local file with values appropriate for the target device.
 ## Supported Variables
 
 ```dotenv
-APP_NAME=Budgetify
+APP_NAME=Ingengo
 API_BASE_URL=http://127.0.0.1:8000/api/v1
 API_BASE_URL_MOBILE=http://192.168.1.42:8000/api/v1
 API_BASE_URL_WEB=http://127.0.0.1:8000/api/v1

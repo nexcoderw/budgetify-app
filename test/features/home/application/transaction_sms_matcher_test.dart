@@ -1,6 +1,6 @@
-import 'package:budgetify/features/home/application/mtn_transaction_sms_parser.dart';
-import 'package:budgetify/features/home/application/transaction_sms_matcher.dart';
-import 'package:budgetify/features/home/data/models/transaction_models.dart';
+import 'package:ingengo/features/home/application/mtn_transaction_sms_parser.dart';
+import 'package:ingengo/features/home/application/transaction_sms_matcher.dart';
+import 'package:ingengo/features/home/data/models/transaction_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

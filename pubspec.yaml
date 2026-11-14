@@ -1,8 +1,8 @@
-name: budgetify
+name: ingengo
 description: "Budget management app to help users track their expenses and manage their finances effectively."
 publish_to: 'none'
 
-version: 2.7.0
+version: 2.9.0
 
 environment:
   sdk: ^3.10.4

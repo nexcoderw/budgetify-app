@@ -26,7 +26,7 @@ import UIKit
 
   private func registerUssdChannel(messenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(
-      name: "budgetify/ussd",
+      name: "ingengo/ussd",
       binaryMessenger: messenger
     )
 
@@ -126,7 +126,7 @@ import UIKit
 
   private func registerContactsChannel(messenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(
-      name: "budgetify/contacts",
+      name: "ingengo/contacts",
       binaryMessenger: messenger
     )
 

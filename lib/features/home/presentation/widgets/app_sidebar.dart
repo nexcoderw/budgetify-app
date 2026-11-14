@@ -57,7 +57,7 @@ class AppSidebar extends StatelessWidget {
                   const SizedBox(width: 10),
                   const Expanded(
                     child: Text(
-                      'Budgetify',
+                      'Ingengo',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,

@@ -361,7 +361,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage>
         context,
         title: 'USSD unavailable on this device',
         description:
-            'Use Budgetify on an Android phone or iPhone to open the MTN transfer prompt.',
+            'Use Ingengo on an Android phone or iPhone to open the MTN transfer prompt.',
       );
 
       return;
@@ -397,7 +397,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage>
           context,
           title: 'Phone access required',
           description:
-              'Allow phone access so Budgetify can open the MTN transfer prompt.',
+              'Allow phone access so Ingengo can open the MTN transfer prompt.',
         );
 
         return;
@@ -454,7 +454,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage>
           context,
           title: '${transferType.label} opened',
           description:
-              'The MTN prompt opened, but Budgetify could not sync the transaction status: ${error.message}',
+              'The MTN prompt opened, but Ingengo could not sync the transaction status: ${error.message}',
         );
 
         return;
@@ -467,7 +467,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage>
           context,
           title: '${transferType.label} opened',
           description:
-              'The MTN prompt opened, but Budgetify could not update the transaction status.',
+              'The MTN prompt opened, but Ingengo could not update the transaction status.',
         );
 
         return;
@@ -481,8 +481,8 @@ class _SelectRecipientPageState extends State<SelectRecipientPage>
         context,
         title: '${transferType.label} opened',
         description: supportsIosManualTransactionConfirmation
-            ? 'Complete the transfer in MTN MoMo. Budgetify will ask you to confirm the result when you return.'
-            : 'Complete the transfer in MTN MoMo. Budgetify is waiting for confirmation.',
+            ? 'Complete the transfer in MTN MoMo. Ingengo will ask you to confirm the result when you return.'
+            : 'Complete the transfer in MTN MoMo. Ingengo is waiting for confirmation.',
       );
     } on ApiException catch (error) {
       if (!mounted) {
@@ -660,7 +660,7 @@ class _SelectRecipientPageState extends State<SelectRecipientPage>
           context,
           title: 'Could not record result',
           description:
-              'Budgetify could not save your manual confirmation. You can try again from transaction details.',
+              'Ingengo could not save your manual confirmation. You can try again from transaction details.',
         );
       } finally {
         if (mounted) {

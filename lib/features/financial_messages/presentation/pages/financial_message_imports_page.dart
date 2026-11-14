@@ -263,10 +263,7 @@ class _TopBar extends StatelessWidget {
       children: [
         AppBackButton(onBack: onBack),
         const Spacer(),
-        TextButton(
-          onPressed: onSetup,
-          child: const Text('iPhone setup'),
-        ),
+        TextButton(onPressed: onSetup, child: const Text('iPhone setup')),
         IconButton(
           tooltip: 'Refresh messages',
           onPressed: onRefresh,
@@ -642,9 +639,10 @@ IconData _sourceIcon(FinancialMessageImport item) {
   return Icons.mark_email_unread_outlined;
 }
 
-String _inboxStatusLabel(FinancialMessageImportStatus status) => switch (status) {
-  FinancialMessageImportStatus.pending => 'To review',
-  FinancialMessageImportStatus.confirmed => 'Added',
-  FinancialMessageImportStatus.dismissed => 'Dismissed',
-  FinancialMessageImportStatus.expired => 'Expired',
-};
+String _inboxStatusLabel(FinancialMessageImportStatus status) =>
+    switch (status) {
+      FinancialMessageImportStatus.pending => 'To review',
+      FinancialMessageImportStatus.confirmed => 'Added',
+      FinancialMessageImportStatus.dismissed => 'Dismissed',
+      FinancialMessageImportStatus.expired => 'Expired',
+    };
